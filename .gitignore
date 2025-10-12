@@ -38,6 +38,8 @@ Thumbs.db
 OnlineMSBackEnd/.mvn/
 #.settings目录
 OnlineMSBackEnd/.settings/
+# docs目录
+OnlineMSBackEnd/docs/
 # mvnm文件
 OnlineMSBackEnd/.mvnw
 OnlineMSBackEnd/.mvnw.cmd
