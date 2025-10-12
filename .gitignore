@@ -27,7 +27,7 @@ Thumbs.db
 /design-doc/
 # 排除文档文件夹
 /docs/
-OnlineMSBackEnd/src/main/java/doc/
+/doc/
 
 # 排除所有markdown文件
 **/*.md

@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: online-ai-tool-ppt
+
+  security:
+    jwt:
+      key: 'q1w2e3r0r9t7y.k8z0o2p3z4m5d6f7k5g7c'
+      expire: 24
+      limit:
+        base: 60
+        upgrade: 120
+        frequency: 3
+
+  ai:
+    dashscope:
+      api-key: sk-f91acc5b3d254753bfe3e1833d4c2214
+      chat:
+        options:
+          model: qwen3-8b
+          # 默认的temperature，我们会在代码中根据需要动态调整
+          temperature: 0.1
+  data:
+    redis:
+      host: 101.126.19.83
+      port: 6380
+      password: another_strong_password_DaoXuanAdmin_redis2
+    mongodb:
+      host: 101.126.19.83
+      port: 27018
+      database: online_educate
+      username: your_mongo2_user
+      password: your_super_strong_password_for_mongo2
+      authentication-database: admin
+
+server:
+  port: 8089
