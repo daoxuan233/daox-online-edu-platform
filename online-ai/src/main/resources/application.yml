@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: online-ai
+  security:
+    jwt:
+      key: 'q1w2e3r0r9t7y.k8z0o2p3z4m5d6f7k5g7c'
+      expire: 24
+      limit:
+        base: 60
+        upgrade: 120
+        frequency: 3
+
+  ai:
+    openai:
+      api-key: sk-b54de805d4f643249373a194e3df8d86
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+    dashscope:
+      api-key: sk-f91acc5b3d254753bfe3e1833d4c2214
+      chat:
+        options:
+          model: qwen-plus
+          temperature: 0.9
+    deepseek:
+      api-key: sk-b54de805d4f643249373a194e3df8d86
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+
+  data:
+    redis:
+      host: 101.126.19.83
+      port: 6380
+      password: another_strong_password_DaoXuanAdmin_redis2
+    mongodb:
+      host: 101.126.19.83
+      port: 27018
+      database: online_educate
+      username: your_mongo2_user
+      password: your_super_strong_password_for_mongo2
+      authentication-database: admin
+
+server:
+  port: 8088

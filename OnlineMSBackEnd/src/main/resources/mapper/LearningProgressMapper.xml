@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.LearningProgressMapper">
+
+    <!-- 获取指定用户的总学习时长（秒） -->
+    <select id="getTotalLearningTimeByUserId" parameterType="string" resultType="int">
+        SELECT COALESCE(SUM(progress_seconds), 0) as total_seconds
+        FROM learning_progress
+        WHERE user_id = #{userId}
+          AND status IN ('in_progress', 'completed')
+    </select>
+
+    <select id="getTotalSections" parameterType="string" resultType="java.lang.Integer">
+        SELECT COUNT(s.id) as totalSections
+        FROM user_courses uc
+                 JOIN courses c ON uc.course_id = c.id
+                 JOIN chapters ch ON c.id = ch.course_id
+                 JOIN sections s ON ch.id = s.chapter_id
+        WHERE uc.user_id = #{userId} AND c.is_deleted = 0
+    </select>
+
+    <select id="getCompletedSections" parameterType="string" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT lp.section_id) as completedSections
+        FROM user_courses uc
+                 JOIN courses c ON uc.course_id = c.id
+                 JOIN chapters ch ON c.id = ch.course_id
+                 JOIN sections s ON ch.id = s.chapter_id
+                 JOIN learning_progress lp ON s.id = lp.section_id AND lp.user_id = #{userId}
+        WHERE uc.user_id = #{userId} AND c.is_deleted = 0 AND lp.status = 'completed'
+    </select>
+
+    <!-- 获取用户特定课程的学习状态 -->
+    <select id="getCourseStatusByUserIdAndCourseId" resultType="string">
+        WITH course_sections AS (
+            SELECT s.id AS section_id
+            FROM sections s
+                     JOIN chapters ch ON s.chapter_id = ch.id
+            WHERE ch.course_id = #{courseId}
+        ),
+             user_progress AS (
+                 SELECT lp.section_id, lp.status
+                 FROM learning_progress lp
+                          JOIN course_sections cs ON lp.section_id = cs.section_id
+                 WHERE lp.user_id = #{userId}
+             )
+        SELECT
+            CASE
+                WHEN (SELECT COUNT(*) FROM user_progress) = 0 THEN 'not_started'
+                WHEN (SELECT COUNT(*) FROM user_progress) = (SELECT COUNT(*) FROM course_sections)
+                    AND NOT EXISTS (SELECT 1 FROM user_progress WHERE status != 'completed')
+                    THEN 'completed'
+                ELSE 'in_progress'
+                END AS course_status
+        FROM courses c
+        WHERE c.id = #{courseId}
+    </select>
+
+    <select id="countBySectionIds" resultType="long">
+        SELECT COUNT(*) FROM learning_progress
+        WHERE section_id IN
+        <foreach collection="sectionIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

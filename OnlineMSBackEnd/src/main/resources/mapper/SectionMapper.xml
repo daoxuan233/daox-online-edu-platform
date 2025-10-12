@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.SectionMapper">
+
+    <!-- 批量插入小节 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO sections (id, chapter_id, title, video_url, duration_seconds, order_index)
+        VALUES
+        <foreach collection="list" item="section" separator=",">
+            (#{section.id}, #{section.chapterId}, #{section.title}, #{section.videoUrl}, #{section.durationSeconds}, #{section.orderIndex})
+        </foreach>
+    </insert>
+
+    <!-- 根据课程ID删除所有小节 -->
+    <!-- 关键SQL：由于小节没有直接关联course_id，需要通过章节表进行子查询 -->
+    <delete id="deleteByCourseId">
+        DELETE FROM sections
+        WHERE chapter_id IN (SELECT id FROM chapters WHERE course_id = #{courseId})
+    </delete>
+
+    <!-- 根据课程ID查询所有小节 -->
+    <select id="findByCourseId" resultType="com.daox.online.entity.mysql.Sections">
+        SELECT s.id,
+               s.chapter_id,
+               s.title,
+               s.video_url,
+               s.duration_seconds,
+               s.order_index
+        FROM sections s
+                 INNER JOIN
+             chapters c ON s.chapter_id = c.id
+        WHERE c.course_id = #{courseId}
+        ORDER BY s.order_index
+    </select>
+
+    <!-- 【新增】批量更新小节 -->
+    <update id="updateBatch" parameterType="java.util.List">
+        UPDATE sections
+        <trim prefix="SET" suffixOverrides=",">
+            <trim prefix="title = CASE" suffix="END,">
+                <foreach collection="list" item="item" index="index">
+                    <if test="item.title != null">
+                        WHEN id = #{item.id} THEN #{item.title}
+                    </if>
+                </foreach>
+            </trim>
+            <trim prefix="order_index = CASE" suffix="END,">
+                <foreach collection="list" item="item" index="index">
+                    <if test="item.orderIndex != null">
+                        WHEN id = #{item.id} THEN #{item.orderIndex}
+                    </if>
+                </foreach>
+            </trim>
+            <!-- 其他需要更新的字段也可以按此格式添加 -->
+        </trim>
+        WHERE id IN
+        <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+            #{item.id}
+        </foreach>
+    </update>
+
+    <!-- 【新增】根据ID列表批量删除小节 -->
+    <delete id="deleteBatchByIds">
+        DELETE FROM sections
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

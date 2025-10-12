@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.CourseMapper">
+    <!-- 1. ResultMap: 数据库列名到Java实体属性的映射 -->
+    <resultMap id="BaseResultMap" type="com.daox.online.entity.mysql.Courses">
+        <id column="id" property="id" jdbcType="VARCHAR" />
+        <result column="title" property="title" jdbcType="VARCHAR" />
+        <result column="description" property="description" jdbcType="LONGVARCHAR" />
+        <result column="cover_image_url" property="coverImageUrl" jdbcType="VARCHAR" />
+        <result column="teacher_id" property="teacherId" jdbcType="VARCHAR" />
+        <result column="category_id" property="categoryId" jdbcType="VARCHAR" />
+        <result column="status" property="status" jdbcType="VARCHAR" />
+        <result column="enrollment_count" property="enrollmentCount" jdbcType="INTEGER" />
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP" />
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP" />
+        <result column="is_deleted" property="isDeleted" jdbcType="TINYINT" />
+        <result column="is_private" property="isPrivate" jdbcType="TINYINT" />
+    </resultMap>
+
+    <!-- 3. 查询操作 -->
+
+    <!-- 根据主键ID查询课程 -->
+    <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT id, title, description, cover_image_url, teacher_id, category_id, status,
+        enrollment_count, created_at, updated_at, is_deleted, is_private
+        FROM courses
+        WHERE id = #{id,jdbcType=VARCHAR} AND is_deleted = 0
+    </select>
+
+    <!-- 检查课程是否存在 -->
+    <select id="countById" parameterType="java.lang.String" resultType="int">
+        SELECT count(1)
+        FROM courses
+        WHERE id = #{id,jdbcType=VARCHAR} AND is_deleted = 0
+    </select>
+
+    <!-- 4. 插入操作 -->
+
+    <!-- 插入一条完整的课程记录 (所有字段) -->
+    <insert id="insert" parameterType="com.daox.online.entity.mysql.Courses">
+        INSERT INTO courses (id, title, description,
+                             cover_image_url, teacher_id, category_id,
+                             status, enrollment_count, created_at,
+                             updated_at, is_deleted, is_private)
+        VALUES (#{id,jdbcType=VARCHAR}, #{title,jdbcType=VARCHAR}, #{description,jdbcType=LONGVARCHAR},
+                #{coverImageUrl,jdbcType=VARCHAR}, #{teacherId,jdbcType=VARCHAR}, #{categoryId,jdbcType=VARCHAR},
+                #{status,jdbcType=VARCHAR}, #{enrollmentCount,jdbcType=INTEGER}, NOW(),
+                NOW(), 0, #{isPrivate,jdbcType=TINYINT})
+    </insert>
+
+    <!-- 选择性插入: 只插入非空字段 -->
+    <insert id="insertSelective" parameterType="com.daox.online.entity.mysql.Courses">
+        INSERT INTO courses
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="title != null">title,</if>
+            <if test="description != null">description,</if>
+            <if test="coverImageUrl != null">cover_image_url,</if>
+            <if test="teacherId != null">teacher_id,</if>
+            <if test="categoryId != null">category_id,</if>
+            <if test="status != null">status,</if>
+            <if test="enrollmentCount != null">enrollment_count,</if>
+            created_at,
+            updated_at,
+            is_deleted,
+            <if test="isPrivate != null">is_private,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id,jdbcType=VARCHAR},</if>
+            <if test="title != null">#{title,jdbcType=VARCHAR},</if>
+            <if test="description != null">#{description,jdbcType=LONGVARCHAR},</if>
+            <if test="coverImageUrl != null">#{coverImageUrl,jdbcType=VARCHAR},</if>
+            <if test="teacherId != null">#{teacherId,jdbcType=VARCHAR},</if>
+            <if test="categoryId != null">#{categoryId,jdbcType=VARCHAR},</if>
+            <if test="status != null">#{status,jdbcType=VARCHAR},</if>
+            <if test="enrollmentCount != null">#{enrollmentCount,jdbcType=INTEGER},</if>
+            NOW(),
+            NOW(),
+            0,
+            <if test="isPrivate != null">#{isPrivate,jdbcType=TINYINT},</if>
+        </trim>
+    </insert>
+
+    <!-- 5. 更新操作 -->
+
+    <!-- 根据主键选择性更新: 只更新非空字段 -->
+    <update id="updateByPrimaryKeySelective" parameterType="com.daox.online.entity.mysql.Courses">
+        UPDATE courses
+        <set>
+            <if test="title != null">title = #{title,jdbcType=VARCHAR},</if>
+            <if test="description != null">description = #{description,jdbcType=LONGVARCHAR},</if>
+            <if test="coverImageUrl != null">cover_image_url = #{coverImageUrl,jdbcType=VARCHAR},</if>
+            <if test="teacherId != null">teacher_id = #{teacherId,jdbcType=VARCHAR},</if>
+            <if test="categoryId != null">category_id = #{categoryId,jdbcType=VARCHAR},</if>
+            <if test="status != null">status = #{status,jdbcType=VARCHAR},</if>
+            <if test="enrollmentCount != null">enrollment_count = #{enrollmentCount,jdbcType=INTEGER},</if>
+            <if test="isPrivate != null">is_private = #{isPrivate,jdbcType=TINYINT},</if>
+            <!-- updated_at 会由数据库自动更新, 但在这里显式设置是好习惯 -->
+            updated_at = NOW(),
+        </set>
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </update>
+
+    <!-- 根据主键更新所有字段 (不推荐，但有时需要) -->
+    <update id="updateByPrimaryKey" parameterType="com.daox.online.entity.mysql.Courses">
+        UPDATE courses
+        SET title = #{title,jdbcType=VARCHAR},
+            description = #{description,jdbcType=LONGVARCHAR},
+            cover_image_url = #{coverImageUrl,jdbcType=VARCHAR},
+            teacher_id = #{teacherId,jdbcType=VARCHAR},
+            category_id = #{categoryId,jdbcType=VARCHAR},
+            status = #{status,jdbcType=VARCHAR},
+            enrollment_count = #{enrollmentCount,jdbcType=INTEGER},
+            updated_at = NOW(),
+            is_private = #{isPrivate,jdbcType=TINYINT}
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </update>
+
+    <!-- 6. 删除操作 -->
+
+    <!-- 逻辑删除: 将 is_deleted 标记为 1 -->
+    <update id="deleteByPrimaryKey" parameterType="java.lang.String">
+        UPDATE courses
+        SET is_deleted = 1,
+            updated_at = NOW()
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </update>
+
+
+    <select id="findByIdIn" resultType="com.daox.online.entity.mysql.Courses">
+        SELECT id, title
+        FROM courses
+        <where>
+            <choose>
+                <!-- 当 id 列表不为空时 -->
+                <when test="ids != null and ids.size() > 0">
+                    id IN
+                    <!--
+                      collection: 指定要遍历的集合。因为您在方法参数中使用了 @Param("ids")，所以这里是 "ids"。
+                      item: 遍历过程中的每个元素。
+                      open/close: 在循环前后添加的字符串。
+                      separator: 每次循环之间的分隔符。
+                    -->
+                    <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                    </foreach>
+                    AND is_deleted = 0
+                </when>
+                <!-- 当 id 列表为空或 null 时，返回一个永不成立的条件，以避免语法错误并返回空结果集 -->
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+</mapper>

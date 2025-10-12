@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.daox.online.mapper.CourseDetailMapper">
+    <!-- 课程详情DTO结果映射 -->
+    <resultMap id="CourseDetailDTOMap" type="com.daox.online.entity.dto.CourseDetailDTO">
+        <id property="courseId" column="course_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="cover" column="cover_image_url"/>
+        <result property="price" column="price"/>
+        <result property="originalPrice" column="original_price"/>
+        <result property="level" column="level"/>
+        <result property="isNew" column="is_new"/>
+        <result property="studentCount" column="enrollment_count"/>
+        <result property="targetAudience" column="target_audience"/>
+        <result property="technicalRequirements" column="requirements"/>
+        <result property="teacherId" column="teacher_id"/>
+        <result property="instructorId" column="instructor_id"/>
+        <result property="instructorName" column="instructor_name"/>
+        <result property="instructorAvatar" column="instructor_avatar"/>
+        <result property="instructorTitle" column="instructor_title"/>
+        <result property="instructorBiography" column="instructor_biography"/>
+    </resultMap>
+    <!-- 获取课程详情基础信息 -->
+    <select id="getCourseDetailById" parameterType="string" resultMap="CourseDetailDTOMap">
+        SELECT
+            c.id as course_id,
+            c.title,
+            c.description,
+            c.cover_image_url,
+            c.enrollment_count,
+            c.teacher_id,
+            cp.price,
+            cp.original_price,
+            cp.level,
+            cp.is_new,
+            cp.target_audience,
+            cp.requirements,
+            u.id as instructor_id,
+            u.nickname as instructor_name,
+            u.avatar_url as instructor_avatar,
+            ci.title as instructor_title,
+            ci.biography as instructor_biography
+        FROM courses c
+                 LEFT JOIN course_properties cp ON c.id = cp.course_id
+                 LEFT JOIN users u ON c.teacher_id = u.id
+                 LEFT JOIN course_instructor ci ON u.id = ci.teacher_id
+        WHERE c.id = #{courseId} AND c.is_deleted = 0 AND c.status = 'published'
+    </select>
+
+    <!-- 获取课程总时长（秒） -->
+    <select id="getCourseDurationSeconds" parameterType="string" resultType="java.lang.Integer">
+        SELECT
+            COALESCE(SUM(s.duration_seconds), 0) as totalDurationSeconds
+        FROM chapters ch
+                 JOIN sections s ON ch.id = s.chapter_id
+        WHERE ch.course_id = #{courseId}
+    </select>
+
+    <!-- 获取讲师的课程列表 -->
+    <select id="getInstructorCourses" parameterType="string" resultType="com.daox.online.entity.views.responseVO.course.CourseVo">
+        SELECT
+            c.id as courseId,
+            c.title as courseTitle,
+            c.description as courseDescription,
+            c.cover_image_url as courseCover,
+            c.status as courseStatus,
+            c.created_at as createTime,
+            c.updated_at as updateTime,
+            cc.name as categoryName,
+            c.teacher_id as teacherId,
+            u.nickname as teacherName,
+            cc.id as categoryId
+        FROM courses c
+                 LEFT JOIN course_categories cc ON c.category_id = cc.id
+                 LEFT JOIN users u ON c.teacher_id = u.id
+        WHERE c.teacher_id = #{teacherId} AND c.is_deleted = 0 AND c.status = 'published'
+        ORDER BY c.created_at DESC
+        LIMIT 10
+    </select>
+
+    <!-- 获取讲师的课程数量 -->
+    <select id="getInstructorCourseCount" parameterType="string" resultType="java.lang.Integer">
+        SELECT COUNT(*) as courseCount
+        FROM courses
+        WHERE teacher_id = #{teacherId} AND is_deleted = 0 AND status = 'published'
+    </select>
+</mapper>

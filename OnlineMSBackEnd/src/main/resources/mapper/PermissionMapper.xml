@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.PermissionMapper">
+    
+    <!-- 检查用户是否已加入某文件关联的课程 -->
+    <!-- 支持检查course_materials表中的文件和sections表中的视频文件 -->
+    <select id="checkUserAccessToFile" resultType="java.lang.Integer">
+        SELECT 1 FROM (
+            -- 检查course_materials表中的文件权限
+            SELECT 1 FROM user_courses uc 
+            JOIN course_materials cm ON uc.course_id = cm.course_id 
+            WHERE uc.user_id = #{userId} AND cm.file_id = #{fileId}
+            
+            UNION
+            
+            -- 检查sections表中的视频文件权限
+            SELECT 1 FROM user_courses uc 
+            JOIN courses c ON uc.course_id = c.id
+            JOIN chapters ch ON c.id = ch.course_id
+            JOIN sections s ON ch.id = s.chapter_id
+            WHERE uc.user_id = #{userId} AND s.video_url = #{fileId}
+        ) AS permission_check
+        LIMIT 1
+    </select>
+    
+</mapper>

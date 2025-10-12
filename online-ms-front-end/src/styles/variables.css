@@ -1,0 +1,61 @@
+/* 颜色变量 */
+:root {
+  /* 主色调 */
+  --primary-color: #002FA7; /* 克莱因蓝 */
+  --secondary-color: #517B4D; /* 绿琉璃色 */
+  
+  /* 中性色 */
+  --background-color: #F0F0F3;
+  --surface-color: #FFFFFF;
+  --text-primary: #2C3E50;
+  --text-secondary: #7F8C8D;
+  --text-muted: #BDC3C7;
+  
+  /* 新拟态阴影 */
+  --neumorphism-shadow-light: #FFFFFF;
+  --neumorphism-shadow-dark: #D1D9E6;
+  --neumorphism-inset-light: inset 2px 2px 5px #D1D9E6;
+  --neumorphism-inset-dark: inset -2px -2px 5px #FFFFFF;
+  
+  /* 磨砂玻璃效果 */
+  --glass-background: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-backdrop-filter: blur(10px);
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 圆角 */
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+  
+  /* 过渡动画 */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* 深色模式变量 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1A1A1A;
+    --surface-color: #2D2D2D;
+    --text-primary: #FFFFFF;
+    --text-secondary: #B0B0B0;
+    --text-muted: #808080;
+    
+    --neumorphism-shadow-light: #404040;
+    --neumorphism-shadow-dark: #0A0A0A;
+    --neumorphism-inset-light: inset 2px 2px 5px #0A0A0A;
+    --neumorphism-inset-dark: inset -2px -2px 5px #404040;
+    
+    --glass-background: rgba(45, 45, 45, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "outPath": "src\\main\\java\\doc" ,
+  "allInOne": true,
+  "serverUrl": "http://localhost:8080/",
+  "coverOld": true,
+  "requestHeaders": [
+    {
+      "name": "Authorization",
+      "type": "string",
+      "desc": "JWT token"
+    }
+  ]
+}

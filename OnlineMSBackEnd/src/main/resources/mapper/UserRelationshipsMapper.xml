@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.UserRelationshipsMapper">
+
+    <resultMap id="ChatUserVo" type="com.daox.online.entity.views.responseVO.chat.ChatUserVo">
+        <result property="friendId" column="friend_id"/>
+        <result property="userName" column="nickname"/>
+        <result property="remark" column="remark"/>
+        <result property="role" column="role"/>
+        <result property="avatarUrl" column="avatar_url"/>
+    </resultMap>
+
+    <select id="getFriendList" resultMap="ChatUserVo">
+        SELECT ur.user_two_id AS friend_id,
+               u.nickname,
+               ur.remark_one  AS remark,
+               u.role         AS role,
+               u.avatar_url   AS avatar_url
+        FROM user_relationships ur
+                 JOIN
+             users u ON ur.user_two_id = u.id
+        WHERE ur.user_one_id = #{userId}
+          AND ur.status = 1
+
+        UNION ALL
+
+        SELECT ur.user_one_id AS friend_id,
+               u.nickname,
+               ur.remark_two  AS remark,
+               u.role         AS role,
+               u.avatar_url   AS avatar_url
+        FROM user_relationships ur
+                 JOIN
+             users u ON ur.user_one_id = u.id
+        WHERE ur.user_two_id = #{userId}
+          AND ur.status = 1;
+    </select>
+
+
+    <!-- 新增的批量查询好友信息的方法 -->
+    <select id="findFriendInfoByIds" resultMap="ChatUserVo">
+        SELECT
+        u.id AS friend_id,
+        u.nickname,
+        u.avatar_url AS avatar_url,
+        u.role,
+        CASE
+        WHEN ur.user_one_id = #{currentUserId} THEN ur.remark_one
+        WHEN ur.user_two_id = #{currentUserId} THEN ur.remark_two
+        END AS remark
+        FROM
+        users u
+        LEFT JOIN
+        user_relationships ur ON
+        (ur.user_one_id = #{currentUserId} AND ur.user_two_id = u.id)
+        OR
+        (ur.user_one_id = u.id AND ur.user_two_id = #{currentUserId})
+        WHERE
+        u.id IN
+        <foreach collection="friendIds" item="friendId" open="(" separator="," close=")">
+            #{friendId}
+        </foreach>
+        AND ur.status = 1
+    </select>
+
+</mapper>

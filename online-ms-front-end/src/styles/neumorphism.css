@@ -1,0 +1,138 @@
+/* 新拟态样式 */
+.neumorphism {
+  background: var(--background-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: 
+    8px 8px 16px var(--neumorphism-shadow-dark),
+    -8px -8px 16px var(--neumorphism-shadow-light);
+  transition: all var(--transition-normal);
+}
+
+.neumorphism-pressed {
+  background: var(--background-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: 
+    var(--neumorphism-inset-light),
+    var(--neumorphism-inset-dark);
+}
+
+.neumorphism-hover:hover {
+  box-shadow: 
+    12px 12px 24px var(--neumorphism-shadow-dark),
+    -12px -12px 24px var(--neumorphism-shadow-light);
+  transform: translateY(-2px);
+}
+
+.neumorphism-card {
+  @extend .neumorphism;
+  padding: var(--spacing-lg);
+  margin: var(--spacing-md);
+}
+
+.neumorphism-button {
+  @extend .neumorphism;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.neumorphism-button:hover {
+  @extend .neumorphism-hover;
+}
+
+.neumorphism-button:active {
+  @extend .neumorphism-pressed;
+  transform: translateY(1px);
+}
+
+.neumorphism-input {
+  background: var(--background-color);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--neumorphism-inset-light), var(--neumorphism-inset-dark);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.neumorphism-input:focus {
+  outline: none;
+  box-shadow: 
+    var(--neumorphism-inset-light),
+    var(--neumorphism-inset-dark),
+    0 0 0 2px var(--primary-color);
+}
+
+/* 磨砂玻璃样式 */
+.glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-backdrop-filter);
+  -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+}
+
+.glass-navbar {
+  @extend .glass;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.glass-sidebar {
+  @extend .glass;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 250px;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+.glass-modal {
+  @extend .glass;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  padding: var(--spacing-xl);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* 组合样式 */
+.neumorphism-glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-backdrop-filter);
+  -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 
+    8px 8px 16px rgba(209, 217, 230, 0.3),
+    -8px -8px 16px rgba(255, 255, 255, 0.3);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .glass-sidebar {
+    width: 200px;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+  
+  .glass-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .neumorphism-card {
+    margin: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+}

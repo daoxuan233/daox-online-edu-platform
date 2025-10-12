@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.RatingStatisticsMapper">
+
+    <!-- 评分统计结果映射 -->
+    <resultMap id="RatingStatisticsMap" type="com.daox.online.entity.dto.RatingStatistics">
+        <result property="targetType" column="targetType"/>
+        <result property="targetId" column="targetId"/>
+        <result property="totalRatings" column="totalRatings"/>
+        <result property="averageRating" column="averageRating"/>
+    </resultMap>
+
+    <!-- 获取评分统计信息 -->
+    <select id="getRatingStatistics" resultMap="RatingStatisticsMap">
+        SELECT
+            target_type as targetType,
+            target_id as targetId,
+            total_ratings as totalRatings,
+            average_rating as averageRating
+        FROM rating_statistics
+        WHERE (target_type = 'course' AND target_id = #{courseId})
+           OR (target_type = 'teacher' AND target_id = #{teacherId})
+    </select>
+
+</mapper>

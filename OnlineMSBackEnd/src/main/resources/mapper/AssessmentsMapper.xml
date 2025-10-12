@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 命名空间必须与 Mapper 接口的完整限定名一致 -->
+<mapper namespace="com.daox.online.mapper.AssessmentsMapper">
+
+    <!--
+      id: 必须与接口中的方法名 findByIdIn 完全一致。
+      parameterType: 指定输入参数的类型。对于 List，使用 java.util.List。
+      resultType: 指定返回结果集中每一行映射的 Java 类型。
+    -->
+    <select id="findByIdIn" resultType="com.daox.online.entity.mysql.Assessments">
+        SELECT
+        id,
+        course_id,
+        creator_id,
+        assessment_type,
+        title,
+        start_time,
+        end_time,
+        duration_minutes,
+        is_published
+        FROM
+        assessments
+        WHERE
+        id IN
+        <!--
+          collection: 指定要遍历的集合。值 "ids" 必须与 Mapper 接口中 @Param("ids") 的值匹配。
+          item: 循环中当前元素的变量名。
+          open: SQL 片段的起始字符串。
+          close: SQL 片段的结束字符串。
+          separator: 每次循环中元素之间的分隔符。
+
+          MyBatis 会自动将这个 <foreach> 循环转换为一个安全的、使用预处理语句 (?) 的 IN 查询，
+          例如: WHERE id IN (?, ?, ?, ...)
+        -->
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+
+        <!--
+          [健壮性] 使用 <if> 标签处理边界情况：
+          如果传入的 ids 列表为 null 或者为空，<foreach> 标签可能会生成无效的 SQL (例如 WHERE id IN () )。
+          通过这个 <if> 判断，如果列表为空，我们就添加一个永远为假的条件，确保查询返回空结果而不是抛出 SQL 语法错误。
+        -->
+        <if test="ids == null or ids.size() == 0">
+            AND 1 = 0
+        </if>
+    </select>
+
+</mapper>

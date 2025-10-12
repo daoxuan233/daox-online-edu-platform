@@ -1,0 +1,248 @@
+/* 新拟态设计样式 */
+
+/* 基础变量 */
+:root {
+  /* 新拟态颜色 */
+  --neu-bg: #f0f0f3;
+  --neu-shadow-light: #ffffff;
+  --neu-shadow-dark: #d1d1d4;
+  
+  /* 主色调 */
+  --primary-klein: #002FA7;
+  --primary-green: #517B4D;
+  --success-color: #67C23A;
+  --warning-color: #E6A23C;
+  --danger-color: #F56C6C;
+  --info-color: #909399;
+  
+  /* 中性色 */
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --border-color: #DCDFE6;
+  
+  /* 字体 */
+  --font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 新拟态基础样式 */
+.neumorphism-raised {
+  background: var(--neu-bg);
+  box-shadow: 
+    8px 8px 16px var(--neu-shadow-dark),
+    -8px -8px 16px var(--neu-shadow-light);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.neumorphism-inset {
+  background: var(--neu-bg);
+  box-shadow: 
+    inset 8px 8px 16px var(--neu-shadow-dark),
+    inset -8px -8px 16px var(--neu-shadow-light);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.neumorphism-hover {
+  box-shadow: 
+    4px 4px 8px var(--neu-shadow-dark),
+    -4px -4px 8px var(--neu-shadow-light);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+.neumorphism-pressed {
+  box-shadow: 
+    inset 4px 4px 8px var(--neu-shadow-dark),
+    inset -4px -4px 8px var(--neu-shadow-light);
+  transform: translateY(1px);
+}
+
+/* 磨砂玻璃效果 */
+.frosted-glass {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+}
+
+.frosted-glass-dark {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+/* 渐变效果 */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary-klein) 0%, var(--primary-green) 100%);
+}
+
+.gradient-card {
+  background: linear-gradient(145deg, #f0f0f3 0%, #e8e8eb 100%);
+}
+
+/* 自定义按钮样式 */
+.neu-button {
+  @apply neumorphism-raised;
+  border: none;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  outline: none;
+}
+
+.neu-button:hover {
+  @apply neumorphism-hover;
+}
+
+.neu-button:active {
+  @apply neumorphism-pressed;
+}
+
+.neu-button--primary {
+  background: linear-gradient(135deg, var(--primary-klein), #0039d4);
+  color: white;
+  box-shadow: 
+    8px 8px 16px rgba(0, 47, 167, 0.2),
+    -8px -8px 16px rgba(255, 255, 255, 0.8);
+}
+
+.neu-button--success {
+  background: linear-gradient(135deg, var(--success-color), #5daf34);
+  color: white;
+  box-shadow: 
+    8px 8px 16px rgba(103, 194, 58, 0.2),
+    -8px -8px 16px rgba(255, 255, 255, 0.8);
+}
+
+/* 自定义输入框样式 */
+.neu-input {
+  @apply neumorphism-inset;
+  border: none;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  font-family: var(--font-family);
+  outline: none;
+  width: 100%;
+}
+
+.neu-input:focus {
+  box-shadow: 
+    inset 4px 4px 8px var(--neu-shadow-dark),
+    inset -4px -4px 8px var(--neu-shadow-light),
+    0 0 0 2px rgba(0, 47, 167, 0.2);
+}
+
+.neu-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* 卡片样式 */
+.neu-card {
+  @apply neumorphism-raised;
+  padding: 24px;
+  margin: 16px 0;
+}
+
+.neu-card:hover {
+  @apply neumorphism-hover;
+}
+
+/* 导航样式 */
+.neu-nav {
+  @apply frosted-glass;
+  padding: 16px 24px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .neumorphism-raised,
+  .neumorphism-inset {
+    box-shadow: 
+      4px 4px 8px var(--neu-shadow-dark),
+      -4px -4px 8px var(--neu-shadow-light);
+  }
+  
+  .neumorphism-inset {
+    box-shadow: 
+      inset 4px 4px 8px var(--neu-shadow-dark),
+      inset -4px -4px 8px var(--neu-shadow-light);
+  }
+  
+  .neu-button {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  
+  .neu-input {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
+/* 动画效果 */
+@keyframes neuFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.neu-float {
+  animation: neuFloat 3s ease-in-out infinite;
+}
+
+/* 焦点样式 */
+.neu-focus:focus {
+  outline: 2px solid var(--primary-klein);
+  outline-offset: 2px;
+}
+
+/* 禁用状态 */
+.neu-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 加载状态 */
+.neu-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.neu-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}

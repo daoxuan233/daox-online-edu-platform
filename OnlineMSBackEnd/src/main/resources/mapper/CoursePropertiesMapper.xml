@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace 必须精确匹配 Mapper 接口的完整路径 -->
+<mapper namespace="com.daox.online.mapper.CoursePropertiesMapper">
+
+    <!-- ResultMap: 数据库列名到Java实体属性的映射 -->
+    <resultMap id="BaseResultMap" type="com.daox.online.entity.mysql.CourseProperties">
+        <id column="id" property="id" jdbcType="VARCHAR" />
+        <result column="course_id" property="courseId" jdbcType="VARCHAR" />
+        <result column="level" property="level" jdbcType="VARCHAR" />
+        <result column="is_new" property="isNew" jdbcType="TINYINT" />
+        <result column="target_audience" property="targetAudience" jdbcType="VARCHAR" />
+        <result column="requirements" property="requirements" jdbcType="VARCHAR" />
+        <result column="price" property="price" jdbcType="DECIMAL" />
+        <result column="original_price" property="originalPrice" jdbcType="DECIMAL" />
+    </resultMap>
+
+    <!-- 根据主键查询 -->
+    <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT
+            id, course_id, level, is_new, target_audience, requirements, price, original_price
+        FROM course_properties
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </select>
+
+    <!-- 根据课程ID查询 -->
+    <select id="selectByCourseId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT
+            id, course_id, level, is_new, target_audience, requirements, price, original_price
+        FROM course_properties
+        WHERE course_id = #{courseId,jdbcType=VARCHAR}
+    </select>
+
+    <!-- 完整插入 -->
+    <insert id="insert" parameterType="com.daox.online.entity.mysql.CourseProperties">
+        INSERT INTO course_properties (id, course_id, level, is_new,
+                                       target_audience, requirements, price,
+                                       original_price)
+        VALUES (#{id,jdbcType=VARCHAR}, #{courseId,jdbcType=VARCHAR}, #{level,jdbcType=VARCHAR}, #{isNew,jdbcType=TINYINT},
+                #{targetAudience,jdbcType=VARCHAR}, #{requirements,jdbcType=VARCHAR}, #{price,jdbcType=DECIMAL},
+                #{originalPrice,jdbcType=DECIMAL})
+    </insert>
+
+    <!-- 选择性插入 -->
+    <insert id="insertSelective" parameterType="com.daox.online.entity.mysql.CourseProperties">
+        INSERT INTO course_properties
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="level != null">level,</if>
+            <if test="isNew != null">is_new,</if>
+            <if test="targetAudience != null">target_audience,</if>
+            <if test="requirements != null">requirements,</if>
+            <if test="price != null">price,</if>
+            <if test="originalPrice != null">original_price,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id,jdbcType=VARCHAR},</if>
+            <if test="courseId != null">#{courseId,jdbcType=VARCHAR},</if>
+            <if test="level != null">#{level,jdbcType=VARCHAR},</if>
+            <if test="isNew != null">#{isNew,jdbcType=TINYINT},</if>
+            <if test="targetAudience != null">#{targetAudience,jdbcType=VARCHAR},</if>
+            <if test="requirements != null">#{requirements,jdbcType=VARCHAR},</if>
+            <if test="price != null">#{price,jdbcType=DECIMAL},</if>
+            <if test="originalPrice != null">#{originalPrice,jdbcType=DECIMAL},</if>
+        </trim>
+    </insert>
+
+    <!-- 根据主键选择性更新 -->
+    <update id="updateByPrimaryKeySelective" parameterType="com.daox.online.entity.mysql.CourseProperties">
+        UPDATE course_properties
+        <set>
+            <if test="courseId != null">course_id = #{courseId,jdbcType=VARCHAR},</if>
+            <if test="level != null">level = #{level,jdbcType=VARCHAR},</if>
+            <if test="isNew != null">is_new = #{isNew,jdbcType=TINYINT},</if>
+            <if test="targetAudience != null">target_audience = #{targetAudience,jdbcType=VARCHAR},</if>
+            <if test="requirements != null">requirements = #{requirements,jdbcType=VARCHAR},</if>
+            <if test="price != null">price = #{price,jdbcType=DECIMAL},</if>
+            <if test="originalPrice != null">original_price = #{originalPrice,jdbcType=DECIMAL},</if>
+        </set>
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </update>
+
+    <!-- 根据课程ID选择性更新 -->
+    <update id="updateByCourseIdSelective" parameterType="com.daox.online.entity.mysql.CourseProperties">
+        UPDATE course_properties
+        <set>
+            <if test="level != null">level = #{level,jdbcType=VARCHAR},</if>
+            <if test="isNew != null">is_new = #{isNew,jdbcType=TINYINT},</if>
+            <if test="targetAudience != null">target_audience = #{targetAudience,jdbcType=VARCHAR},</if>
+            <if test="requirements != null">requirements = #{requirements,jdbcType=VARCHAR},</if>
+            <if test="price != null">price = #{price,jdbcType=DECIMAL},</if>
+            <if test="originalPrice != null">original_price = #{originalPrice,jdbcType=DECIMAL},</if>
+        </set>
+        WHERE course_id = #{courseId,jdbcType=VARCHAR}
+    </update>
+
+    <!-- 根据主键删除 -->
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+        DELETE FROM course_properties
+        WHERE id = #{id,jdbcType=VARCHAR}
+    </delete>
+
+    <!-- 根据课程ID删除 -->
+    <delete id="deleteByCourseId" parameterType="java.lang.String">
+        DELETE FROM course_properties
+        WHERE course_id = #{courseId,jdbcType=VARCHAR}
+    </delete>
+
+</mapper>

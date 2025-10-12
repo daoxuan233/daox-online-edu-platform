@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.CourseCategoryMapper">
+
+    <select id="findSelfAndDescendantIds" resultType="java.lang.String">
+        WITH RECURSIVE category_tree AS (
+            -- 1. 初始查询（锚点）：找到顶层节点
+            SELECT id FROM course_categories WHERE id = #{categoryId}
+
+            UNION ALL
+
+            -- 2. 递归查询：连接自身，找到下一层子节点
+            SELECT c.id
+            FROM course_categories c
+                     INNER JOIN category_tree ct ON c.parent_id = ct.id
+        )
+        -- 3. 从递归结果中查询所有ID
+        SELECT id FROM category_tree
+    </select>
+
+    <resultMap id="BaseResultMap" type="com.daox.online.entity.mysql.CourseCategories">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="parentId" column="parent_id" />
+        <result property="orderIndex" column="order_index" />
+    </resultMap>
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT
+            id, name, parent_id, order_index
+        FROM
+            course_categories
+        ORDER BY
+            order_index ASC, id ASC
+    </select>
+</mapper>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.CourseSearchMapper">
+
+    <!-- 1. 定义ResultMap来处理数据库蛇形命名和Java驼峰命名的映射 -->
+    <resultMap id="BaseResultMap" type="com.daox.online.entity.dto.CourseSearchDTO">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="description" property="description" />
+        <result column="cover_image_url" property="coverImageUrl" />
+        <result column="teacher_id" property="teacherId" />
+        <result column="category_id" property="categoryId" />
+        <result column="status" property="status" />
+        <result column="enrollment_count" property="enrollmentCount" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_deleted" property="isDeleted" />
+        <result column="is_private" property="isPrivate" />
+        <!-- 映射相关性得分 -->
+        <result column="score" property="score"/>
+    </resultMap>
+
+    <!-- 2. 编写全文检索的 select 语句 -->
+    <select id="searchPublishedCourses" resultMap="BaseResultMap">
+        SELECT
+            c.*,
+            -- 计算相关性得分，并命名为 score
+            MATCH(c.title, c.description) AGAINST(#{keyword} IN BOOLEAN MODE) AS score
+        FROM
+            courses c
+        WHERE
+          -- 核心匹配逻辑：确保得分大于0，即有匹配度
+            MATCH(c.title, c.description) AGAINST(#{keyword} IN BOOLEAN MODE) > 0
+          -- 业务过滤条件
+          AND c.status = 'published'
+          AND c.is_deleted = 0
+          AND c.is_private = 0
+        ORDER BY
+            -- 按相关性得分降序排序，最相关的结果排在最前面
+            score DESC
+    </select>
+
+    <select id="findPublishedCoursesByCategories" resultMap="BaseResultMap">
+        SELECT
+        *
+        FROM
+        courses
+        WHERE
+        status = 'published'
+        AND is_deleted = 0
+        AND is_private = 0
+        AND category_id IN
+        <foreach item="item" index="index" collection="categoryIds"
+                 open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        ORDER BY
+        created_at DESC
+    </select>
+
+    <!-- 1. 定义一个专门用于映射到 CourseVo 的 ResultMap -->
+    <!-- type 属性需要填写 CourseVo 的完整类名 -->
+    <resultMap id="CourseVoResultMap" type="com.daox.online.entity.views.responseVO.course.CourseVo">
+        <result column="course_id" property="courseId" />
+        <result column="course_title" property="courseTitle" />
+        <result column="course_description" property="courseDescription" />
+        <result column="teacher_id" property="teacherId" />
+        <result column="teacher_name" property="teacherName" />
+        <result column="category_id" property="categoryId" />
+        <result column="category_name" property="categoryName" />
+        <result column="course_cover" property="courseCover" />
+        <result column="course_status" property="courseStatus" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 2. 编写多表关联查询语句 -->
+    <select id="findPublishedCoursesByLevel" resultMap="CourseVoResultMap">
+        SELECT
+            c.id AS course_id,
+            c.title AS course_title,
+            c.description AS course_description,
+            c.teacher_id AS teacher_id,
+            u.nickname AS teacher_name,
+            c.category_id AS category_id,
+            cc.name AS category_name,
+            c.cover_image_url AS course_cover,
+            c.status AS course_status,
+            c.created_at AS create_time,
+            c.updated_at AS update_time
+        FROM
+            courses c
+                INNER JOIN
+            course_properties cp ON c.id = cp.course_id
+                LEFT JOIN
+            -- 假设教师信息在 users 表，教师姓名为 name 列
+                users u ON c.teacher_id = u.id
+                LEFT JOIN
+            course_categories cc ON c.category_id = cc.id
+        WHERE
+          -- 核心筛选条件
+            cp.level = #{level}
+          -- 必要的业务过滤条件
+          AND c.status = 'published'
+          AND c.is_deleted = 0
+          AND c.is_private = 0
+        ORDER BY
+            c.created_at DESC
+    </select>
+</mapper>

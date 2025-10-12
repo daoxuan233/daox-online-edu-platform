@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.RatingsMapper">
+
+    <!-- 获取课程评分统计 -->
+    <select id="getCourseRatingStatistics"
+            resultType="com.daox.online.entity.views.responseVO.ratings.CourseRatingStatisticsVO">
+        SELECT c.id                                  AS course_id,
+               c.title                               AS course_title,
+               c.teacher_id,
+               u.nickname                            AS teacher_name,
+               COALESCE(rs.total_ratings, 0)         AS total_ratings,
+               COALESCE(rs.average_rating, 0)        AS average_rating,
+               COALESCE(AVG(cr.content_quality), 0)  AS avg_content_quality,
+               COALESCE(AVG(cr.difficulty_level), 0) AS avg_difficulty_level,
+               COALESCE(AVG(cr.practicality), 0)     AS avg_practicality,
+               rs.rating_distribution
+        FROM courses c
+                 LEFT JOIN users u ON c.teacher_id = u.id
+                 LEFT JOIN rating_statistics rs ON rs.target_type = 'course' AND rs.target_id = c.id
+                 LEFT JOIN course_ratings cr ON cr.course_id = c.id AND cr.is_deleted = 0
+        WHERE c.id = #{courseId}
+          AND c.is_deleted = 0
+          AND c.status = 'published'
+        GROUP BY c.id, c.title, c.teacher_id, u.nickname, rs.total_ratings, rs.average_rating, rs.rating_distribution
+    </select>
+
+    <!-- 获取讲师评分统计 -->
+    <select id="getTeacherRatingStatistics"
+            resultType="com.daox.online.entity.views.responseVO.ratings.TeacherRatingStatisticsVO">
+        SELECT u.id                                  AS teacherId,
+               u.nickname                            AS teacherName,
+               COALESCE(rs.total_ratings, 0)         AS totalRatings,
+               COALESCE(rs.average_rating, 0)        AS averageRating,
+               COALESCE(AVG(tr.teaching_quality), 0) AS avgTeachingQuality,
+               COALESCE(AVG(tr.interaction), 0)      AS avgInteraction,
+               COALESCE(AVG(tr.professionalism), 0)  AS avgProfessionalism,
+               COUNT(DISTINCT tr.course_id)          AS coursesTaught,
+               rs.rating_distribution                AS ratingDistribution
+        FROM users u
+                 LEFT JOIN rating_statistics rs ON rs.target_type = 'teacher' AND rs.target_id = u.id
+                 LEFT JOIN teacher_ratings tr ON tr.teacher_id = u.id AND tr.is_deleted = 0
+        WHERE u.id = #{teacherId}
+          AND u.role = 'teacher'
+          AND u.is_deleted = 0
+        GROUP BY u.id, u.nickname, rs.total_ratings, rs.average_rating, rs.rating_distribution
+    </select>
+
+    <!-- 获取热门课程排行 -->
+    <select id="getTopRatedCourses" resultType="com.daox.online.entity.views.responseVO.TopRatedCourseVO">
+        SELECT c.id               AS courseId,
+               c.title            AS courseTitle,
+               c.cover_image_url  AS coverImageUrl,
+               u.nickname         AS teacherName,
+               rs.total_ratings   AS totalRatings,
+               rs.average_rating  AS averageRating,
+               c.enrollment_count AS enrollmentCount
+        FROM courses c
+                 INNER JOIN users u ON c.teacher_id = u.id
+                 INNER JOIN rating_statistics rs ON rs.target_type = 'course' AND rs.target_id = c.id
+        WHERE c.is_deleted = 0
+          AND c.status = 'published'
+          AND rs.total_ratings >= #{minRatings}
+        ORDER BY rs.average_rating DESC, rs.total_ratings DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 检查用户是否已选课 -->
+    <select id="isUserEnrolledInCourse" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM user_courses
+        WHERE user_id = #{userId}
+          AND course_id = #{courseId}
+    </select>
+
+    <!-- 获取用户学习进度 -->
+    <select id="getUserLearningProgress" resultType="java.math.BigDecimal">
+        SELECT COALESCE(
+                       COUNT(CASE WHEN lp.status = 'completed' THEN 1 END) * 1.0 / COUNT(*), 0
+               ) AS progress_rate
+        FROM learning_progress lp
+                 JOIN sections s ON lp.section_id = s.id
+                 JOIN chapters ch ON s.chapter_id = ch.id
+        WHERE lp.user_id = #{userId}
+          AND ch.course_id = #{courseId}
+    </select>
+
+    <!-- 检查用户是否已评分 -->
+    <select id="hasUserRatedCourse" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM course_ratings
+        WHERE user_id = #{userId}
+          AND course_id = #{courseId}
+          AND is_deleted = 0
+    </select>
+
+    <!-- 获取用户最近评分次数 -->
+    <select id="getUserRecentRatingsCount" resultType="int">
+        SELECT COUNT(*)
+        FROM course_ratings
+        WHERE user_id = #{userId}
+          AND created_at >= DATE_SUB(NOW(), INTERVAL #{hours} HOUR)
+          AND is_deleted = 0
+    </select>
+
+    <!-- 插入课程评分 -->
+    <insert id="insertCourseRating" parameterType="com.daox.online.entity.mysql.CourseRatings">
+        INSERT INTO course_ratings (
+            id, user_id, course_id, overall_rating, content_quality,
+            difficulty_level, practicality, comment, is_anonymous,
+            created_at, updated_at, is_deleted
+        ) VALUES (
+                     #{id}, #{userId}, #{courseId}, #{overallRating}, #{contentQuality},
+                     #{difficultyLevel}, #{practicality}, #{comment}, #{isAnonymous},
+                     #{createdAt}, #{updatedAt}, #{isDeleted}
+                 )
+    </insert>
+
+    <!-- 插入讲师评分 -->
+    <insert id="insertTeacherRating" parameterType="com.daox.online.entity.mysql.TeacherRatings">
+        INSERT INTO teacher_ratings (
+            id, user_id, teacher_id, course_id, overall_rating, teaching_quality,
+            interaction, professionalism, comment, is_anonymous,
+            created_at, updated_at, is_deleted
+        ) VALUES (
+                     #{id}, #{userId}, #{teacherId}, #{courseId}, #{overallRating}, #{teachingQuality},
+                     #{interaction}, #{professionalism}, #{comment}, #{isAnonymous},
+                     #{createdAt}, #{updatedAt}, #{isDeleted}
+                 )
+    </insert>
+
+    <!-- 检查用户是否选修过该讲师的课程 -->
+    <select id="hasUserTakenTeacherCourse" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM user_courses uc
+                 JOIN courses c ON uc.course_id = c.id
+        WHERE uc.user_id = #{userId}
+          AND c.teacher_id = #{teacherId}
+    </select>
+
+    <!-- 检查用户是否已评分讲师 -->
+    <select id="hasUserRatedTeacher" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM teacher_ratings
+        WHERE user_id = #{userId}
+          AND teacher_id = #{teacherId}
+          AND is_deleted = 0
+    </select>
+
+    <!-- 更新评分统计数据 -->
+    <update id="updateRatingStatistics">
+        <if test="targetType == 'course'">
+            INSERT INTO rating_statistics (
+            id, target_type, target_id, total_ratings, average_rating, last_updated
+            ) VALUES (
+            CONCAT('stat_course_', #{targetId}), 'course', #{targetId},
+            (SELECT COUNT(*) FROM course_ratings WHERE course_id = #{targetId} AND is_deleted = 0),
+            (SELECT COALESCE(AVG(overall_rating), 0) FROM course_ratings WHERE course_id = #{targetId} AND is_deleted = 0),
+            NOW()
+            ) ON DUPLICATE KEY UPDATE
+            total_ratings = (SELECT COUNT(*) FROM course_ratings WHERE course_id = #{targetId} AND is_deleted = 0),
+            average_rating = (SELECT COALESCE(AVG(overall_rating), 0) FROM course_ratings WHERE course_id = #{targetId} AND is_deleted = 0),
+            last_updated = NOW()
+        </if>
+        <if test="targetType == 'teacher'">
+            INSERT INTO rating_statistics (
+            id, target_type, target_id, total_ratings, average_rating, last_updated
+            ) VALUES (
+            CONCAT('stat_teacher_', #{targetId}), 'teacher', #{targetId},
+            (SELECT COUNT(*) FROM teacher_ratings WHERE teacher_id = #{targetId} AND is_deleted = 0),
+            (SELECT COALESCE(AVG(overall_rating), 0) FROM teacher_ratings WHERE teacher_id = #{targetId} AND is_deleted = 0),
+            NOW()
+            ) ON DUPLICATE KEY UPDATE
+            total_ratings = (SELECT COUNT(*) FROM teacher_ratings WHERE teacher_id = #{targetId} AND is_deleted = 0),
+            average_rating = (SELECT COALESCE(AVG(overall_rating), 0) FROM teacher_ratings WHERE teacher_id = #{targetId} AND is_deleted = 0),
+            last_updated = NOW()
+        </if>
+    </update>
+
+</mapper>

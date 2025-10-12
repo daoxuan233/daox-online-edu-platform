@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.ChapterMapper">
+
+    <!-- 批量插入章节 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO chapters (id, course_id, title, order_index)
+        VALUES
+        <foreach collection="list" item="chapter" separator=",">
+            (#{chapter.id}, #{chapter.courseId}, #{chapter.title}, #{chapter.orderIndex})
+        </foreach>
+    </insert>
+
+    <!-- 根据课程ID删除所有章节 -->
+    <delete id="deleteByCourseId">
+        DELETE FROM chapters WHERE course_id = #{courseId}
+    </delete>
+
+    <!-- 根据课程ID查询所有章节 -->
+    <select id="findByCourseId" resultType="com.daox.online.entity.mysql.Chapters">
+        SELECT id,
+               course_id,
+               title,
+               order_index
+        FROM chapters
+        WHERE course_id = #{courseId}
+        ORDER BY order_index
+    </select>
+
+    <!-- 【新增】批量更新章节 -->
+    <!-- 使用 CASE WHEN 实现高效批量更新 -->
+    <update id="updateBatch" parameterType="java.util.List">
+        UPDATE chapters
+        <trim prefix="SET" suffixOverrides=",">
+            <trim prefix="title = CASE" suffix="END,">
+                <foreach collection="list" item="item" index="index">
+                    <if test="item.title != null">
+                        WHEN id = #{item.id} THEN #{item.title}
+                    </if>
+                </foreach>
+            </trim>
+            <trim prefix="order_index = CASE" suffix="END,">
+                <foreach collection="list" item="item" index="index">
+                    <if test="item.orderIndex != null">
+                        WHEN id = #{item.id} THEN #{item.orderIndex}
+                    </if>
+                </foreach>
+            </trim>
+        </trim>
+        WHERE id IN
+        <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+            #{item.id}
+        </foreach>
+    </update>
+
+    <!-- 【新增】根据ID列表批量删除章节 -->
+    <delete id="deleteBatchByIds">
+        DELETE FROM chapters
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

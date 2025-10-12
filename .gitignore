@@ -21,6 +21,17 @@ Thumbs.db
 # 构建产物（前端）
 /dist/
 
+/design-doc/
+# 排除文档文件夹
+/docs/
+OnlineMSBackEnd/src/main/java/doc/
+
+# 排除所有target目录
+**/target/
+
+# 排除所有markdown文件
+**/*.md
+
 # 数据库相关
 *.sql
 
@@ -32,3 +43,15 @@ Thumbs.db
 # 其他临时文件
 *.tmp
 *.temp
+
+# Maven相关
+.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot相关
+HELP.md
+
+# 缓存文件
+.cache/
+
+# 测试相关
+/coverage/
