@@ -5,6 +5,8 @@
 # 编译输出目录（Java项目）
 /target/
 
+.vercel/
+
 # IDE相关文件
 /.idea/
 *.iml
