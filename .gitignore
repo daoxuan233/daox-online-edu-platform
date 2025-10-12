@@ -32,6 +32,33 @@ OnlineMSBackEnd/src/main/java/doc/
 # 排除所有markdown文件
 **/*.md
 
+# 排除OnlineMSBackEnd下内容
+# target目录
+OnlineMSBackEnd/target/
+# .mvn目录
+OnlineMSBackEnd/.mvn/
+#.idea目录
+OnlineMSBackEnd/.idea/
+#.settings目录
+OnlineMSBackEnd/.settings/
+# mvnm文件
+OnlineMSBackEnd/.mvnw
+OnlineMSBackEnd/.mvnw.cmd
+
+# 排除online-ai下内容
+# target目录
+online-ai/target/
+#.mvn目录
+online-ai/.mvn/
+#.idea目录
+online-ai/.idea/
+#.settings目录
+online-ai/.settings/
+# mvnm文件
+online-ai/.mvnw
+online-ai/.mvnw.cmd
+
+
 # 数据库相关
 *.sql
 
