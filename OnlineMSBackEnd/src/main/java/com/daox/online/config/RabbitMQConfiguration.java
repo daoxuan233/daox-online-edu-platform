@@ -36,6 +36,15 @@ public class RabbitMQConfiguration {
     }
 
     /**
+     * 定义问题交换机 (Topic 类型，灵活强大)
+     * @return 问题交换机
+     */
+    @Bean
+    public TopicExchange questionExchange() {
+        return new TopicExchange("question.topic");
+    }
+
+    /**
      * 定义测评提交队列
      */
     @Bean

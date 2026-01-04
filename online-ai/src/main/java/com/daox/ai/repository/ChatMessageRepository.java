@@ -28,4 +28,7 @@ public interface ChatMessageRepository extends ReactiveMongoRepository<ChatMessa
      * @return 一个 Mono<Void>，表示删除操作完成
      */
     Mono<Void> deleteByConversationId(String conversationId);
+
+    // 响应式查询，返回 Flux<ChatMessage>
+    Flux<ChatMessage> findByConversationIdOrderByTimestampDesc(String conversationId);
 }

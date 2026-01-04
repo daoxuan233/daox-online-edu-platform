@@ -3,7 +3,7 @@
     <div class="markdown-container" ref="markdownRef">
       <div v-html="html" class="markdown-content"></div>
     </div>
-    
+
     <!-- 底部复制选项 -->
     <div class="copy-actions">
       <div class="copy-dropdown" :class="{ active: showCopyOptions }">
@@ -130,17 +130,17 @@ const toggleCodeBlock = (element) => {
 // 更新代码块
 const updateCodeBlocks = () => {
   if (!markdownRef.value) return;
-  
+
   const preElements = markdownRef.value.querySelectorAll('pre');
   preElements.forEach((pre, index) => {
     if (pre.querySelector('.code-header')) return; // 已经处理过的跳过
-    
+
     const code = pre.querySelector('code');
     if (!code) return;
-    
+
     const codeText = code.textContent || '';
     const language = getLanguageFromClass(code.className) || 'text';
-    
+
     // 创建代码块头部
     const header = document.createElement('div');
     header.className = 'code-header';
@@ -166,12 +166,12 @@ const updateCodeBlocks = () => {
         </button>
       </div>
     `;
-    
+
     // 添加事件监听器
     const copyBtn = header.querySelector('.copy-btn');
     const themeBtn = header.querySelector('.theme-btn');
     const foldBtn = header.querySelector('.fold-btn');
-    
+
     copyBtn.addEventListener('click', () => copyCodeBlock(codeText));
     themeBtn.addEventListener('click', () => {
       pre.classList.toggle('dark-theme');
@@ -180,10 +180,10 @@ const updateCodeBlocks = () => {
       code.style.display = code.style.display === 'none' ? 'block' : 'none';
       foldBtn.classList.toggle('folded');
     });
-    
+
     // 插入头部
     pre.insertBefore(header, code);
-    
+
     // 应用主题
     if (codeTheme.value === 'dark') {
       pre.classList.add('dark-theme');
@@ -222,8 +222,16 @@ const copyAsText = () => {
 
 // 监听内容变化
 watch(() => props.content, (newVal) => {
-  if (newVal) {
+  if (newVal && typeof newVal === 'string') {
     html.value = md.render(newVal);
+    nextTick(() => {
+      updateCodeBlocks();
+    });
+  } else if (newVal && typeof newVal !== 'string') {
+    // 如果不是字符串，尝试转换为字符串
+    console.warn('markdownRender: content should be a string, received:', typeof newVal, newVal);
+    const stringContent = String(newVal);
+    html.value = md.render(stringContent);
     nextTick(() => {
       updateCodeBlocks();
     });
@@ -425,7 +433,7 @@ onMounted(() => {
   background: rgba(81, 123, 77, 0.1);
   border-left: 4px solid #517B4D;
   border-radius: 0 8px 8px 0;
-  box-shadow: 
+  box-shadow:
     inset 4px 4px 8px rgba(209, 209, 212, 0.3),
     inset -4px -4px 8px rgba(255, 255, 255, 0.3);
 }
@@ -443,7 +451,7 @@ onMounted(() => {
   padding: 0;
   margin: 1em 0;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     inset 8px 8px 16px #d1d1d4,
     inset -8px -8px 16px #ffffff;
   border: 1px solid rgba(220, 223, 230, 0.5);
@@ -518,7 +526,7 @@ onMounted(() => {
 /* 深色主题代码块 */
 .markdown-container :deep(pre.dark-theme) {
   background: #2d3748;
-  box-shadow: 
+  box-shadow:
     inset 8px 8px 16px #1a202c,
     inset -8px -8px 16px #4a5568;
 }
@@ -560,7 +568,7 @@ onMounted(() => {
   padding: 0.2em 0.4em;
   border-radius: 6px;
   font-weight: 500;
-  box-shadow: 
+  box-shadow:
     inset 2px 2px 4px rgba(209, 209, 212, 0.3),
     inset -2px -2px 4px rgba(255, 255, 255, 0.7);
 }
@@ -588,20 +596,20 @@ onMounted(() => {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 
+  box-shadow:
     4px 4px 8px #d1d1d4,
     -4px -4px 8px #ffffff;
 }
 
 .copy-btn:hover {
   color: #409EFF;
-  box-shadow: 
+  box-shadow:
     2px 2px 4px #d1d1d4,
     -2px -2px 4px #ffffff;
 }
 
 .copy-dropdown.active .copy-btn {
-  box-shadow: 
+  box-shadow:
     inset 2px 2px 4px #d1d1d4,
     inset -2px -2px 4px #ffffff;
 }
@@ -614,7 +622,7 @@ onMounted(() => {
   background: #f0f0f3;
   border-radius: 8px;
   padding: 8px;
-  box-shadow: 
+  box-shadow:
     8px 8px 16px #d1d1d4,
     -8px -8px 16px #ffffff;
   min-width: 120px;
@@ -655,7 +663,7 @@ onMounted(() => {
   background: #f0f0f3;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     8px 8px 16px #d1d1d4,
     -8px -8px 16px #ffffff;
 }
@@ -713,7 +721,7 @@ onMounted(() => {
   height: auto;
   border-radius: 8px;
   margin: 0.8em 0;
-  box-shadow: 
+  box-shadow:
     4px 4px 8px rgba(209, 209, 212, 0.5),
     -4px -4px 8px rgba(255, 255, 255, 0.5);
   transition: transform 0.3s ease;
@@ -731,7 +739,7 @@ onMounted(() => {
   font-family: monospace;
   font-size: 0.9em;
   color: #303133;
-  box-shadow: 
+  box-shadow:
     2px 2px 4px #d1d1d4,
     -2px -2px 4px #ffffff,
     inset 1px 1px 2px rgba(209, 209, 212, 0.3);
@@ -751,24 +759,24 @@ onMounted(() => {
     padding: 16px;
     margin: 0 8px;
   }
-  
+
   .markdown-container :deep(h1) {
     font-size: 1.6em;
   }
-  
+
   .markdown-container :deep(h2) {
     font-size: 1.4em;
   }
-  
+
   .markdown-container :deep(pre) {
     padding: 1em;
     font-size: 0.85em;
   }
-  
+
   .markdown-container :deep(table) {
     font-size: 0.9em;
   }
-  
+
   .markdown-container :deep(th),
   .markdown-container :deep(td) {
     padding: 8px 12px;
@@ -780,11 +788,11 @@ onMounted(() => {
   .markdown-container {
     background: #2c2c2c;
     color: #e4e4e7;
-    box-shadow: 
+    box-shadow:
       8px 8px 16px #1a1a1a,
       -8px -8px 16px #3e3e3e;
   }
-  
+
   .markdown-container :deep(h1),
   .markdown-container :deep(h2),
   .markdown-container :deep(h3),
@@ -793,64 +801,64 @@ onMounted(() => {
   .markdown-container :deep(h6) {
     color: #60a5fa;
   }
-  
+
   .markdown-container :deep(p),
   .markdown-container :deep(li) {
     color: #d1d5db;
   }
-  
+
   .markdown-container :deep(pre) {
     background: #2c2c2c;
-    box-shadow: 
+    box-shadow:
       inset 8px 8px 16px #1a1a1a,
       inset -8px -8px 16px #3e3e3e;
   }
-  
+
   .markdown-container :deep(table) {
     background: #2c2c2c;
-    box-shadow: 
+    box-shadow:
       8px 8px 16px #1a1a1a,
       -8px -8px 16px #3e3e3e;
   }
-  
+
   .markdown-container :deep(th) {
     background: linear-gradient(145deg, #1a1a1a 0%, #2c2c2c 100%);
     color: #60a5fa;
   }
-  
+
   /* 深色主题下的复制按钮 */
   .copy-btn {
     background: #2c2c2c;
     color: #d1d5db;
-    box-shadow: 
+    box-shadow:
       4px 4px 8px #1a1a1a,
       -4px -4px 8px #3e3e3e;
   }
-  
+
   .copy-btn:hover {
     color: #60a5fa;
-    box-shadow: 
+    box-shadow:
       2px 2px 4px #1a1a1a,
       -2px -2px 4px #3e3e3e;
   }
-  
+
   .copy-dropdown.active .copy-btn {
-    box-shadow: 
+    box-shadow:
       inset 2px 2px 4px #1a1a1a,
       inset -2px -2px 4px #3e3e3e;
   }
-  
+
   .copy-options {
     background: #2c2c2c;
-    box-shadow: 
+    box-shadow:
       8px 8px 16px #1a1a1a,
       -8px -8px 16px #3e3e3e;
   }
-  
+
   .copy-option {
     color: #d1d5db;
   }
-  
+
   .copy-option:hover {
     background: rgba(96, 165, 250, 0.1);
     color: #60a5fa;

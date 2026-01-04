@@ -18,6 +18,26 @@ public interface CourseMapper {
     // int getCourseRatingStatistics(@Param("userId") String userId);
 
     /**
+     * 获取已报名课程数
+     * @param userId 用户ID
+     * @return 已报名课程数
+     */
+    @Select("SELECT COUNT(*) AS enrolled_course_count FROM user_courses WHERE user_id = #{userId}")
+    Integer getEnrolledCourseCount(@Param("userId") String userId);
+
+    /**
+     * 获取用户实际有学习进度的课程数
+     * @param userId 用户ID
+     * @return 实际有学习进度的课程数
+     */
+    @Select("SELECT COUNT(DISTINCT c.course_id) AS studied_course_count " +
+            "FROM learning_progress lp " +
+            "JOIN sections s ON lp.section_id = s.id " +
+            "JOIN chapters c ON s.chapter_id = c.id " +
+            "WHERE lp.user_id = #{userId};\n")
+    Integer getProgressCourseCount(@Param("userId") String userId);
+
+    /**
      * 新增课程 (选择性)
      */
     int insertSelective(Courses record);

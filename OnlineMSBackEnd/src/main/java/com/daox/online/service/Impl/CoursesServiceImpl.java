@@ -1322,27 +1322,26 @@ public class CoursesServiceImpl implements CoursesService {
     @Override
     public Integer getCompletedCoursesCount(String userId) {
         // 参数校验
-//        if (userId == null || userId.isEmpty()) {
-//            log.error("[getCompletedCoursesCount.method] 用户ID不能为空");
-//            return 0;
-//        }
-//
-//        // 检查用户是否存在
-//        Users userById = sysUserService.findUserById(userId);
-//        if (userById == null) {
-//            log.warn("[getCompletedCoursesCount.method] 用户不存在: userId={}", userId);
-//            return 0;
-//        }
-//
-//        try {
-//            int completedCount = courseMapper.getCourseRatingStatistics(userId);
-//            log.info("[getCompletedCoursesCount.method] 查询用户已完成课程数量成功: userId={}, count={}", userId, completedCount);
-//            return completedCount;
-//        } catch (Exception e) {
-//            log.error("[getCompletedCoursesCount.method] 查询用户已完成课程数量失败: userId={}, error={}", userId, e.getMessage());
-//            return 0;
-//        }
-        return null;
+        if (userId == null || userId.isEmpty()) {
+            log.error("[getCompletedCoursesCount.method] 用户ID不能为空");
+            return 0;
+        }
+
+        // 检查用户是否存在
+        Users userById = sysUserService.findUserById(userId);
+        if (userById == null) {
+            log.warn("[getCompletedCoursesCount.method] 用户不存在: userId={}", userId);
+            return 0;
+        }
+
+        try {
+            int completedCount = courseMapper.getProgressCourseCount(userId);
+            log.info("[getCompletedCoursesCount.method] 查询用户已完成课程数量成功: userId={}, count={}", userId, completedCount);
+            return completedCount;
+        } catch (Exception e) {
+            log.error("[getCompletedCoursesCount.method] 查询用户已完成课程数量失败: userId={}, error={}", userId, e.getMessage());
+            return 0;
+        }
     }
 
 

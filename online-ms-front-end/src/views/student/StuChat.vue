@@ -23,11 +23,11 @@
 
         <button
             class="chat-type-btn"
-            :class="{ active: currentChatType === chatTypes.GROUP }"
-            @click="switchChatType(chatTypes.GROUP)"
+            :class="{ active: currentChatType === chatTypes.TOOLS }"
+            @click="switchChatType(chatTypes.TOOLS)"
         >
-          <font-awesome-icon :icon="['fas', 'users']" class="tab-icon"/>
-          <span class="tab-text">群聊</span>
+          <font-awesome-icon :icon="['fas', 'tools']" class="tab-icon"/>
+          <span class="tab-text">工具</span>
           <div class="tab-indicator"></div>
         </button>
 
@@ -50,15 +50,15 @@
         <h4 class="list-title">
           {{
             currentChatType === chatTypes.FRIEND ? '好友列表' :
-                currentChatType === chatTypes.GROUP ? '群聊列表' : 'Recent Chats'
+                currentChatType === chatTypes.TOOLS ? '工具列表' : 'Recent Chats'
           }}
         </h4>
         <div class="list-actions">
           <button class="action-btn" v-if="currentChatType === chatTypes.FRIEND">
             <font-awesome-icon :icon="['fas', 'user-plus']"/>
           </button>
-          <button class="action-btn" v-if="currentChatType === chatTypes.GROUP">
-            <font-awesome-icon :icon="['fas', 'plus']"/>
+          <button class="action-btn" v-if="currentChatType === chatTypes.TOOLS">
+            <font-awesome-icon :icon="['fas', 'cog']"/>
           </button>
           <button class="action-btn create-new-btn" v-if="currentChatType === chatTypes.AI" @click="createNewAIChat">
             <font-awesome-icon :icon="['fas', 'plus']"/>
@@ -80,7 +80,7 @@
             <div v-else class="avatar-placeholder">
               <font-awesome-icon
                   :icon="currentChatType === chatTypes.AI ? ['fas', 'robot'] :
-                       currentChatType === chatTypes.GROUP ? ['fas', 'users'] : ['fas', 'user']"
+                       currentChatType === chatTypes.TOOLS ? ['fas', 'tools'] : ['fas', 'user']"
               />
             </div>
             <div v-if="conversation.online" class="online-indicator"></div>
@@ -151,7 +151,7 @@
               <div v-else class="avatar-placeholder">
                 <font-awesome-icon
                     :icon="currentChatType === chatTypes.AI ? ['fas', 'robot'] :
-                         currentChatType === chatTypes.GROUP ? ['fas', 'users'] : ['fas', 'user']"
+                         currentChatType === chatTypes.TOOLS ? ['fas', 'tools'] : ['fas', 'user']"
                 />
               </div>
               <div v-if="currentConversation.online" class="online-indicator"></div>
@@ -162,8 +162,8 @@
                 <span v-if="currentChatType === chatTypes.FRIEND">
                   {{ currentConversation.online ? '在线' : '离线' }}
                 </span>
-                <span v-else-if="currentChatType === chatTypes.GROUP">
-                  {{ currentConversation.memberCount }} 名成员
+                <span v-else-if="currentChatType === chatTypes.TOOLS">
+                  智能工具 - 提升学习效率
                 </span>
                 <span v-else>
                   AI助手 - 随时为您服务
@@ -208,8 +208,121 @@
           </div>
         </div>
 
+        <!-- 工具卡片区域 -->
+        <div v-if="currentChatType === chatTypes.TOOLS" class="tools-container" style="padding-top: 0px">
+          <!-- 未启动会话时显示工具卡片 -->
+          <div v-if="!pptChatSessionActive" class="tool-card neumorphism-card">
+            <div class="tool-header">
+              <div class="tool-icon">
+                <font-awesome-icon :icon="['fas', 'file-powerpoint']" class="tool-main-icon"/>
+              </div>
+              <div class="tool-info">
+                <h3 class="tool-title">PPT生成工具</h3>
+                <p class="tool-description">基于AI技术，快速生成高质量的课程演示文稿</p>
+              </div>
+            </div>
+            <div class="tool-content">
+              <div class="tool-actions">
+                <button class="tool-action-btn primary-btn neumorphism-raised" @click="startPPTGeneration">
+                  <font-awesome-icon :icon="['fas', 'play']" class="btn-icon"/>
+                  开始生成PPT
+                </button>
+                <button class="tool-action-btn secondary-btn neumorphism-raised">
+                  <font-awesome-icon :icon="['fas', 'question-circle']" class="btn-icon"/>
+                  使用帮助
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PPT生成对话会话区域 -->
+          <div v-else class="ppt-chat-session">
+            <!-- 会话头部 -->
+            <div class="ppt-session-header">
+              <div class="session-info">
+                <div class="session-icon">
+                  <font-awesome-icon :icon="['fas', 'file-powerpoint']" />
+                </div>
+                <div class="session-details">
+                  <h4 class="session-title">{{ pptSessionTitle }}</h4>
+                  <p class="session-status">
+                    PPT生成助手 - 正在协助您生成演示文稿
+                    <span v-if="currentPptSessionId" class="session-task-id" :title="`任务ID: ${currentPptSessionId}`">
+                      | 任务: {{ currentPptSessionId.substring(0, 8) }}...
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button class="close-session-btn" @click="closePPTChatSession" title="结束会话">
+                <font-awesome-icon :icon="['fas', 'times']" />
+              </button>
+            </div>
+
+            <!-- 消息列表 -->
+            <div class="ppt-messages-container">
+              <div class="ppt-messages-list">
+                <div
+                    v-for="message in pptChatMessages"
+                    :key="message.id"
+                    class="message-item"
+                    :class="{
+                      'sender-message': message.isOwn,
+                      'receiver-message': !message.isOwn
+                    }"
+                >
+                  <div class="conversation-avatar" v-if="!message.isOwn">
+                    <div class="avatar-placeholder">
+                      <font-awesome-icon :icon="['fas', 'robot']" />
+                    </div>
+                  </div>
+
+                  <div class="message-content">
+                    <div class="message-header" v-if="!message.isOwn">
+                      <span class="sender-name">{{ message.senderName }}</span>
+                      <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                    </div>
+                    <div class="message-bubble">
+                      <markdownRender v-if="!message.isOwn" :content="message.content" class="message-text" />
+                      <p v-else class="message-text">{{ message.content }}</p>
+                      <div v-if="message.isStreaming" class="streaming-indicator">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                      </div>
+                    </div>
+                    <div class="message-time" v-if="message.isOwn">
+                      {{ formatTime(message.timestamp) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 消息输入区域 -->
+            <div class="ppt-message-input-area">
+              <div class="input-container">
+                <textarea
+                    v-model="pptMessageInput"
+                    @keydown="handlePPTInputKeydown"
+                    placeholder="继续与PPT助手对话..."
+                    class="message-textarea"
+                    rows="1"
+                ></textarea>
+                <button
+                    class="send-btn"
+                    :disabled="!pptMessageInput.trim() || isPPTSending"
+                    @click="sendPPTMessage"
+                >
+                  <font-awesome-icon v-if="isPPTSending" :icon="['fas', 'spinner']" spin />
+                  <font-awesome-icon v-else :icon="['fas', 'paper-plane']" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 消息列表 -->
-        <div class="messages-container">
+        <div v-else class="messages-container">
           <div class="messages-list">
             <div
                 v-for="message in currentMessages"
@@ -253,7 +366,7 @@
         </div>
 
         <!-- 消息输入区域 -->
-        <div class="message-input-area">
+        <div v-if="currentChatType !== chatTypes.TOOLS" class="message-input-area">
           <!-- 表情选择器 -->
           <div v-if="showEmojiPicker" class="emoji-picker neumorphism-raised">
             <div class="emoji-header">
@@ -313,6 +426,129 @@
       </div>
     </div>
   </div>
+
+  <!-- PPT生成模态对话框 -->
+  <div v-if="showPPTModal" class="ppt-modal-overlay" @click="closePPTModal">
+    <div class="ppt-modal" @click.stop>
+      <div class="ppt-modal-header">
+        <h3>PPT生成助手</h3>
+        <button @click="closePPTModal" class="close-btn">
+          <font-awesome-icon :icon="['fas', 'times']" />
+        </button>
+      </div>
+      
+      <div class="ppt-modal-body">
+        <form @submit.prevent="submitPPTRequest">
+          <div class="form-group">
+            <label for="ppt-topic">PPT主题 <span class="required">*</span></label>
+            <input
+              id="ppt-topic"
+              v-model="pptFormData.topic"
+              type="text"
+              placeholder="请输入PPT的主题"
+              class="form-input"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="ppt-content">内容描述 <span class="required">*</span></label>
+            <textarea
+              id="ppt-content"
+              v-model="pptFormData.content"
+              placeholder="请详细描述PPT的内容要求"
+              class="form-textarea"
+              rows="4"
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ppt-style">演示风格</label>
+              <select id="ppt-style" v-model="pptFormData.style" class="form-select">
+                <option value="professional">专业商务</option>
+                <option value="academic">学术研究</option>
+                <option value="creative">创意设计</option>
+                <option value="simple">简约清新</option>
+                <option value="colorful">活泼多彩</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="ppt-slides">页数要求</label>
+              <input
+                id="ppt-slides"
+                v-model.number="pptFormData.slideCount"
+                type="number"
+                min="5"
+                max="50"
+                class="form-input"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="ppt-audience">目标受众</label>
+            <input
+              id="ppt-audience"
+              v-model="pptFormData.audience"
+              type="text"
+              placeholder="如：学生、企业管理者、技术人员等"
+              class="form-input"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="ppt-requirements">特殊要求</label>
+            <textarea
+              id="ppt-requirements"
+              v-model="pptFormData.requirements"
+              placeholder="其他特殊要求或注意事项"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="ppt-modal-footer">
+        <button @click="closePPTModal" class="btn-cancel" :disabled="isPPTGenerating">
+          <font-awesome-icon :icon="['fas', 'times']" />
+          取消
+        </button>
+        <button @click="submitPPTRequest" class="btn-submit" :disabled="isPPTGenerating || !pptFormData.topic.trim() || !pptFormData.content.trim()">
+          <font-awesome-icon v-if="isPPTGenerating" :icon="['fas', 'spinner']" spin />
+          <font-awesome-icon v-else :icon="['fas', 'magic']" />
+          {{ isPPTGenerating ? '正在生成PPT...' : '开始生成' }}
+        </button>
+      </div>
+      
+      <!-- 生成进度提示 -->
+      <div v-if="isPPTGenerating" class="ppt-progress-overlay">
+        <div class="progress-content">
+          <div class="progress-spinner">
+            <font-awesome-icon :icon="['fas', 'cog']" spin />
+          </div>
+          <p class="progress-text">正在为您生成PPT，请稍候...</p>
+          <div class="progress-steps">
+            <div class="step active">
+              <font-awesome-icon :icon="['fas', 'check-circle']" />
+              <span>解析需求</span>
+            </div>
+            <div class="step active">
+              <font-awesome-icon :icon="['fas', 'spinner']" spin />
+              <span>生成内容</span>
+            </div>
+            <div class="step">
+              <font-awesome-icon :icon="['fas', 'circle']" />
+              <span>完成生成</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -321,13 +557,15 @@ import {createWebSocket} from '@/utils/websocket'
 import {getCurrentUserId, parseTokenPayload} from '@/api/index'
 import {getFriendList, getHistoryList, getHistoryDetail, getStudentProfile} from '@/api/students/stuAPI.js'
 import {fetchConversationList, fetchMessagesForConversation, deleteConversationById,getAIChatResponseObject} from '@/api/students/AIChatAPI.js'
+import {chatWithPptAgent, getPptTaskStatus} from '@/api/ppt/pptAPI.js'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import markdownRender from '@/components/markdownRender/Index.vue'
+// import markdownRender from '@/components/markdownRender/Index.vue'
+import markdownRender from '@/components/markdownRender/markstream-vue_Index.vue'
 
 // 聊天类型
 const chatTypes = {
   FRIEND: 'friend',
-  GROUP: 'group',
+  TOOLS: 'tools',
   AI: 'ai'
 }
 
@@ -388,6 +626,32 @@ const emojiList = ref([
   '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾'
 ])
 
+// PPT生成模态对话框相关状态
+const showPPTModal = ref(false)
+const isPPTGenerating = ref(false)
+const pptFormData = ref({
+  topic: '',
+  content: '',
+  style: 'professional',
+  slideCount: 10,
+  audience: '',
+  requirements: ''
+})
+
+// PPT聊天会话相关状态
+const pptChatSessionActive = ref(false)
+const pptSessionTitle = ref('')
+const pptChatMessages = ref([])
+const pptMessageInput = ref('')
+const isPPTSending = ref(false)
+const currentPptSessionId = ref(null)
+
+// PPT任务状态轮询相关
+const isPollingTaskStatus = ref(false)
+const pollingTimer = ref(null)
+const taskStatusCheckCount = ref(0)
+const maxPollingAttempts = ref(120) // 最大轮询次数（2分钟，每秒一次）
+const pollingInterval = ref(1000) // 轮询间隔（毫秒）
 
 // 模式选择菜单相关
 const showModeMenu = ref(false)
@@ -573,7 +837,7 @@ const handleSocketMessage = (data) => {
 
       const newMessage = {
         id: messageData.id || Date.now(),
-        content: messageData.content,
+        content: messageData.content ? String(messageData.content) : '', // 确保 content 是字符串类型
         senderId: messageData.senderId,
         senderName: messageData.senderName || '好友',
         senderAvatar: senderAvatar,
@@ -634,26 +898,18 @@ const scrollToBottom = () => {
   }
 }
 
-
-// 群聊列表
-const groups = ref([
+// 工具列表
+const tools = ref([
   {
-    id: 'g1',
-    name: 'Vue.js学习小组',
+    id: 'ppt-generator',
+    name: 'PPT生成工具',
     avatar: null,
-    lastMessage: '大家今天的作业完成了吗？',
-    lastTime: '16:45',
-    unreadCount: 5,
-    memberCount: 15
-  },
-  {
-    id: 'g2',
-    name: '前端开发交流群',
-    avatar: null,
-    lastMessage: '分享一个很棒的CSS技巧',
-    lastTime: '14:20',
+    lastMessage: '智能生成课程PPT，提升学习效率',
+    lastTime: '可用',
     unreadCount: 0,
-    memberCount: 28
+    type: 'ppt',
+    description: '基于AI技术，快速生成高质量的课程演示文稿',
+    icon: 'file-powerpoint'
   }
 ])
 
@@ -727,8 +983,8 @@ const currentConversationList = computed(() => {
   switch (currentChatType.value) {
     case chatTypes.FRIEND:
       return friends.value
-    case chatTypes.GROUP:
-      return groups.value
+    case chatTypes.TOOLS:
+      return tools.value
     case chatTypes.AI:
       return aiChats.value
     default:
@@ -1056,7 +1312,7 @@ const sendMessage = async () => {
       // 创建AI回复的占位消息（左侧显示，receiverId不是ai_assistant）
       const aiPlaceholderMessage = {
         id: 'ai-' + Date.now(),
-        content: '',
+        content: '', // 确保初始化为空字符串
         senderId: 'ai',
         senderName: 'AI助手',
         senderAvatar: null,
@@ -1079,7 +1335,9 @@ const sendMessage = async () => {
         (data) => {
           const lastMessage = currentMessages.value[currentMessages.value.length - 1]
           if (lastMessage && lastMessage.id === aiPlaceholderMessage.id) {
-            lastMessage.content += data.content
+            // 确保 content 始终是字符串类型
+            const contentToAdd = data && data.content ? String(data.content) : ''
+            lastMessage.content = String(lastMessage.content || '') + contentToAdd
             nextTick(() => {
               scrollToBottom()
             })
@@ -1284,6 +1542,492 @@ const insertEmoji = (emoji) => {
 
 const closeEmojiPicker = () => {
   showEmojiPicker.value = false
+}
+
+// PPT生成工具相关方法
+/**
+ * 解析PPT Agent响应数据
+ * @param {*} response - 后端返回的响应数据
+ * @returns {Object} - 包含 content 和 taskId 的对象
+ */
+const parsePPTResponse = (response) => {
+  let content = ''
+  let taskId = null
+  let sessionId = null
+  
+  console.log('解析PPT响应，类型:', typeof response, '内容:', response)
+  
+  if (typeof response === 'string') {
+    // 如果响应是字符串，直接使用
+    content = response
+  } else if (response && typeof response === 'object') {
+    // 如果响应是对象，提取各个字段
+    content = response.reply || response.message || response.content || ''
+    taskId = response.taskId || response.task_id || response.id || null
+    sessionId = response.sessionId || response.session_id || null
+    
+    // 如果没有找到内容字段，尝试将整个对象转为字符串
+    if (!content && Object.keys(response).length > 0) {
+      content = JSON.stringify(response, null, 2)
+    }
+  }
+  
+  console.log('解析结果 - 内容:', content, '任务ID:', taskId, '会话ID:', sessionId)
+  
+  return { content, taskId, sessionId }
+}
+
+/**
+ * 启动PPT生成功能
+ * 处理用户点击"开始生成PPT"按钮的事件
+ */
+const startPPTGeneration = () => {
+  // 重置表单数据
+  pptFormData.value = {
+    topic: '',
+    content: '',
+    style: 'professional',
+    slideCount: 10,
+    audience: '',
+    requirements: ''
+  }
+  // 显示模态对话框
+  showPPTModal.value = true
+}
+
+/**
+ * 关闭PPT生成模态对话框
+ */
+const closePPTModal = () => {
+  showPPTModal.value = false
+  // 重置表单数据
+  pptFormData.value = {
+    topic: '',
+    content: '',
+    style: 'professional',
+    slideCount: 10,
+    audience: '',
+    requirements: ''
+  }
+}
+
+/**
+ * 提交PPT生成请求
+ * 验证表单数据，调用API，并在成功后在工具卡片区域启动对话会话
+ */
+const submitPPTRequest = async () => {
+  // 表单验证
+  if (!pptFormData.value.topic.trim()) {
+    ElMessage.error('请输入PPT主题')
+    return
+  }
+  
+  if (!pptFormData.value.content.trim()) {
+    ElMessage.error('请输入PPT内容描述')
+    return
+  }
+
+  try {
+    isPPTGenerating.value = true
+    
+    // 组装chatRequest.message
+    const message = `请帮我生成一个PPT，具体要求如下：
+主题：${pptFormData.value.topic}
+内容描述：${pptFormData.value.content}
+演示风格：${pptFormData.value.style}
+页数要求：${pptFormData.value.slideCount}页
+目标受众：${pptFormData.value.audience || '通用'}
+特殊要求：${pptFormData.value.requirements || '无'}`
+
+    // 调用PPT Agent API
+    const response = await chatWithPptAgent({
+      message: message
+    })
+
+    // 解析后端响应
+    const { content: replyContent, taskId, sessionId } = parsePPTResponse(response)
+    
+    // 保存任务ID或会话ID
+    if (taskId) {
+      currentPptSessionId.value = taskId
+      console.log('保存PPT任务ID:', taskId)
+      ElMessage.success(`PPT生成请求已提交！任务ID: ${taskId}`)
+      
+      // 开始轮询任务状态
+      startPPTTaskPolling(taskId)
+    } else if (sessionId) {
+      currentPptSessionId.value = sessionId
+      console.log('保存PPT会话ID:', sessionId)
+      ElMessage.success('PPT生成请求已提交成功！')
+    } else {
+      ElMessage.success('PPT生成请求已提交成功！')
+    }
+    
+    // 关闭模态对话框
+    closePPTModal()
+    
+    // 启动PPT聊天会话
+    pptChatSessionActive.value = true
+    pptSessionTitle.value = `PPT生成 - ${pptFormData.value.topic}`
+    pptChatMessages.value = []
+    
+    // 添加用户的PPT生成请求消息（右侧显示）
+    const userMessage = {
+      id: 'user-ppt-request-' + Date.now(),
+      content: message,
+      senderId: getCurrentUserId(),
+      senderName: '我',
+      senderAvatar: currentUserAvatar.value,
+      timestamp: new Date().toLocaleString(),
+      type: 'text',
+      isOwn: true
+    }
+    pptChatMessages.value.push(userMessage)
+    
+    // 添加AI的响应消息作为开场内容（左侧显示）
+    const aiResponseMessage = {
+      id: 'ai-ppt-response-' + Date.now(),
+      content: replyContent || '正在为您生成PPT，请稍候...',
+      senderId: 'ai',
+      senderName: 'PPT生成助手',
+      senderAvatar: null,
+      timestamp: new Date().toLocaleString(),
+      type: 'text',
+      isOwn: false,
+      isStreaming: false,
+      taskId: taskId // 保存任务ID到消息中，方便后续查询
+    }
+    pptChatMessages.value.push(aiResponseMessage)
+    
+    // 滚动到底部显示最新消息
+    nextTick(() => {
+      scrollPPTMessagesToBottom()
+    })
+    
+    console.log('已在工具卡片区域启动PPT对话会话')
+    
+  } catch (error) {
+    console.error('PPT生成失败:', error)
+    console.error('PPT错误详情:', error.response || error)
+    
+    // 如果已经打开了会话，显示错误消息
+    if (pptChatSessionActive.value) {
+      const errorMessage = {
+        id: 'error-' + Date.now(),
+        content: `抱歉，PPT生成请求失败：${error.message || '网络错误，请稍后重试'}`,
+        senderId: 'ai',
+        senderName: 'PPT生成助手',
+        senderAvatar: null,
+        timestamp: new Date().toLocaleString(),
+        type: 'text',
+        isOwn: false,
+        isStreaming: false
+      }
+      pptChatMessages.value.push(errorMessage)
+    }
+    
+    ElMessage.error('PPT生成失败：' + (error.message || '未知错误'))
+  } finally {
+    isPPTGenerating.value = false
+  }
+}
+
+/**
+ * 关闭PPT聊天会话
+ */
+const closePPTChatSession = () => {
+  // 停止轮询
+  stopPPTTaskPolling()
+  
+  pptChatSessionActive.value = false
+  pptSessionTitle.value = ''
+  pptChatMessages.value = []
+  pptMessageInput.value = ''
+  currentPptSessionId.value = null
+  ElMessage.info('已结束PPT生成会话')
+}
+
+/**
+ * 发送PPT消息
+ */
+const sendPPTMessage = async () => {
+  if (!pptMessageInput.value.trim()) {
+    ElMessage.warning('请输入消息内容')
+    return
+  }
+
+  try {
+    const userMessage = pptMessageInput.value.trim()
+
+    // 创建用户消息显示（右侧显示）
+    const userLocalMessage = {
+      id: Date.now(),
+      content: userMessage,
+      senderId: getCurrentUserId(),
+      senderName: '我',
+      senderAvatar: currentUserAvatar.value,
+      timestamp: new Date().toLocaleString(),
+      type: 'text',
+      isOwn: true
+    }
+
+    // 添加用户消息到列表
+    pptChatMessages.value.push(userLocalMessage)
+
+    // 清空输入框
+    pptMessageInput.value = ''
+
+    // 滚动到底部
+    nextTick(() => {
+      scrollPPTMessagesToBottom()
+    })
+
+    // 创建AI回复的占位消息（左侧显示）
+    const aiPlaceholderMessage = {
+      id: 'ai-' + Date.now(),
+      content: '',
+      senderId: 'ai',
+      senderName: 'PPT生成助手',
+      senderAvatar: null,
+      timestamp: new Date().toLocaleString(),
+      type: 'text',
+      isOwn: false,
+      isStreaming: true
+    }
+
+    pptChatMessages.value.push(aiPlaceholderMessage)
+    isPPTSending.value = true
+
+    // 调用PPT Agent API
+    const response = await chatWithPptAgent({
+      message: userMessage,
+      sessionId: currentPptSessionId.value
+    })
+
+    // 解析响应
+    const { content: replyContent, taskId, sessionId } = parsePPTResponse(response)
+    
+    // 更新任务ID或会话ID（如果有新的）
+    if (taskId) {
+      currentPptSessionId.value = taskId
+      console.log('更新PPT任务ID:', taskId)
+      
+      // 开始轮询新的任务状态
+      startPPTTaskPolling(taskId)
+    } else if (sessionId) {
+      currentPptSessionId.value = sessionId
+      console.log('更新PPT会话ID:', sessionId)
+    }
+
+    // 更新AI消息内容
+    const lastMessage = pptChatMessages.value[pptChatMessages.value.length - 1]
+    if (lastMessage && lastMessage.id === aiPlaceholderMessage.id) {
+      lastMessage.content = replyContent || '收到您的消息，正在处理...'
+      lastMessage.isStreaming = false
+      if (taskId) {
+        lastMessage.taskId = taskId
+      }
+    }
+
+    // 滚动到底部
+    nextTick(() => {
+      scrollPPTMessagesToBottom()
+    })
+
+  } catch (error) {
+    console.error('发送PPT消息失败:', error)
+    console.error('PPT消息错误详情:', error.response || error)
+    ElMessage.error('发送消息失败: ' + (error.message || '网络错误'))
+    
+    // 更新错误消息
+    const lastMessage = pptChatMessages.value[pptChatMessages.value.length - 1]
+    if (lastMessage && lastMessage.isStreaming) {
+      lastMessage.content = `抱歉，PPT生成服务暂时不可用：${error.message || '请稍后重试'}`
+      lastMessage.isStreaming = false
+    }
+  } finally {
+    isPPTSending.value = false
+  }
+}
+
+/**
+ * 处理PPT输入框键盘事件
+ */
+const handlePPTInputKeydown = (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    sendPPTMessage()
+  }
+}
+
+/**
+ * 滚动PPT消息到底部
+ */
+const scrollPPTMessagesToBottom = () => {
+  const messagesContainer = document.querySelector('.ppt-messages-list')
+  if (messagesContainer) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight
+  }
+}
+
+/**
+ * 开始PPT任务状态轮询
+ * @param {string} taskId - PPT生成任务ID
+ */
+const startPPTTaskPolling = (taskId) => {
+  if (!taskId) {
+    console.warn('无法开始轮询：任务ID为空')
+    return
+  }
+
+  // 如果已经在轮询，先停止之前的轮询
+  if (pollingTimer.value) {
+    stopPPTTaskPolling()
+  }
+
+  console.log(`开始轮询PPT任务状态，任务ID: ${taskId}`)
+  isPollingTaskStatus.value = true
+  taskStatusCheckCount.value = 0
+
+  // 立即执行一次状态检查
+  checkPPTTaskStatus(taskId)
+
+  // 设置定时器进行轮询
+  pollingTimer.value = setInterval(() => {
+    checkPPTTaskStatus(taskId)
+  }, pollingInterval.value)
+}
+
+/**
+ * 停止PPT任务状态轮询
+ */
+const stopPPTTaskPolling = () => {
+  if (pollingTimer.value) {
+    clearInterval(pollingTimer.value)
+    pollingTimer.value = null
+  }
+  isPollingTaskStatus.value = false
+  taskStatusCheckCount.value = 0
+  console.log('已停止PPT任务状态轮询')
+}
+
+/**
+ * 检查PPT任务状态
+ * @param {string} taskId - PPT生成任务ID
+ */
+const checkPPTTaskStatus = async (taskId) => {
+  try {
+    taskStatusCheckCount.value++
+    console.log(`第${taskStatusCheckCount.value}次检查PPT任务状态，任务ID: ${taskId}`)
+
+    // 检查是否超过最大轮询次数
+    if (taskStatusCheckCount.value > maxPollingAttempts.value) {
+      console.warn('PPT任务状态轮询超时，停止轮询')
+      stopPPTTaskPolling()
+      updatePPTTaskStatusMessage('任务状态查询超时，请手动刷新或联系管理员', 'timeout')
+      return
+    }
+
+    // 调用API查询任务状态
+    const response = await getPptTaskStatus(taskId)
+    console.log('PPT任务状态响应:', response)
+
+    // 处理任务状态响应
+    handlePPTTaskStatusResponse(response, taskId)
+
+  } catch (error) {
+    console.error('查询PPT任务状态失败:', error)
+    
+    // 如果是网络错误或服务器错误，继续轮询
+    if (taskStatusCheckCount.value < maxPollingAttempts.value) {
+      console.log('任务状态查询失败，将在下次轮询时重试')
+    } else {
+      // 超过最大重试次数，停止轮询
+      stopPPTTaskPolling()
+      updatePPTTaskStatusMessage('任务状态查询失败，请检查网络连接或联系管理员', 'error')
+    }
+  }
+}
+
+/**
+ * 处理PPT任务状态响应
+ * @param {Object} response - 任务状态响应
+ * @param {string} taskId - 任务ID
+ */
+const handlePPTTaskStatusResponse = (response, taskId) => {
+  const status = response.status || response.taskStatus || 'unknown'
+  const progress = response.progress || 0
+  const message = response.message || response.description || ''
+  const result = response.result || response.data
+
+  console.log(`任务状态: ${status}, 进度: ${progress}%, 消息: ${message}`)
+
+  switch (status.toLowerCase()) {
+    case 'completed':
+    case 'success':
+    case 'finished':
+      // 任务完成
+      stopPPTTaskPolling()
+      updatePPTTaskStatusMessage(`PPT生成完成！${message}`, 'success', result)
+      ElMessage.success('PPT生成完成！')
+      break
+
+    case 'failed':
+    case 'error':
+      // 任务失败
+      stopPPTTaskPolling()
+      updatePPTTaskStatusMessage(`PPT生成失败：${message}`, 'error')
+      ElMessage.error('PPT生成失败')
+      break
+
+    case 'running':
+    case 'processing':
+    case 'in_progress':
+      // 任务进行中
+      updatePPTTaskStatusMessage(`PPT生成中...${message} (${progress}%)`, 'processing', null, progress)
+      break
+
+    case 'pending':
+    case 'queued':
+      // 任务排队中
+      updatePPTTaskStatusMessage(`PPT生成任务已提交，正在排队处理...${message}`, 'pending')
+      break
+
+    default:
+      // 未知状态，继续轮询
+      console.log(`未知任务状态: ${status}，继续轮询`)
+      break
+  }
+}
+
+/**
+ * 更新PPT任务状态消息
+ * @param {string} content - 消息内容
+ * @param {string} type - 消息类型 (processing, success, error, timeout, pending)
+ * @param {Object} result - 任务结果（如果有）
+ * @param {number} progress - 进度百分比（如果有）
+ */
+const updatePPTTaskStatusMessage = (content, type, result = null, progress = null) => {
+  // 查找最后一条AI消息
+  const lastAIMessage = [...pptChatMessages.value].reverse().find(msg => !msg.isOwn)
+  
+  if (lastAIMessage) {
+    // 更新消息内容
+    lastAIMessage.content = content
+    lastAIMessage.isStreaming = type === 'processing'
+    lastAIMessage.taskStatus = type
+    lastAIMessage.progress = progress
+    
+    // 如果任务完成且有结果，保存结果
+    if (result) {
+      lastAIMessage.taskResult = result
+    }
+
+    // 滚动到底部显示最新状态
+    nextTick(() => {
+      scrollPPTMessagesToBottom()
+    })
+  }
 }
 
 // 模式切换相关方法
@@ -1495,6 +2239,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // 停止PPT任务轮询
+  stopPPTTaskPolling()
+  
   // 移除事件监听器
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
@@ -2680,6 +3427,824 @@ onUnmounted(() => {
   .exit-focus-btn {
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
+  }
+
+  /* 工具卡片响应式样式 */
+  .tools-container {
+    padding: 1rem;
+  }
+
+  .tool-card {
+    padding: 1.5rem;
+  }
+
+  .tool-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .tool-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .tool-main-icon {
+    font-size: 2rem;
+  }
+
+  .tool-title {
+    font-size: 1.5rem;
+  }
+
+  .tool-features {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-actions {
+    flex-direction: column;
+  }
+
+  .tool-action-btn {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* 工具卡片样式 */
+.tools-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90%;
+  padding: 2rem;
+}
+
+.tool-card {
+  width: 100%;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 
+    8px 8px 16px rgba(0, 47, 167, 0.1),
+    -8px -8px 16px rgba(255, 255, 255, 0.9),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+    inset -2px -2px 4px rgba(0, 47, 167, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    12px 12px 24px rgba(0, 47, 167, 0.15),
+    -12px -12px 24px rgba(255, 255, 255, 0.95),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 4px rgba(0, 47, 167, 0.08);
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(0, 47, 167, 0.1);
+}
+
+.tool-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #002FA7 0%, #0066FF 100%);
+  border-radius: 20px;
+  box-shadow: 
+    4px 4px 8px rgba(0, 47, 167, 0.3),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.tool-main-icon {
+  font-size: 2.5rem;
+  color: white;
+}
+
+.tool-info {
+  flex: 1;
+}
+
+.tool-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #002FA7;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, #002FA7 0%, #0066FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tool-description {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tool-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.tool-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(0, 47, 167, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 47, 167, 0.1);
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover {
+  background: rgba(0, 47, 167, 0.08);
+  border-color: rgba(0, 47, 167, 0.2);
+  transform: translateY(-1px);
+}
+
+.feature-icon {
+  font-size: 1.2rem;
+  color: #002FA7;
+  width: 20px;
+  text-align: center;
+}
+
+.feature-item span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.tool-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.tool-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #002FA7 0%, #0066FF 100%);
+  color: white;
+  box-shadow: 
+    4px 4px 8px rgba(0, 47, 167, 0.3),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    6px 6px 12px rgba(0, 47, 167, 0.4),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+  box-shadow: 
+    2px 2px 4px rgba(0, 47, 167, 0.3),
+    inset 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: #002FA7;
+  border: 2px solid rgba(0, 47, 167, 0.2);
+  box-shadow: 
+    2px 2px 4px rgba(0, 47, 167, 0.1),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.secondary-btn:hover {
+  background: rgba(0, 47, 167, 0.05);
+  border-color: rgba(0, 47, 167, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 
+    4px 4px 8px rgba(0, 47, 167, 0.15),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.btn-icon {
+  font-size: 1rem;
+}
+
+/* PPT模态对话框样式 */
+.ppt-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.ppt-modal {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 
+    0 20px 40px rgba(0, 47, 167, 0.15),
+    0 8px 16px rgba(0, 47, 167, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ppt-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 47, 167, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px 16px 0 0;
+}
+
+.ppt-modal-header h3 {
+  margin: 0;
+  color: #002FA7;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ppt-modal-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.ppt-modal-header .close-btn:hover {
+  background: rgba(0, 47, 167, 0.1);
+  color: #002FA7;
+}
+
+.ppt-modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #002FA7;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.required {
+  color: #e74c3c;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid rgba(0, 47, 167, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  box-shadow: 
+    inset 2px 2px 4px rgba(0, 47, 167, 0.05),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #002FA7;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 
+    0 0 0 3px rgba(0, 47, 167, 0.1),
+    inset 2px 2px 4px rgba(0, 47, 167, 0.05);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ppt-modal-footer {
+  padding: 20px 24px;
+  border-top: 2px solid rgba(0, 47, 167, 0.1);
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 242, 245, 0.95) 100%);
+  border-radius: 0 0 16px 16px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.95);
+  color: #64748b;
+  border: 2px solid rgba(0, 47, 167, 0.15);
+  box-shadow: 
+    2px 2px 6px rgba(0, 47, 167, 0.08),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: rgba(0, 47, 167, 0.05);
+  border-color: rgba(0, 47, 167, 0.25);
+  color: #002FA7;
+  transform: translateY(-2px);
+  box-shadow: 
+    4px 4px 10px rgba(0, 47, 167, 0.12),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.95);
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #002FA7 0%, #0066FF 100%);
+  color: white;
+  box-shadow: 
+    4px 4px 10px rgba(0, 47, 167, 0.3),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0066FF 0%, #002FA7 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    6px 6px 16px rgba(0, 47, 167, 0.4),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.btn-submit:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 
+    2px 2px 6px rgba(0, 47, 167, 0.3),
+    inset 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-submit:disabled,
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.3);
+}
+
+/* 按钮图标样式 */
+.btn-cancel svg,
+.btn-submit svg {
+  font-size: 0.9rem;
+}
+
+.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* PPT生成进度提示样式 */
+.ppt-progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+}
+
+.progress-content {
+  text-align: center;
+  padding: 30px;
+}
+
+.progress-spinner {
+  font-size: 48px;
+  color: #002FA7;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.progress-text {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 30px;
+  font-weight: 500;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+  color: #002FA7;
+}
+
+.step i {
+  font-size: 20px;
+  margin-bottom: 5px;
+}
+
+.step span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* 按钮图标样式优化 */
+.btn-submit i {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.btn-submit:disabled {
+  background: linear-gradient(135deg, #ccc 0%, #999 100%);
+  cursor: not-allowed;
+}
+
+/* 模态框动画优化 */
+.ppt-modal-overlay {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.ppt-modal {
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 响应式设计 - PPT模态对话框 */
+@media (max-width: 768px) {
+  .ppt-modal {
+    width: 95%;
+    margin: 20px;
+    max-height: 85vh;
+  }
+  
+  .ppt-modal-header {
+    padding: 16px 20px;
+  }
+
+  .ppt-modal-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .ppt-modal-body {
+    padding: 16px 20px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .ppt-modal-footer {
+    flex-direction: row;
+    padding: 16px 20px;
+    gap: 12px;
+  }
+  
+  .btn-cancel,
+  .btn-submit {
+    flex: 1;
+    min-width: auto;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+  
+  .progress-steps {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .step {
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .step svg {
+    margin-right: 10px;
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .ppt-modal {
+    width: 100%;
+    margin: 10px;
+    border-radius: 12px;
+  }
+
+  .ppt-modal-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn-cancel,
+  .btn-submit {
+    width: 100%;
+  }
+}
+
+/* PPT聊天会话区域样式 */
+.ppt-chat-session {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 
+    8px 8px 16px rgba(0, 47, 167, 0.1),
+    -8px -8px 16px rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+
+.ppt-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, rgba(0, 47, 167, 0.05) 0%, rgba(81, 123, 77, 0.03) 100%);
+  border-bottom: 2px solid rgba(0, 47, 167, 0.1);
+}
+
+.session-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #002FA7 0%, #0066FF 100%);
+  border-radius: 12px;
+  color: white;
+  font-size: 1.5rem;
+  box-shadow: 
+    4px 4px 8px rgba(0, 47, 167, 0.2),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.session-details {
+  flex: 1;
+}
+
+.session-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #002FA7;
+}
+
+.session-status {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.session-task-id {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: rgba(0, 47, 167, 0.1);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #002FA7;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.session-task-id:hover {
+  background: rgba(0, 47, 167, 0.15);
+  transform: scale(1.02);
+}
+
+.close-session-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245, 108, 108, 0.1);
+  border: 1px solid rgba(245, 108, 108, 0.2);
+  border-radius: 8px;
+  color: #F56C6C;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.close-session-btn:hover {
+  background: rgba(245, 108, 108, 0.2);
+  color: #E53E3E;
+  transform: scale(1.05);
+}
+
+.ppt-messages-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 确保flex子元素可以收缩 */
+}
+
+.ppt-messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0; /* 确保可以收缩 */
+}
+
+.ppt-message-input-area {
+  flex-shrink: 0; /* 防止输入区域被压缩 */
+  border-top: 1px solid rgba(0, 47, 167, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  min-height: 80px; /* 确保输入区域有最小高度 */
+  display: flex;
+  align-items: center;
+}
+
+/* 滚动条样式 */
+.ppt-messages-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ppt-messages-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.ppt-messages-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 47, 167, 0.2);
+  border-radius: 3px;
+}
+
+.ppt-messages-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 47, 167, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ppt-session-header {
+    padding: 1rem;
+  }
+
+  .session-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .session-title {
+    font-size: 1rem;
+  }
+
+  .session-status {
+    font-size: 0.75rem;
+  }
+
+  .ppt-messages-list {
+    padding: 1rem;
+  }
+
+  .ppt-message-input-area {
+    padding: 0.75rem 1rem;
   }
 }
 </style>

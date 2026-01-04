@@ -8,11 +8,14 @@ spring:
       max-request-size: 1024MB
       enabled: true
   rabbitmq:
-    addresses: 192.168.116.128
+    # addresses: 192.168.116.128
+    addresses: 192.168.15.128
     port: 5672
     username: admin
     password: admin
     virtual-host: /educate
+    publisher-confirm-type: correlated
+    publisher-returns: true
   datasource:
     url: jdbc:mysql://localhost:3306/online_educate?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
     username: root
@@ -30,6 +33,7 @@ spring:
       username: daoxuanadmin
       password: DaoXuanAdmin
       authentication-database: admin
+      uri: mongodb://daoxuanadmin:DaoXuanAdmin@101.126.19.83:27017/online_educate?authSource=admin&socketTimeoutMS=60000&connectTimeoutMS=10000
   mail:
     host: smtp.163.com
     username: daoxuan5117@163.com
@@ -60,7 +64,8 @@ spring:
 app:
   file-storage:
     minio:
-      endpoint: http://192.168.116.128:9000
+      # endpoint: http://192.168.116.128:9000
+      endpoint: http://192.168.15.128:9000
       accessKey: daoxuanAdmin
       secretKey: daoxuanAdmin
       bucketName: educate

@@ -1,3 +1,6 @@
+server:
+  port: 8089
+
 spring:
   application:
     name: online-ai-tool-ppt
@@ -19,6 +22,11 @@ spring:
           model: qwen3-8b
           # 默认的temperature，我们会在代码中根据需要动态调整
           temperature: 0.1
+      image:
+        options:
+          model: qwen-image-plus
+          n: 1
+
   data:
     redis:
       host: 101.126.19.83
@@ -31,6 +39,12 @@ spring:
       username: your_mongo2_user
       password: your_super_strong_password_for_mongo2
       authentication-database: admin
+      uri: mongodb://your_mongo2_user:your_super_strong_password_for_mongo2@101.126.19.83:27018/online_educate?authSource=admin&socketTimeoutMS=60000&connectTimeoutMS=10000
 
-server:
-  port: 8089
+app:
+  file-storage:
+    minio:
+      endpoint: http://192.168.116.128:9000
+      accessKey: daoxuanAdmin
+      secretKey: daoxuanAdmin
+      bucketName: ai-tools-pptx

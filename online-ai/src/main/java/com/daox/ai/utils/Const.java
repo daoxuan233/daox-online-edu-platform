@@ -22,4 +22,12 @@ public final class Const {
      * redis key - jwt黑名单
      */
     public final static String JWT_BLACK_LIST = "jwt:blacklist:";
+    /**
+     * redis key - 对话内存会话标识
+     */
+    public static final String CHAT_MEMORY_CONVERSATION_ID_KEY = "chat_memory_conversation_id";
+    /**
+     * redis key - 对话内存检索大小
+     */
+    public static final String CHAT_MEMORY_RETRIEVE_SIZE_KEY = "chat_memory_retrieve_size";
 }

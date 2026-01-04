@@ -10,6 +10,20 @@ spring:
         upgrade: 120
         frequency: 3
 
+  rabbitmq:
+    # addresses: 192.168.116.128
+    addresses: 192.168.15.128
+    port: 5672
+    username: admin
+    password: admin
+    virtual-host: /educate
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 5
+        max-concurrency: 10
+        prefetch: 1
+
   ai:
     openai:
       api-key: sk-b54de805d4f643249373a194e3df8d86
@@ -17,12 +31,16 @@ spring:
       chat:
         options:
           model: deepseek-chat
+      embedding:
+        options:
+          model: text-embedding-v4
+          dimensions: 1536
     dashscope:
       api-key: sk-f91acc5b3d254753bfe3e1833d4c2214
       chat:
         options:
           model: qwen-plus
-          temperature: 0.9
+          temperature: 0.7
     deepseek:
       api-key: sk-b54de805d4f643249373a194e3df8d86
       base-url: https://api.deepseek.com
@@ -42,6 +60,7 @@ spring:
       username: your_mongo2_user
       password: your_super_strong_password_for_mongo2
       authentication-database: admin
+      uri: mongodb://your_mongo2_user:your_super_strong_password_for_mongo2@101.126.19.83:27018/online_educate?authSource=admin&socketTimeoutMS=60000&connectTimeoutMS=10000
 
 server:
   port: 8088
