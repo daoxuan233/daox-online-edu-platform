@@ -42,27 +42,91 @@
               />
             </div>
           </div>
-          <div class="filter-tabs">
-            <button
-                v-for="tab in filterTabs"
-                :key="tab.key"
-                class="filter-tab"
-                :class="{ 'active': activeFilter === tab.key }"
-                @click="setActiveFilter(tab.key)"
+          <div class="main-tabs">
+            <div 
+              class="main-tab-item neumorphism-raised" 
+              :class="{ 'active': activeFilter === 'inbox' }"
+              @click="setActiveFilter('inbox')"
             >
-              <font-awesome-icon :icon="tab.icon"/>
-              <span>{{ tab.label }}</span>
-              <span class="count">{{ getFilterCount(tab.key) }}</span>
+              <div class="tab-content">
+                <font-awesome-icon :icon="['fas', 'lightbulb']" class="tab-icon inbox-icon"/>
+                <div class="tab-info">
+                  <span class="tab-label">灵感池</span>
+                  <span class="tab-count" v-if="getFilterCount('inbox') > 0">{{ getFilterCount('inbox') }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              class="main-tab-item neumorphism-raised" 
+              :class="{ 'active': activeFilter !== 'inbox' }"
+              @click="setActiveFilter('free')"
+            >
+              <div class="tab-content">
+                <font-awesome-icon :icon="['fas', 'sticky-note']" class="tab-icon free-icon"/>
+                <div class="tab-info">
+                  <span class="tab-label">自由笔记</span>
+                  <div class="mini-counts" v-if="activeFilter !== 'inbox'">
+                     <span class="mini-count" title="自创">{{ getFilterCount('free') }}</span>
+                     <span class="divider">/</span>
+                     <span class="mini-count" title="课程">{{ getFilterCount('course') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 二级分类 (仅在自由笔记模式下显示) -->
+          <div class="sub-tabs-container" v-if="activeFilter !== 'inbox'">
+             <div class="sub-tabs-group neumorphism-inset">
+               <button 
+                 class="sub-tab-btn" 
+                 :class="{ 'active': activeFilter === 'free' || activeFilter === 'all' || activeFilter === 'recent' }"
+                 @click="setActiveFilter('free')"
+               >
+                 <span class="sub-label">自创</span>
+                 <span class="sub-count-badge">{{ getFilterCount('free') }}</span>
+               </button>
+               <button 
+                 class="sub-tab-btn" 
+                 :class="{ 'active': activeFilter === 'course' }"
+                 @click="setActiveFilter('course')"
+               >
+                 <span class="sub-label">课程</span>
+                 <span class="sub-count-badge">{{ getFilterCount('course') }}</span>
+               </button>
+             </div>
+          </div>
+
+          <div v-if="activeFilter === 'inbox' && inboxTagCloud.length" class="inbox-tag-cloud">
+            <button
+                v-if="inboxSelectedTag"
+                class="tag-chip clear-chip"
+                @click="inboxSelectedTag = ''"
+            >
+              <font-awesome-icon :icon="['fas', 'xmark']"/>
+              清除
+            </button>
+            <button
+                v-for="item in inboxTagCloud"
+                :key="item.tag"
+                class="tag-chip"
+                :class="{ active: inboxSelectedTag === item.tag }"
+                :style="{ fontSize: `${item.size}px` }"
+                @click="inboxSelectedTag = item.tag"
+            >
+              <span class="tag-text">{{ item.tag }}</span>
+              <span class="tag-count">{{ item.count }}</span>
             </button>
           </div>
         </div>
 
         <div class="notes-list" :class="{ 'card-view': viewMode === 'card', 'list-view': viewMode === 'list' }">
           <!-- 加载状态 -->
-          <div v-if="activeFilter === 'course' ? courseNotesLoading : isLoading" class="loading-state">
+          <div v-if="isListLoading" class="loading-state">
             <div class="loading-content">
               <font-awesome-icon :icon="['fas', 'spinner']" class="fa-spin loading-icon"/>
-              <p>{{ activeFilter === 'course' ? '正在加载课程笔记数据...' : '正在加载笔记数据...' }}</p>
+              <p>{{ listLoadingText }}</p>
             </div>
           </div>
           
@@ -75,13 +139,17 @@
               </div>
               <h3 class="empty-title">
                 {{ searchQuery ? '未找到相关笔记' : 
-                   activeFilter === 'course' ? '当前没有课程笔记' : '当前没有学习笔记' }}
+                   activeFilter === 'course' ? '当前没有课程笔记' : activeFilter === 'inbox' ? '当前没有灵感池笔记' : activeFilter === 'free' ? '当前没有自主笔记' : '当前没有自由笔记' }}
               </h3>
               <p class="empty-description">
                 {{ searchQuery 
                   ? '尝试调整搜索关键词或清空搜索条件查看所有笔记' 
                   : activeFilter === 'course' 
                     ? '课程笔记将显示您在学习过程中记录的重要内容和心得体会' 
+                    : activeFilter === 'inbox'
+                      ? '灵感池用于快速收集灵感与碎片想法，支持按标签聚合'
+                      : activeFilter === 'free'
+                        ? '自主笔记不绑定课程，可随时归档与整理'
                     : '记录学习心得，整理知识要点，让学习更有条理' 
                 }}
               </p>
@@ -120,36 +188,56 @@
               class="note-item neumorphism-raised"
               :class="{ 'active': selectedNote?.id === note.id, 'card-item': viewMode === 'card', 'list-item': viewMode === 'list' }"
               @click="selectNote(note)"
+              @mouseenter="handleNoteHover(note.id)"
+              @mouseleave="handleNoteLeave"
           >
+            <!-- 悬浮预览层 -->
+            <transition name="fade">
+              <div v-if="hoveredNoteId === note.id && showPreview" class="note-tooltip neumorphism-raised">
+                <div class="tooltip-content">{{ getPreviewText(note.content) }}</div>
+                <div class="tooltip-arrow"></div>
+              </div>
+            </transition>
+
             <div class="note-header">
-              <h3 class="note-title">{{ note.title || '无标题笔记' }}</h3>
-              <div class="note-meta">
+              <div class="note-title-row">
+                <h3 class="note-title" :title="note.title || '无标题笔记'">{{ note.title || '无标题笔记' }}</h3>
                 <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
-                <div class="note-actions">
-                  <button class="note-action-btn" @click.stop="toggleNoteFavorite(note)">
+              </div>
+              
+              <div class="note-tags" v-if="note.tags && note.tags.length">
+                <span
+                    v-for="tag in note.tags.slice(0, 3)"
+                    :key="tag"
+                    class="note-tag"
+                >
+                  {{ tag }}
+                </span>
+                <span v-if="note.tags.length > 3" class="note-tag-more">+{{ note.tags.length - 3 }}</span>
+              </div>
+
+              <div class="note-actions">
+                <template v-if="activeFilter === 'inbox'">
+                  <button
+                      class="note-action-btn archive-btn"
+                      @click.stop="archiveInboxToFree(note)"
+                      title="归档到自由笔记"
+                  >
+                    <font-awesome-icon :icon="['fas', 'box-archive']"/>
+                  </button>
+                </template>
+                <template v-else>
+                  <button class="note-action-btn" @click.stop="toggleNoteFavorite(note)" :title="note.isFavorite ? '取消收藏' : '收藏'">
                     <font-awesome-icon
                         :icon="note.isFavorite ? ['fas', 'heart'] : ['far', 'heart']"
                         :class="{ 'favorite': note.isFavorite }"
                     />
                   </button>
-                  <button class="note-action-btn" @click.stop="deleteNote(note)">
-                    <font-awesome-icon :icon="['fas', 'trash']"/>
-                  </button>
-                </div>
+                </template>
+                <button class="note-action-btn delete-btn" @click.stop="deleteNote(note)" title="删除笔记">
+                  <font-awesome-icon :icon="['fas', 'trash']"/>
+                </button>
               </div>
-            </div>
-            <div class="note-preview" v-if="viewMode === 'list' || viewMode === 'card'">{{
-                getPreviewText(note.content)
-              }}
-            </div>
-            <div class="note-tags">
-              <span
-                  v-for="tag in note.tags"
-                  :key="tag"
-                  class="note-tag"
-              >
-                {{ tag }}
-              </span>
             </div>
           </div>
         </div>
@@ -409,7 +497,8 @@ import {ref, computed, onMounted, watch, onUnmounted, nextTick} from 'vue'
 import {MdEditor} from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import {ElMessage, ElMessageBox, ElDialog, ElForm, ElFormItem, ElSelect, ElOption, ElInput, ElCheckbox, ElButton} from 'element-plus'
-import { createFreedomNote, updateNote, getAllLearningNotes, getCourseNotes } from '@/api/students/stuAPI.js'
+import { createFreedomNote, updateNote, getAllLearningNotes, getCourseNotes, getMyCourseList } from '@/api/students/stuAPI.js'
+import { getInboxNotes, archiveNote } from '@/api/students/learning.js'
 
 // 响应式数据
 const searchQuery = ref('')
@@ -427,6 +516,12 @@ const isSaving = ref(false) // 保存状态
 const courseNotes = ref([]) // 课程笔记数据
 const courseNotesLoading = ref(false) // 课程笔记加载状态
 const isNewNote = ref(false) // 标识是否为新建笔记
+const inboxNotes = ref([])
+const inboxNotesLoading = ref(false)
+const inboxSelectedTag = ref('')
+const hoveredNoteId = ref(null)
+const showPreview = ref(false)
+let previewTimer = null
 
 // 保存笔记弹窗相关数据
 const saveDialogVisible = ref(false)
@@ -439,13 +534,7 @@ const saveForm = ref({
   isPrivate: true
 })
 
-// 模拟课程数据
-const courses = ref([
-  { id: '1', name: 'Vue.js 基础教程' },
-  { id: '2', name: 'JavaScript 高级编程' },
-  { id: '3', name: '前端工程化实践' },
-  { id: '4', name: 'React 开发指南' }
-])
+const courses = ref([])
 
 // 模拟章节数据
 const chapters = ref({
@@ -536,7 +625,9 @@ const mockNotes = ref([
 
 // 过滤标签
 const filterTabs = ref([
-  {key: 'all', label: '全部', icon: ['fas', 'sticky-note']},
+  {key: 'inbox', label: '灵感池', icon: ['fas', 'lightbulb']},
+  {key: 'all', label: '自由', icon: ['fas', 'sticky-note']},
+  {key: 'free', label: '自主', icon: ['fas', 'pen-fancy']},
   {key: 'course', label: '课程', icon: ['fas', 'graduation-cap']},
   {key: 'recent', label: '最近', icon: ['fas', 'clock']}
 ])
@@ -554,34 +645,73 @@ const footers = ref(['markdownTotal', '=', 'scrollSwitch'])
 
 // 计算属性
 const filteredNotes = computed(() => {
-  // 根据活动过滤器选择数据源
-  let filtered = activeFilter.value === 'course' ? courseNotes.value : notes.value
+  let base = []
+  if (activeFilter.value === 'course') {
+    base = courseNotes.value
+  } else if (activeFilter.value === 'inbox') {
+    base = inboxNotes.value
+  } else {
+    base = notes.value
+  }
+
+  if (activeFilter.value === 'free') {
+    base = notes.value.filter(note => !note.courseId)
+  }
+
+  if (activeFilter.value === 'recent') {
+    base = notes.value.filter(note => {
+      const daysDiff = (new Date() - note.updatedAt) / (1000 * 60 * 60 * 24)
+      return daysDiff <= 7
+    })
+  }
+
+  if (activeFilter.value === 'inbox' && inboxSelectedTag.value) {
+    base = base.filter(note => (note.tags || []).includes(inboxSelectedTag.value))
+  }
 
   // 根据搜索查询过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(note =>
-        note.title.toLowerCase().includes(query) ||
-        note.content.toLowerCase().includes(query) ||
-        note.tags.some(tag => tag.toLowerCase().includes(query))
+    base = base.filter(note =>
+        (note.title || '').toLowerCase().includes(query) ||
+        (note.content || '').toLowerCase().includes(query) ||
+        (note.tags || []).some(tag => (tag || '').toLowerCase().includes(query))
     )
   }
 
-  // 根据活动过滤器过滤
-  switch (activeFilter.value) {
-    case 'course':
-      // 课程笔记已经是正确的数据源，无需额外过滤
-      break
-    case 'recent':
-      filtered = filtered.filter(note => {
-        const daysDiff = (new Date() - note.updatedAt) / (1000 * 60 * 60 * 24)
-        return daysDiff <= 7
-      })
-      break
-  }
-
   // 按更新时间排序
-  return filtered.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+  return [...base].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+})
+
+const isListLoading = computed(() => {
+  if (activeFilter.value === 'course') return courseNotesLoading.value
+  if (activeFilter.value === 'inbox') return inboxNotesLoading.value
+  return isLoading.value
+})
+
+const listLoadingText = computed(() => {
+  if (activeFilter.value === 'course') return '正在加载课程笔记数据...'
+  if (activeFilter.value === 'inbox') return '正在加载灵感池数据...'
+  return '正在加载笔记数据...'
+})
+
+const inboxTagCloud = computed(() => {
+  const counts = new Map()
+  for (const note of inboxNotes.value) {
+    for (const tag of (note.tags || [])) {
+      if (!tag) continue
+      counts.set(tag, (counts.get(tag) || 0) + 1)
+    }
+  }
+  const entries = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 30)
+  if (entries.length === 0) return []
+  const max = entries[0][1]
+  const min = entries[entries.length - 1][1]
+  return entries.map(([tag, count]) => {
+    const t = max === min ? 0.5 : (count - min) / (max - min)
+    const size = 12 + t * 10
+    return { tag, count, size }
+  })
 })
 
 // 动态章节选项
@@ -626,6 +756,26 @@ const fetchAllNotes = async () => {
   }
 }
 
+const fetchInbox = async () => {
+  try {
+    inboxNotesLoading.value = true
+    const result = await getInboxNotes({ page: 0, size: 60, sort: 'updatedAt,desc' })
+    const content = result?.content || []
+    inboxNotes.value = content.map(note => ({
+      ...note,
+      createdAt: new Date(note.createdAt),
+      updatedAt: new Date(note.updatedAt),
+      tags: note.tags || []
+    }))
+  } catch (error) {
+    console.error('获取灵感池失败:', error)
+    inboxNotes.value = []
+    ElMessage.error('获取灵感池失败: ' + (error.message || '网络错误'))
+  } finally {
+    inboxNotesLoading.value = false
+  }
+}
+
 // 刷新笔记数据
 const refreshNotes = async () => {
   await fetchAllNotes()
@@ -635,20 +785,14 @@ const refreshNotes = async () => {
 const fetchCourseNotes = async () => {
   try {
     courseNotesLoading.value = true
-    const result = await getCourseNotes()
-    
-    if (result && result.data && Array.isArray(result.data)) {
-      courseNotes.value = result.data.map(note => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-        tags: note.tags || []
-      }))
-      // ElMessage.success(`成功加载 ${courseNotes.value.length} 条课程笔记`)
-    } else {
-      courseNotes.value = []
-      ElMessage.info('暂无课程笔记数据')
-    }
+    const result = await getCourseNotes({ page: 0, size: 60, sort: 'updatedAt,desc' })
+    const content = result?.content || []
+    courseNotes.value = content.map(note => ({
+      ...note,
+      createdAt: new Date(note.createdAt),
+      updatedAt: new Date(note.updatedAt),
+      tags: note.tags || []
+    }))
   } catch (error) {
     console.error('获取课程笔记失败:', error)
     courseNotes.value = []
@@ -828,10 +972,56 @@ const toggleSidebar = () => {
 
 const setActiveFilter = async (filter) => {
   activeFilter.value = filter
+  if (filter !== 'inbox') {
+    inboxSelectedTag.value = ''
+  }
   
   // 如果点击课程按钮，获取课程笔记数据
   if (filter === 'course') {
     await fetchCourseNotes()
+  }
+  if (filter === 'inbox') {
+    viewMode.value = 'card'
+    await fetchInbox()
+  }
+}
+
+const handleNoteHover = (noteId) => {
+  if (previewTimer) clearTimeout(previewTimer)
+  hoveredNoteId.value = noteId
+  previewTimer = setTimeout(() => {
+    showPreview.value = true
+  }, 400) // 400ms 延迟
+}
+
+const handleNoteLeave = () => {
+  if (previewTimer) clearTimeout(previewTimer)
+  showPreview.value = false
+  hoveredNoteId.value = null
+}
+
+const archiveInboxToFree = async (note) => {
+  try {
+    await ElMessageBox.confirm(
+        '归档后将从灵感池移入自主笔记，是否继续？',
+        '归档确认',
+        {
+          confirmButtonText: '归档',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+    )
+    await archiveNote(note.id)
+    inboxNotes.value = inboxNotes.value.filter(n => n.id !== note.id)
+    if (selectedNote.value?.id === note.id) {
+      selectedNote.value = null
+    }
+    ElMessage.success('归档成功')
+    await fetchAllNotes()
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    console.error('归档失败:', error)
+    ElMessage.error('归档失败: ' + (error.message || '网络错误'))
   }
 }
 
@@ -869,8 +1059,12 @@ const togglePreviewMode = () => {
 
 const getFilterCount = (filter) => {
   switch (filter) {
+    case 'inbox':
+      return inboxNotes.value.length
     case 'all':
       return notes.value.length
+    case 'free':
+      return notes.value.filter(note => !note.courseId).length
     case 'course':
       return courseNotes.value.length
     case 'recent':
@@ -880,6 +1074,22 @@ const getFilterCount = (filter) => {
       }).length
     default:
       return 0
+  }
+}
+
+const fetchCourseList = async () => {
+  try {
+    const result = await getMyCourseList()
+    if (Array.isArray(result)) {
+      courses.value = result.map(c => ({
+        id: c.id,
+        name: c.title || c.name || c.courseName || ''
+      })).filter(c => c.id && c.name)
+    } else {
+      courses.value = []
+    }
+  } catch (error) {
+    courses.value = []
   }
 }
 
@@ -1113,6 +1323,8 @@ const toggleLayoutVisibility = () => {
 onMounted(async () => {
   // 初始化加载所有笔记数据
   await fetchAllNotes()
+  await fetchCourseList()
+  await fetchInbox()
   
   // 默认选择第一个笔记
   if (notes.value.length > 0) {
@@ -1162,11 +1374,6 @@ watch(
     {deep: true}
 )
 
-// 生命周期钩子
-onMounted(async () => {
-  // 页面加载时自动获取笔记数据
-  await fetchAllNotes()
-})
 </script>
 
 <style scoped>
@@ -1362,40 +1569,203 @@ onMounted(async () => {
   color: #909399;
 }
 
-.filter-tabs {
+/* 侧边栏样式优化 */
+.sidebar-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.main-tabs {
   display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.main-tab-item {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+.main-tab-item:hover {
+  transform: translateY(-2px);
+}
+
+.main-tab-item.active {
+  background: linear-gradient(135deg, rgba(0, 47, 167, 0.05) 0%, rgba(81, 123, 77, 0.05) 100%);
+  border-color: rgba(0, 47, 167, 0.3);
+  box-shadow: inset 2px 2px 5px rgba(209, 209, 212, 0.5),
+              inset -2px -2px 5px rgba(255, 255, 255, 0.8);
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.tab-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.inbox-icon {
+  color: #E6A23C;
+}
+
+.free-icon {
+  color: #002FA7;
+}
+
+.tab-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.tab-count {
+  font-size: 10px;
+  color: #E6A23C;
+  background: rgba(230, 162, 60, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+}
+
+.mini-counts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #909399;
+}
+
+.sub-tabs-container {
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.sub-tabs-group {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
   gap: 4px;
 }
 
-.filter-tab {
+.sub-tab-btn {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px;
   border: none;
   border-radius: 8px;
   background: transparent;
   color: #606266;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.filter-tab.active {
+.sub-tab-btn:hover {
+  color: #303133;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sub-tab-btn.active {
+  background: #ffffff;
+  color: #002FA7;
+  font-weight: 600;
+  box-shadow: 2px 2px 5px rgba(209, 209, 212, 0.3),
+              -2px -2px 5px rgba(255, 255, 255, 0.8);
+}
+
+.sub-count-badge {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 5px;
+  border-radius: 8px;
+  color: #909399;
+}
+
+.sub-tab-btn.active .sub-count-badge {
   background: rgba(0, 47, 167, 0.1);
   color: #002FA7;
 }
 
-.filter-tab .count {
-  background: rgba(0, 47, 167, 0.1);
+.filter-tabs {
+  display: none;
+}
+
+/* 覆盖旧样式 */
+.filter-tab {
+  display: none;
+}
+
+.inbox-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 47, 167, 0.08);
+  color: #303133;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-chip:hover {
+  background: rgba(0, 47, 167, 0.14);
+}
+
+.tag-chip.active {
+  background: rgba(0, 47, 167, 0.2);
   color: #002FA7;
-  padding: 2px 6px;
+}
+
+.tag-chip.clear-chip {
+  background: rgba(245, 108, 108, 0.12);
+  color: #F56C6C;
+}
+
+.tag-count {
+  font-size: 11px;
+  padding: 0 6px;
   border-radius: 10px;
-  font-size: 10px;
-  min-width: 16px;
-  text-align: center;
+  background: rgba(0, 47, 167, 0.12);
+  color: #002FA7;
+}
+
+.tag-chip.clear-chip .tag-count {
+  background: rgba(245, 108, 108, 0.12);
+  color: #F56C6C;
 }
 
 .notes-list {
@@ -1407,12 +1777,12 @@ onMounted(async () => {
 /* 卡片视图样式 */
 .notes-list.card-view {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* 缩小最小宽度，一行更多 */
   gap: 16px;
 }
 
 .note-item {
-  padding: 16px;
+  padding: 12px 16px;
   margin-bottom: 12px;
   border-radius: 12px;
   background: #f0f0f3;
@@ -1420,6 +1790,7 @@ onMounted(async () => {
   -4px -4px 8px #ffffff;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative; /* 为tooltip定位 */
 }
 
 /* 列表项样式 */
@@ -1431,20 +1802,18 @@ onMounted(async () => {
 .note-item.card-item {
   margin-bottom: 0;
   height: fit-content;
-  min-height: 200px;
+  min-height: 100px; /* 减小高度 */
   display: flex;
   flex-direction: column;
 }
 
-.note-item.card-item .note-preview {
-  flex: 1;
-  -webkit-line-clamp: 4;
-}
+/* 移除旧的 note-preview 样式 */
 
 .note-item:hover {
   transform: translateY(-2px);
   box-shadow: 6px 6px 12px #d1d1d4,
   -6px -6px 12px #ffffff;
+  z-index: 10; /* hover时层级提高 */
 }
 
 .note-item.active {
@@ -1454,34 +1823,69 @@ onMounted(async () => {
 
 .note-header {
   display: flex;
+  flex-direction: column; /* 改为纵向布局 */
+  gap: 8px;
+}
+
+.note-title-row {
+  display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
 .note-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #303133;
   line-height: 1.4;
   flex: 1;
-}
-
-.note-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px; /* 限制标题宽度 */
 }
 
 .note-date {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.note-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: rgba(0, 47, 167, 0.05);
+  color: #002FA7;
+  border-radius: 4px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-tag-more {
+  font-size: 10px;
+  color: #909399;
+  padding: 2px 4px;
 }
 
 .note-actions {
   display: flex;
-  gap: 4px;
+  justify-content: flex-end; /* 靠右对齐 */
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(0,0,0,0.03);
+  padding-top: 8px;
 }
 
 .note-action-btn {
@@ -1496,6 +1900,95 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.note-action-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: #303133;
+}
+
+.note-action-btn.delete-btn:hover {
+  color: #F56C6C;
+  background: rgba(245, 108, 108, 0.1);
+}
+
+.note-action-btn.archive-btn:hover {
+  color: #E6A23C;
+  background: rgba(230, 162, 60, 0.1);
+}
+
+.note-action-btn .favorite {
+  color: #F56C6C;
+}
+
+/* 悬浮预览层样式 */
+.note-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0; /* 左右都设为0，强制撑满父容器宽度 */
+  width: auto; /* 重置宽度 */
+  min-width: 0; /* 移除最小宽度限制 */
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1); /* 加深阴影 */
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* 列表视图下的特殊处理 - 移除之前的 400px 强制宽度 */
+.list-view .note-tooltip {
+  width: auto;
+  left: 0;
+  transform: none;
+}
+
+.tooltip-content {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #ffffff;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+
+.note-action-btn.archive-btn {
+  color: #E6A23C;
+}
+
+.note-action-btn.archive-btn:hover {
+  color: #d48e28;
 }
 
 .note-action-btn:hover {

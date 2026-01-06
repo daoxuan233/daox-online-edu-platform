@@ -42,6 +42,12 @@ public interface LearningProgressService {
      */
     Page<LearningNotes> getAllCourseNotes(String studentId, Pageable pageable);
 
+    Page<LearningNotes> getInboxNotes(String studentId, Pageable pageable);
+
+    LearningNotes archiveInboxNote(String noteId, String studentId, String courseId, String chapterId, String sectionId);
+
+    LearningNotes createInboxNote(String userId, CreateNoteDTO createNoteDTO);
+
     /**
      * 获取学习笔记 - 课程
      *

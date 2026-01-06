@@ -24,6 +24,7 @@ import java.util.List;
 @Accessors(chain = true)
 @Document(collection = "learning_notes")
 @CompoundIndex(name = "student_created_idx", def = "{'student_id': 1, 'created_at': -1}")
+@CompoundIndex(name = "student_box_updated_idx", def = "{'student_id': 1, 'note_box': 1, 'updated_at': -1}")
 @CompoundIndex(name = "course_idx", def = "{'course_id': 1}")
 @CompoundIndex(name = "tags_idx", def = "{'tags': 1}")
 public class LearningNotes {
@@ -40,6 +41,13 @@ public class LearningNotes {
     @Field("student_id")
     @Indexed
     private String studentId;
+
+    /**
+     * 笔记分类，默认FREE（自由），可选项包括：FREE, CHAPTER, SECTION
+     */
+    @Field("note_box")
+    @Indexed
+    private String noteBox = "FREE";
 
     /**
      * 关联MySQL courses.id，标识笔记所属课程 (可选)

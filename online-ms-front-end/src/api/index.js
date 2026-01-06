@@ -166,6 +166,49 @@ function internalGet(url, headers, success, failure, error = defaultError){
 }
 
 /**
+ * 内部put请求
+ * @param url
+ * @param data
+ * @param headers
+ * @param success
+ * @param failure
+ * @param error
+ */
+function internalPut(url, data, headers, success, failure, error = defaultError){
+    axios.put(url, data, { headers: headers }).then(({data}) => {
+        if(data.code === 200) {
+            success(data.data)
+        } else if(data.code === 401) {
+            failure('登录状态已过期，请重新登录！')
+            deleteAccessToken(true)
+        } else {
+            failure(data.message, data.code, url)
+        }
+    }).catch(err => error(err))
+}
+
+/**
+ * 内部delete请求
+ * @param url
+ * @param headers
+ * @param success
+ * @param failure
+ * @param error
+ */
+function internalDelete(url, headers, success, failure, error = defaultError){
+    axios.delete(url, { headers: headers }).then(({data}) => {
+        if(data.code === 200) {
+            success(data.data)
+        } else if(data.code === 401) {
+            failure('登录状态已过期，请重新登录！')
+            deleteAccessToken(true)
+        } else {
+            failure(data.message, data.code, url)
+        }
+    }).catch(err => error(err))
+}
+
+/**
  * 登录方法
  * 成功后会自动存储token
  * @param username 用户名
@@ -229,21 +272,20 @@ function API_get(url, success, failure = defaultFailure) {
 }
 
 // put请求
-export function API_put(url, data, success, failure = defaultFailure) {
-    internalPost(url, data, accessHeader(), success, failure, (err) => {
-        if (err.response && err.response.status === 405) {
-            ElMessage.warning('您没有权限进行此操作')
-        } else {
-            defaultError(err)
-        }
-    })
+function API_put(url, data, success, failure = defaultFailure) {
+    internalPut(url, data, accessHeader(), success, failure)
 }
 
-
+// delete请求
+function API_delete(url, success, failure = defaultFailure) {
+    internalDelete(url, accessHeader(), success, failure)
+}
 
 export {
     login,
     logout,
     API_post,
     API_get,
+    API_put,
+    API_delete,
 }

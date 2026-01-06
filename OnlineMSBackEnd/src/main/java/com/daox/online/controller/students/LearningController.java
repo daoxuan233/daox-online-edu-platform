@@ -251,6 +251,51 @@ public class LearningController {
     }
 
     /**
+     * 获取学习笔记 - 收件箱
+     *
+     * @param request  请求
+     * @param pageable 分页参数
+     * @return 收件箱学习笔记列表
+     */
+    @GetMapping("/notes/inbox")
+    public RestBean<Page<LearningNotes>> getInboxNotes(HttpServletRequest request, @PageableDefault(size = 30, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) {
+            return RestBean.failure(401, "用户未登录");
+        }
+        Page<LearningNotes> pageLearningNotes = learningProgressService.getInboxNotes(userId, pageable);
+        return RestBean.success(pageLearningNotes);
+    }
+
+    /**
+     * 归档收件箱学习笔记
+     *
+     * @param noteId    笔记ID
+     * @param request   请求
+     * @param courseId  课程ID [非必须]
+     * @param chapterId 章节ID [非必须]
+     * @param sectionId 小节ID [非必须]
+     * @return 归档后的学习笔记对象
+     */
+    @PutMapping("/notes/{id}/archive")
+    public RestBean<LearningNotes> archiveInboxNote(@PathVariable("id") String noteId,
+                                                    HttpServletRequest request,
+                                                    @RequestParam(value = "courseId", required = false) String courseId,
+                                                    @RequestParam(value = "chapterId", required = false) String chapterId,
+                                                    @RequestParam(value = "sectionId", required = false) String sectionId) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) {
+            return RestBean.failure(401, "用户未登录");
+        }
+        try {
+            LearningNotes archived = learningProgressService.archiveInboxNote(noteId, userId, courseId, chapterId, sectionId);
+            return RestBean.success(archived);
+        } catch (RuntimeException e) {
+            return RestBean.failure(400, e.getMessage());
+        }
+    }
+
+    /**
      * 获取学习笔记 - 指定课程
      *
      * @param userId   用户ID
@@ -345,6 +390,16 @@ public class LearningController {
         if (learningNotes == null) {
             return RestBean.failure(404, "没有学习笔记");
         }
+        return RestBean.success(learningNotes);
+    }
+
+    @PostMapping("/note/inbox")
+    public RestBean<LearningNotes> createInboxNote(HttpServletRequest request, @RequestBody CreateNoteDTO createNoteDTO) {
+        String currentUserId = UserUtils.getCurrentUserId(request);
+        if (currentUserId == null || currentUserId.isEmpty()) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        LearningNotes learningNotes = learningProgressService.createInboxNote(currentUserId, createNoteDTO);
         return RestBean.success(learningNotes);
     }
 

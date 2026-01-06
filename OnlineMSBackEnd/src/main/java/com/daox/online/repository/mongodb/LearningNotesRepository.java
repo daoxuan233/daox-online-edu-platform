@@ -2,6 +2,7 @@ package com.daox.online.repository.mongodb;
 
 import com.daox.online.entity.mongodb.LearningNotes;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,12 @@ public interface LearningNotesRepository extends MongoRepository<LearningNotes, 
      * @return 学习笔记列表
      */
     List<LearningNotes> findByStudentId(String studentId);
+
+    @Query(value = "{ 'student_id': ?0, 'is_deleted': false, $or: [ { 'note_box': { $exists: false } }, { 'note_box': null }, { 'note_box': 'FREE' } ] }")
+    List<LearningNotes> findFreeNotesByStudentId(String studentId);
+
+    @Query(value = "{ 'student_id': ?0, 'is_deleted': false, 'note_box': 'INBOX' }")
+    Page<LearningNotes> findInboxNotesByStudentId(String studentId, Pageable pageable);
 
     /**
      * 根据学生ID和课程ID获取学习笔记
@@ -81,7 +88,8 @@ public interface LearningNotesRepository extends MongoRepository<LearningNotes, 
      * @param pageable  分页和排序参数
      * @return 分页后的课程笔记列表
      */
-    Page<LearningNotes> findByStudentIdAndCourseIdIsNotNullAndIsDeletedFalse(String studentId, Pageable pageable);
+    @Query(value = "{ 'student_id': ?0, 'course_id': { $ne: null }, 'is_deleted': false, $or: [ { 'note_box': { $exists: false } }, { 'note_box': null }, { 'note_box': 'FREE' } ] }")
+    Page<LearningNotes> findFreeCourseNotesByStudentId(String studentId, Pageable pageable);
 
     // 注意：创建和更新学习笔记请使用继承自MongoRepository的save()方法
 }

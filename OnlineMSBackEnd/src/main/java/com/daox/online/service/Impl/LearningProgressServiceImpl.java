@@ -126,7 +126,7 @@ public class LearningProgressServiceImpl implements LearningProgressService {
             log.warn("[getLearningNotes.method]用户不存在");
             return Collections.emptyList();
         }
-        List<LearningNotes> byStudentId = learningNotesRepository.findByStudentId(userId);
+        List<LearningNotes> byStudentId = learningNotesRepository.findFreeNotesByStudentId(userId);
         if (byStudentId == null || byStudentId.isEmpty()) {
             log.warn("[getLearningNotes.method]用户没有学习笔记");
             return Collections.emptyList();
@@ -143,7 +143,69 @@ public class LearningProgressServiceImpl implements LearningProgressService {
      */
     @Override
     public Page<LearningNotes> getAllCourseNotes(String studentId, Pageable pageable) {
-        return learningNotesRepository.findByStudentIdAndCourseIdIsNotNullAndIsDeletedFalse(studentId, pageable);
+        return learningNotesRepository.findFreeCourseNotesByStudentId(studentId, pageable);
+    }
+
+    @Override
+    public Page<LearningNotes> getInboxNotes(String studentId, Pageable pageable) {
+        if (studentId == null || studentId.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return learningNotesRepository.findInboxNotesByStudentId(studentId, pageable);
+    }
+
+    @Override
+    public LearningNotes archiveInboxNote(String noteId, String studentId, String courseId, String chapterId, String sectionId) {
+        LearningNotes note = learningNotesRepository.findByIdAndStudentId(noteId, studentId)
+                .orElseThrow(() -> new RuntimeException("笔记不存在或无权访问"));
+
+        if (Boolean.TRUE.equals(note.getIsDeleted())) {
+            throw new RuntimeException("笔记已删除");
+        }
+
+        if (!"INBOX".equalsIgnoreCase(note.getNoteBox())) {
+            throw new RuntimeException("仅支持归档灵感池笔记");
+        }
+
+        note.setNoteBox("FREE");
+
+        if (!StringUtils.hasText(courseId)) {
+            note.setCourseId(null);
+            note.setChapterId(null);
+            note.setSectionId(null);
+        } else {
+            if (isInvalidUserOrCourse(studentId, courseId)) {
+                throw new RuntimeException("课程不存在或无权限归档到该课程");
+            }
+            if (isInvalidChapterOrSection(chapterId, sectionId)) {
+                throw new RuntimeException("章节/小节参数不合法");
+            }
+            note.setCourseId(courseId);
+            note.setChapterId(StringUtils.hasText(chapterId) ? chapterId : null);
+            note.setSectionId(StringUtils.hasText(sectionId) ? sectionId : null);
+        }
+
+        note.setUpdatedAt(LocalDateTime.now());
+        return learningNotesRepository.save(note);
+    }
+
+    @Override
+    public LearningNotes createInboxNote(String userId, CreateNoteDTO createNoteDTO) {
+        LearningNotes note = new LearningNotes()
+                .setStudentId(userId)
+                .setTitle(createNoteDTO.getTitle())
+                .setContent(createNoteDTO.getContent())
+                .setCourseId(createNoteDTO.getCourseId())
+                .setChapterId(createNoteDTO.getChapterId())
+                .setSectionId(createNoteDTO.getSectionId())
+                .setTags(createNoteDTO.getTags())
+                .setIsPrivate(createNoteDTO.getIsPrivate())
+                .setVideoTime(createNoteDTO.getVideoTime())
+                .setCreatedAt(LocalDateTime.now())
+                .setUpdatedAt(LocalDateTime.now())
+                .setIsDeleted(false)
+                .setNoteBox("INBOX");
+        return learningNotesRepository.save(note);
     }
 
     /**
@@ -164,7 +226,13 @@ public class LearningProgressServiceImpl implements LearningProgressService {
         }
 
         List<LearningNotes> notes = learningNotesRepository.findByStudentIdAndCourseId(userId, courseId);
-        return notes != null ? notes : Collections.emptyList();
+        if (notes == null || notes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return notes.stream()
+                .filter(n -> !Boolean.TRUE.equals(n.getIsDeleted()))
+                .filter(n -> !"INBOX".equalsIgnoreCase(n.getNoteBox()))
+                .collect(toList());
     }
 
     /**
@@ -186,7 +254,13 @@ public class LearningProgressServiceImpl implements LearningProgressService {
         }
 
         List<LearningNotes> notes = learningNotesRepository.findByStudentIdAndCourseIdAndChapterId(userId, courseId, chapterId);
-        return notes != null ? notes : Collections.emptyList();
+        if (notes == null || notes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return notes.stream()
+                .filter(n -> !Boolean.TRUE.equals(n.getIsDeleted()))
+                .filter(n -> !"INBOX".equalsIgnoreCase(n.getNoteBox()))
+                .collect(toList());
     }
 
     /**
@@ -209,7 +283,13 @@ public class LearningProgressServiceImpl implements LearningProgressService {
         }
 
         List<LearningNotes> notes = learningNotesRepository.findByStudentIdAndCourseIdAndChapterIdAndSectionId(userId, courseId, chapterId, sectionId);
-        return notes != null ? notes : Collections.emptyList();
+        if (notes == null || notes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return notes.stream()
+                .filter(n -> !Boolean.TRUE.equals(n.getIsDeleted()))
+                .filter(n -> !"INBOX".equalsIgnoreCase(n.getNoteBox()))
+                .collect(toList());
     }
 
     /**
@@ -268,7 +348,8 @@ public class LearningProgressServiceImpl implements LearningProgressService {
                 .setVideoTime(createNoteDTO.getVideoTime())
                 .setCreatedAt(LocalDateTime.now())
                 .setUpdatedAt(LocalDateTime.now())
-                .setIsDeleted(false);
+                .setIsDeleted(false)
+                .setNoteBox("FREE");
         return learningNotesRepository.save(note);
     }
 
@@ -423,7 +504,8 @@ public class LearningProgressServiceImpl implements LearningProgressService {
                 .setVideoTime(videoTime)
                 .setCreatedAt(LocalDateTime.now())
                 .setUpdatedAt(LocalDateTime.now())
-                .setIsDeleted(false);
+                .setIsDeleted(false)
+                .setNoteBox("FREE");
     }
 
     /**

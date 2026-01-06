@@ -84,6 +84,12 @@
             <artifactId>fastjson</artifactId>
             <version>${json.version}</version>
         </dependency>
+        <!-- HanLP 中文自然语言处理库 -->
+        <dependency>
+            <groupId>com.hankcs</groupId>
+            <artifactId>hanlp</artifactId>
+            <version>portable-1.8.4</version>
+        </dependency>
         <!-- 测试依赖 -->
         <dependency>
             <groupId>junit</groupId>
