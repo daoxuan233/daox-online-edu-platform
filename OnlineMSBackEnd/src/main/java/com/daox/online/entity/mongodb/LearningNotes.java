@@ -50,6 +50,19 @@ public class LearningNotes {
     private String noteBox = "FREE";
 
     /**
+     * 笔记来源类型，"AI_CHAT", "EMAIL", "MANUAL" = 除ai产生外的内部数据
+     */
+    @Field("source_type")
+    private String sourceType;
+
+    /**
+     * 来源引用ID，根据source_type不同，存储不同的引用ID
+     * 例如：AI_CHAT 可能是对话ID，EMAIL 可能是邮件ID，MANUAL = 内部数据为空
+     */
+    @Field("source_ref_id")
+    private String sourceRefId;
+
+    /**
      * 关联MySQL courses.id，标识笔记所属课程 (可选)
      */
     @Field("course_id")

@@ -348,6 +348,8 @@ public class LearningProgressServiceImpl implements LearningProgressService {
                 .setVideoTime(createNoteDTO.getVideoTime())
                 .setCreatedAt(LocalDateTime.now())
                 .setUpdatedAt(LocalDateTime.now())
+                .setSourceType(createNoteDTO.getSourceType()==null?"MANUAL":createNoteDTO.getSourceType())
+                .setSourceRefId(createNoteDTO.getSourceRefId()==null?null:createNoteDTO.getSourceRefId())
                 .setIsDeleted(false)
                 .setNoteBox("FREE");
         return learningNotesRepository.save(note);

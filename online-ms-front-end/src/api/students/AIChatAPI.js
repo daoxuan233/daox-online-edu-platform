@@ -222,15 +222,13 @@ export async function getAIChatResponseObject(params, onData, onComplete, onErro
                 const line = buffer.substring(0, newlineIndex).trim();
                 buffer = buffer.substring(newlineIndex + 1);
 
-                if (line.startsWith('data:')) {
-                    const content = line.substring(5).trim();
-                    if (content && onData) {
-                        try {
-                            const aiResponse = JSON.parse(content);
-                            onData(aiResponse);
-                        } catch (e) {
-                            console.error('解析AIResponse对象失败:', e);
-                        }
+                const payload = line.startsWith('data:') ? line.substring(5).trim() : line;
+                if (payload && onData) {
+                    try {
+                        const aiResponse = JSON.parse(payload);
+                        onData(aiResponse);
+                    } catch (e) {
+                        console.error('解析AIResponse对象失败:', e);
                     }
                 }
             }
@@ -239,5 +237,48 @@ export async function getAIChatResponseObject(params, onData, onComplete, onErro
         console.error('AI聊天请求失败:', error);
         ElMessage.error('AI聊天服务暂时不可用，请稍后重试');
         if (onError) onError(error);
+    }
+}
+
+/**
+ * 解析笔记标签
+ * @param {object} params - 包含请求参数的对象
+ * @param {string} params.content - 笔记内容
+ * @returns {Promise<Array<string>>} - 返回提取到的标签列表
+ */
+export async function parseTag(params) {
+    const { content } = params;
+
+    // 参数校验
+    if (!content) {
+        throw new Error('解析标签时必须提供笔记内容');
+    }
+
+    try {
+        // 构造表单数据
+        const formData = new URLSearchParams();
+        formData.append('content', content);
+
+        const response = await apiFetch('/tool/parse-tag', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        // 处理后端返回的RestBean
+        if (result && result.code === 200) {
+            return result.data || [];
+        } else {
+            ElMessage.error(result.message || '标签解析失败');
+            return [];
+        }
+    } catch (error) {
+        console.error('解析标签请求失败:', error);
+        ElMessage.error('标签解析服务暂时不可用，请稍后重试');
+        return [];
     }
 }

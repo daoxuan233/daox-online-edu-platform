@@ -2,6 +2,7 @@ package com.daox.ai.service;
 
 import com.daox.ai.entity.dto.ConversationSummaryDTO;
 import com.daox.ai.entity.mongodb.ChatMessage;
+import com.daox.ai.entity.response.AIResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -17,7 +18,7 @@ public interface AIChatService {
      * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
      * @return 返回给前端的实时内容流 (Flux<String>)
      */
-    Flux<String> streamChatAndSave(String userId, String question, String conversationId);
+    Flux<AIResponse> streamChatAndSave(String userId, String question, String conversationId);
 
     /**
      * 主方法：处理AI流式对话并异步保存记录。 [deepseek]
@@ -30,6 +31,8 @@ public interface AIChatService {
      */
     Flux<String> streamChatAndSaveDeepSeek(String userId, String question, String conversationId);
 
+    Flux<AIResponse> streamChatAndSaveDeepSeekRes(String userId, String question, String conversationId);
+
     /**
      * 主方法：处理AI流式对话并异步保存记录。 [qwen]
      * 这是Controller层应该调用的方法。
@@ -40,6 +43,8 @@ public interface AIChatService {
      * @return 返回给前端的实时内容流 (Flux<String>)
      */
     Flux<String> streamChatAndSaveQwen(String userId, String question, String conversationId);
+
+    Flux<AIResponse> streamChatAndSaveQwenRes(String userId, String question, String conversationId);
 
     /**
      * 获取会话历史记录列表

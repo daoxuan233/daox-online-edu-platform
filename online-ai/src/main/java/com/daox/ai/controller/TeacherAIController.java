@@ -54,7 +54,8 @@ public class TeacherAIController {
             // 对于响应式端点，必须通过 Flux.error() 或 Mono.error() 来传递错误
             return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户未登录或Token无效"));
         }
-        return aiChatService.streamChatAndSave(userId, question, conversationId).map(s -> AIResponse.builder().content(s).build());
+        return aiChatService.streamChatAndSave(userId, question, conversationId)
+                .map(s -> AIResponse.builder().build());
     }
 
     /**
@@ -172,8 +173,9 @@ public class TeacherAIController {
 
     /**
      * 智能出题助手
+     *
      * @param request 课程信息
-     * @return  问题
+     * @return 问题
      */
     @PostMapping(value = "/optimization/assistant/questions")
     public Question optimizationAssistantQuestions(@RequestBody QuestionGenerationRequest request) {

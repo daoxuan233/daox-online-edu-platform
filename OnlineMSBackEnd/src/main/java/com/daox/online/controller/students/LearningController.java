@@ -50,7 +50,7 @@ public class LearningController {
 
     @Resource
     private FileService fileService;
-    
+
     @Resource
     private JwtUtils jwtUtils;
 
@@ -85,7 +85,7 @@ public class LearningController {
             return RestBean.failure(401, "用户未认证");
         }
         progressService.updateVideoProgress(currentUserId, request.getSectionId(), request.getProgressSeconds());
-        log.info("[updateProgress.method]更新进度成功,progressSeconds={}",request.getProgressSeconds());
+        log.info("[updateProgress.method]更新进度成功,progressSeconds={}", request.getProgressSeconds());
         return RestBean.success();
     }
 
@@ -94,9 +94,9 @@ public class LearningController {
      * 支持从URL参数中获取token进行认证。
      */
     @GetMapping("/files/{fileId}")
-    public void getFile(@PathVariable String fileId, 
-                       @RequestParam(value = "token", required = false) String token,
-                       HttpServletRequest request, HttpServletResponse response) {
+    public void getFile(@PathVariable String fileId,
+                        @RequestParam(value = "token", required = false) String token,
+                        HttpServletRequest request, HttpServletResponse response) {
         String currentUserId = getCurrentUserIdWithTokenSupport(request, token);
         if (currentUserId == null) {
             log.warn("[getFile.method]用户未认证，fileId: {}", fileId);
@@ -105,11 +105,12 @@ public class LearningController {
         }
         fileService.serveFile(fileId, currentUserId, request, response);
     }
-    
+
     /**
      * 获取当前用户ID，支持从URL参数中的token进行认证
+     *
      * @param request HTTP请求对象
-     * @param token URL参数中的token
+     * @param token   URL参数中的token
      * @return 用户ID
      */
     private String getCurrentUserIdWithTokenSupport(HttpServletRequest request, String token) {
@@ -393,6 +394,13 @@ public class LearningController {
         return RestBean.success(learningNotes);
     }
 
+    /**
+     * 创建学习笔记 - 收件箱
+     *
+     * @param request       请求对象
+     * @param createNoteDTO 创建笔记DTO
+     * @return 创建结果
+     */
     @PostMapping("/note/inbox")
     public RestBean<LearningNotes> createInboxNote(HttpServletRequest request, @RequestBody CreateNoteDTO createNoteDTO) {
         String currentUserId = UserUtils.getCurrentUserId(request);

@@ -15,5 +15,12 @@ import java.io.Serializable;
 @Accessors(chain = true)
 @Builder
 public class AIResponse implements Serializable {
+    /**
+     * 记录id
+     */
+    private String recordId;
+    /**
+     * 响应内容
+     */
     private String content;
 }

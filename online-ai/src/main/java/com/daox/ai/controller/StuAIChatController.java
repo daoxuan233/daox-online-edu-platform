@@ -51,9 +51,19 @@ public class StuAIChatController {
             // 对于响应式端点，必须通过 Flux.error() 或 Mono.error() 来传递错误
             return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户未登录或Token无效"));
         }
-        return aiChatService.streamChatAndSave(userId, question, conversationId);
+        return aiChatService.streamChatAndSave(userId, question, conversationId)
+                .map(AIResponse::getContent);
     }
 
+    /**
+     * 获取AI对话的流式响应端点。
+     *
+     * @param question       用户的提问内容
+     * @param conversationId (可选) 用于继续之前的对话
+     * @param options        (可选) 模型平台选项
+     * @param request        HTTP请求对象，用于获取当前用户ID
+     * @return 返回一个 text/event-stream 类型的流式响应，包含AI的回复内容
+     */
     @GetMapping(value = "/chat-stream/res", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<AIResponse> streamAiChatResponse(@RequestParam String question,
                                                  @RequestParam(required = false) String conversationId,
@@ -69,35 +79,15 @@ public class StuAIChatController {
             return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户未登录或Token无效"));
         }
         if (options == null) {
-            return aiChatService.streamChatAndSave(userId, question, conversationId)
-                    .map(s -> AIResponse
-                            .builder()
-                            .content(s)
-                            .build()
-                    );
+            return aiChatService.streamChatAndSave(userId, question, conversationId);
         }
         String platform = options.getPlatform();
         return switch (platform) {
-            case "deepseek" -> aiChatService.streamChatAndSaveDeepSeek(userId, question, conversationId)
-                    .map(s -> AIResponse
-                            .builder()
-                            .content(s)
-                            .build()
-                    );
+            case "deepseek" -> aiChatService.streamChatAndSaveDeepSeekRes(userId, question, conversationId);
 
             // TODO: 平台选择后的模型选择
-            case "qwen" -> aiChatService.streamChatAndSaveQwen(userId, question, conversationId)
-                    .map(s -> AIResponse
-                            .builder()
-                            .content(s)
-                            .build()
-                    );
-            default -> aiChatService.streamChatAndSave(userId, question, conversationId)
-                    .map(s -> AIResponse
-                            .builder()
-                            .content(s)
-                            .build()
-                    );
+            case "qwen" -> aiChatService.streamChatAndSaveQwenRes(userId, question, conversationId);
+            default -> aiChatService.streamChatAndSave(userId, question, conversationId);
         };
     }
 

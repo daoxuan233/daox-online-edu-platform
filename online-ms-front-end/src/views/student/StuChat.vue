@@ -347,7 +347,7 @@
                   <span class="message-time">{{ formatTime(message.timestamp) }}</span>
                 </div>
                 <div class="message-bubble">
-                  <markdownRender v-if="currentChatType === chatTypes.AI && message.receiverId !== 'ai_assistant'" :content="message.content" class="message-text" />
+                  <markdownRender v-if="currentChatType === chatTypes.AI && message.receiverId !== 'ai_assistant'" :content="message.content" :recordId="message.recordId" class="message-text" />
                   <p v-else class="message-text">{{ message.content }}</p>
                   <div v-if="message.isStreaming" class="streaming-indicator">
                     <span class="dot"></span>
@@ -1141,20 +1141,24 @@ const loadAIConversationList = async () => {
     aiChats.value = conversationData.map((conv, index) => {
       // 确保conversationId字段被正确解析和存储
       const conversationId = conv.conversationId || conv.id || conv.chatId
+      
+      // 计算有效时间：优先使用updatedAt，其次lastMessageTime，再次createdAt，最后当前时间
+      // 这样可以确保即使updatedAt缺失，也能利用最后消息时间进行正确排序
+      const effectiveTime = conv.updatedAt || conv.lastMessageTime || conv.createdAt || new Date().toISOString()
 
       return {
         id: conversationId, // 核心标识符，用于后续会话管理
         conversationId: conversationId, // 明确存储conversationId字段
         name: conv.title || conv.name || `AI助手对话 #${index + 1}`,
         avatar: null,
-        lastMessage: conv.summary || conv.lastMessage || '点击开始对话',
-        lastTime: formatTime(conv.updatedAt || conv.lastMessageTime || new Date()),
+        lastMessage: conv.summary || conv.lastMessage || '',
+        lastTime: formatTime(effectiveTime),
         unreadCount: 0,
         type: 'ai',
         createdAt: conv.createdAt || new Date().toISOString(),
-        updatedAt: conv.updatedAt || new Date().toISOString()
+        updatedAt: effectiveTime
       }
-    }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
     console.log('AI会话列表加载成功:', aiChats.value)
     console.log('已解析的conversationId列表:', aiChats.value.map(chat => chat.conversationId))
@@ -1213,7 +1217,8 @@ const loadAIMessages = async (conversationId) => {
           type: 'text',
           isOwn: isUserMessage,
           isStreaming: false,
-          receiverId: msg.receiverId // 保留原始receiverId用于调试
+          receiverId: msg.receiverId, // 保留原始receiverId用于调试
+          recordId: msg.recordId // 尝试从历史消息中获取recordId
         }
       }).sort((a, b) => {
         // 按时间戳排序，确保消息顺序正确
@@ -1338,6 +1343,12 @@ const sendMessage = async () => {
             // 确保 content 始终是字符串类型
             const contentToAdd = data && data.content ? String(data.content) : ''
             lastMessage.content = String(lastMessage.content || '') + contentToAdd
+            
+            // 提取 recordId
+            if (data && data.recordId) {
+              lastMessage.recordId = data.recordId
+            }
+            
             nextTick(() => {
               scrollToBottom()
             })
@@ -1461,6 +1472,16 @@ const formatTime = (timestamp) => {
   // 检查日期是否有效
   if (isNaN(date.getTime())) {
     return ''
+  }
+
+  // 如果不是当年，显示完整年份
+  if (date.getFullYear() !== now.getFullYear()) {
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${year}/${month}/${day} ${hours}:${minutes}`
   }
 
   if (diff < 60000) { // 1分钟内
@@ -2474,16 +2495,17 @@ onUnmounted(() => {
 .conversation-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  margin-bottom: 0.5rem;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  height: 60px;
 }
 
 .conversation-item:hover {
@@ -2504,11 +2526,11 @@ onUnmounted(() => {
   width: 48px;
   height: 48px;
   flex-shrink: 0;*/
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   overflow: hidden;
-  margin: 0 10px;
+  margin: 0 5px;
 }
 
 .sender-message .message-time {
@@ -2633,12 +2655,16 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  margin-right: 8px;
 }
 
 .conversation-time {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #333;
+  font-weight: 500;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .conversation-preview {

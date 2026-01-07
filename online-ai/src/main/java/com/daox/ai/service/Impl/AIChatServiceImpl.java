@@ -3,10 +3,14 @@ package com.daox.ai.service.Impl;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
 import com.daox.ai.entity.dto.ConversationSummaryDTO;
 import com.daox.ai.entity.mongodb.ChatMessage;
+import com.daox.ai.entity.response.AIResponse;
 import com.daox.ai.repository.ChatMessageRepository;
 import com.daox.ai.service.AIChatService;
 import com.daox.ai.utils.Const;
 import jakarta.annotation.Resource;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -25,6 +29,8 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -56,7 +62,7 @@ public class AIChatServiceImpl implements AIChatService {
      * @return 返回给前端的实时内容流 (Flux<String>)
      */
     @Override
-    public Flux<String> streamChatAndSave(String userId, String question, String conversationId) {
+    public Flux<AIResponse> streamChatAndSave(String userId, String question, String conversationId) {
         log.info("[streamChatAndSave.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
 
         // 0. 检测并验证会话ID，得出一个“有效final”的会话ID
@@ -100,16 +106,23 @@ public class AIChatServiceImpl implements AIChatService {
                 )
                 .cache(); // 使用cache()来允许多次订阅
 
-        // 3. 创建保存聊天记录的操作
-        Mono<Void> saveOperation = contentStream
+        // 3. 创建保存聊天记录的操作，获取AI消息ID
+        Mono<String> aiMessageIdMono = contentStream
                 .collect(Collectors.joining())
                 .flatMap(aiResponse ->
                         saveAiChatMessages(userId, question, aiResponse, finalConversationId)
                 )
-                .then();
+                .map(Tuple2::getT2); // 获取AI消息ID
 
-        // 4. 先返回内容流，待流结束后再执行保存操作
-        return contentStream.concatWith(saveOperation.then(Mono.empty()));
+        // 4. 返回内容流，最后返回包含AI消息ID的结束信号
+        return Flux.concat(
+                // 先返回流式内容，recordId暂时为null
+                contentStream.map(content -> AIResponse.builder().content(content).build()),
+                // 流结束后，返回包含AI消息ID的最终响应
+                aiMessageIdMono.map(aiMessageId ->
+                        AIResponse.builder().recordId(aiMessageId).content("").build()
+                )
+        );
     }
 
     /**
@@ -180,6 +193,59 @@ public class AIChatServiceImpl implements AIChatService {
         return contentStream.concatWith(saveOperation.then(Mono.empty()));
     }
 
+    @Override
+    public Flux<AIResponse> streamChatAndSaveDeepSeekRes(String userId, String question, String conversationId) {
+        log.info("[streamChatAndSaveDeepSeekRes.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
+
+        String validatedConversationId = conversationId;
+        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
+            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
+            if (!validatedConversationId.startsWith(conversationPrefix)) {
+                log.warn("[streamChatAndSaveDeepSeekRes.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
+                validatedConversationId = null;
+            }
+        }
+        final String finalConversationId = validatedConversationId;
+
+        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
+                ? getMessagesForConversation(finalConversationId, 0, 15)
+                .map(chatMessages -> {
+                    Collections.reverse(chatMessages);
+                    return chatMessages.stream()
+                            .<Message>map(message -> {
+                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
+                                    return new AssistantMessage(message.getContent());
+                                } else {
+                                    return new UserMessage(message.getContent());
+                                }
+                            })
+                            .collect(Collectors.toList());
+                })
+                : Mono.just(Collections.emptyList());
+
+        ChatClient.Builder builder = ChatClient.builder(DeepSeekChatModel.builder().build());
+        Flux<String> contentStream = historyMono.flatMapMany(history ->
+                        builder.defaultOptions(ChatOptions.builder().model("deepseek-chat").build())
+                                .build()
+                                .prompt()
+                                .messages(history)
+                                .user(question)
+                                .stream()
+                                .content()
+                )
+                .cache();
+
+        Mono<String> aiMessageIdMono = contentStream
+                .collect(Collectors.joining())
+                .flatMap(aiResponse -> saveAiChatMessages(userId, question, aiResponse, finalConversationId))
+                .map(Tuple2::getT2);
+
+        return Flux.concat(
+                contentStream.map(content -> AIResponse.builder().content(content).build()),
+                aiMessageIdMono.map(aiMessageId -> AIResponse.builder().recordId(aiMessageId).content("").build())
+        );
+    }
+
     /**
      * 主方法：处理AI流式对话并异步保存记录。 [qwen]
      * 这是Controller层应该调用的方法。
@@ -246,6 +312,59 @@ public class AIChatServiceImpl implements AIChatService {
 
         // 4. 先返回内容流，待流结束后再执行保存操作
         return contentStream.concatWith(saveOperation.then(Mono.empty()));
+    }
+
+    @Override
+    public Flux<AIResponse> streamChatAndSaveQwenRes(String userId, String question, String conversationId) {
+        log.info("[streamChatAndSaveQwenRes.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
+
+        String validatedConversationId = conversationId;
+        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
+            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
+            if (!validatedConversationId.startsWith(conversationPrefix)) {
+                log.warn("[streamChatAndSaveQwenRes.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
+                validatedConversationId = null;
+            }
+        }
+        final String finalConversationId = validatedConversationId;
+
+        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
+                ? getMessagesForConversation(finalConversationId, 0, 15)
+                .map(chatMessages -> {
+                    Collections.reverse(chatMessages);
+                    return chatMessages.stream()
+                            .<Message>map(message -> {
+                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
+                                    return new AssistantMessage(message.getContent());
+                                } else {
+                                    return new UserMessage(message.getContent());
+                                }
+                            })
+                            .collect(Collectors.toList());
+                })
+                : Mono.just(Collections.emptyList());
+
+        ChatClient.Builder builder = ChatClient.builder(DashScopeChatModel.builder().build());
+        Flux<String> contentStream = historyMono.flatMapMany(history ->
+                        builder.defaultOptions(ChatOptions.builder().model("qwen3-max-preview").build())
+                                .build()
+                                .prompt()
+                                .messages(history)
+                                .user(question)
+                                .stream()
+                                .content()
+                )
+                .cache();
+
+        Mono<String> aiMessageIdMono = contentStream
+                .collect(Collectors.joining())
+                .flatMap(aiResponse -> saveAiChatMessages(userId, question, aiResponse, finalConversationId))
+                .map(Tuple2::getT2);
+
+        return Flux.concat(
+                contentStream.map(content -> AIResponse.builder().content(content).build()),
+                aiMessageIdMono.map(aiMessageId -> AIResponse.builder().recordId(aiMessageId).content("").build())
+        );
     }
 
     /**
@@ -339,9 +458,13 @@ public class AIChatServiceImpl implements AIChatService {
     /**
      * 私有辅助方法：负责创建并保存用户和AI的两条消息记录。
      *
-     * @return 返回一个Mono，其中包含本次对话的ID。
+     * @param userId         用户ID，用于标识消息的发送者。
+     * @param question       用户的提问内容，将作为用户消息保存。
+     * @param aiResponse     AI模型的回答内容，将作为AI消息保存。
+     * @param conversationId (可选) 用于继续之前的对话。如果为空，将创建新会话。
+     * @return 返回一个Mono，其中包含本次对话的ID和AI消息的ID。
      */
-    private Mono<String> saveAiChatMessages(String userId, String question, String aiResponse, String conversationId) {
+    private Mono<Tuple2<String, String>> saveAiChatMessages(String userId, String question, String aiResponse, String conversationId) {
         // 判断是新对话还是旧对话，如果是新对话，则生成一个新的UUID作为ID
         final String currentConversationId = (conversationId == null || conversationId.isBlank())
                 ? Const.AI_ASSISTANT_CONVERSATION + userId + "_" + UUID.randomUUID()
@@ -371,7 +494,9 @@ public class AIChatServiceImpl implements AIChatService {
 
         // 使用 saveAll 批量插入这两条消息，这是一个响应式操作
         return chatMessageRepository.saveAll(List.of(userMessage, aiMessage))
-                .then(Mono.just(currentConversationId)); // 操作完成后，返回本次会话的ID
+                .filter(chatMessage -> Const.AI_ASSISTANT.equals(chatMessage.getSenderId()))
+                .next()
+                .map(aiMsg -> Tuples.of(currentConversationId, aiMsg.getId()));
     }
 
     public Flux<String> chatFluxTest(String question) {
@@ -447,4 +572,17 @@ public class AIChatServiceImpl implements AIChatService {
 //        return contentStream.concatWith(saveOperation.then(Mono.empty()));
 //
 //    }
+
+    @Getter
+    @Setter
+    // 定义结果类
+    private static class ChatMessageResult {
+        private final String conversationId;
+        private final String aiMessageId;
+
+        public ChatMessageResult(String conversationId, String aiMessageId) {
+            this.conversationId = conversationId;
+            this.aiMessageId = aiMessageId;
+        }
+    }
 }

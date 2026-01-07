@@ -9,6 +9,17 @@
 
     <!-- 底部功能区：复制与导出 -->
     <div class="copy-actions">
+      <!-- 导出笔记按钮 -->
+      <button @click="handleExportNote" class="copy-btn export-btn" :disabled="isExporting">
+        <span class="icon-wrapper">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+            <path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+          </svg>
+          <span class="btn-text">{{ isExporting ? '解析中...' : '导出笔记' }}</span>
+        </span>
+      </button>
+
       <div class="copy-dropdown" :class="{ active: showCopyOptions }" ref="dropdownRef">
         <!-- 主复制按钮 -->
         <button @click="toggleCopyOptions" class="copy-btn main-btn">
@@ -43,14 +54,78 @@
         </div>
       </div>
     </div>
+
+    <!-- 导出笔记弹窗 -->
+    <el-dialog
+      v-model="showNoteDialog"
+      title="导出为学习笔记"
+      width="600px"
+      append-to-body
+      class="note-export-dialog"
+    >
+      <el-form :model="noteForm" label-position="top">
+        <el-form-item label="笔记标题" required>
+          <el-input v-model="noteForm.title" placeholder="请输入笔记标题" maxlength="50" show-word-limit />
+        </el-form-item>
+        
+        <el-form-item label="标签">
+          <div class="tags-wrapper">
+            <el-tag
+              v-for="tag in noteForm.tags"
+              :key="tag"
+              closable
+              :disable-transitions="false"
+              @close="handleCloseTag(tag)"
+              class="note-tag"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-input
+              v-if="inputVisible"
+              ref="inputRef"
+              v-model="inputValue"
+              class="tag-input-new"
+              size="small"
+              @keyup.enter="handleInputConfirm"
+              @blur="handleInputConfirm"
+            />
+            <el-button v-else class="button-new-tag" size="small" @click="showInput">
+              + New Tag
+            </el-button>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="私密笔记">
+          <el-switch v-model="noteForm.isPrivate" active-text="仅自己可见" inactive-text="公开" />
+        </el-form-item>
+
+        <el-form-item label="笔记内容" required>
+          <el-input
+            v-model="noteForm.content"
+            type="textarea"
+            :rows="10"
+            placeholder="笔记内容"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showNoteDialog = false">取消</el-button>
+          <el-button type="primary" @click="submitNote" :loading="noteLoading">保存笔记</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, reactive } from "vue";
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css"; // 引入代码高亮样式
+import { parseTag } from "@/api/students/AIChatAPI.js";
+import { createFreedomNote } from "@/api/students/stuAPI.js";
+import { ElMessage } from "element-plus";
 
 // === KaTeX 核心 ===
 import katex from "katex";
@@ -58,7 +133,8 @@ import "katex/dist/katex.min.css";
 import markdownItKatex from "@iktakahiro/markdown-it-katex";
 
 const props = defineProps({
-  content: { type: String, default: "" }
+  content: { type: String, default: "" },
+  recordId: { type: String, default: null }
 });
 
 const markdownRef = ref(null);
@@ -288,6 +364,137 @@ const handleClickOutside = (e) => {
   }
 };
 
+// ==========================================
+// 6. 导出笔记功能
+// ==========================================
+const isExporting = ref(false);
+const showNoteDialog = ref(false);
+const noteLoading = ref(false);
+const noteForm = reactive({
+  title: '',
+  content: '',
+  tags: [],
+  isPrivate: true,
+  sourceType: 'AI_CHAT',
+  sourceRefId: ''
+});
+
+// 标签输入相关
+const inputVisible = ref(false);
+const inputValue = ref('');
+const inputRef = ref(null);
+
+const handleCloseTag = (tag) => {
+  noteForm.tags.splice(noteForm.tags.indexOf(tag), 1);
+};
+
+const showInput = () => {
+  inputVisible.value = true;
+  nextTick(() => {
+    // 兼容 Element Plus 的 input ref
+    if (inputRef.value && inputRef.value.input) {
+      inputRef.value.input.focus();
+    } else if (inputRef.value && inputRef.value.focus) {
+      inputRef.value.focus();
+    }
+  });
+};
+
+const handleInputConfirm = () => {
+  if (inputValue.value) {
+    if (!noteForm.tags.includes(inputValue.value)) {
+      noteForm.tags.push(inputValue.value);
+    }
+  }
+  inputVisible.value = false;
+  inputValue.value = '';
+};
+
+const handleExportNote = async () => {
+  if (isExporting.value) return;
+  isExporting.value = true;
+  try {
+    const content = props.content || "";
+    if (!content.trim()) {
+      ElMessage.warning('内容为空，无法导出');
+      return;
+    }
+
+    // 1. 自动提取标题（取第一行，去除#号）
+    const lines = content.split('\n');
+    let title = 'AI 学习笔记';
+    for (let line of lines) {
+      if (line.trim()) {
+        // 去除 Markdown 标题符号
+        title = line.replace(/^[#\s]+/, '').trim().substring(0, 50); 
+        break;
+      }
+    }
+
+    // 2. 调用API解析标签
+    let tags = [];
+    try {
+      tags = await parseTag({ content });
+    } catch (e) {
+      console.warn('自动解析标签失败，使用空标签', e);
+    }
+
+    // 3. 填充表单
+    noteForm.title = title;
+    noteForm.content = content;
+    noteForm.tags = tags || [];
+    noteForm.isPrivate = true;
+    // 这里的 sourceRefId 从 props 传入
+    noteForm.sourceRefId = props.recordId || ''; 
+    
+    // 4. 打开弹窗
+    showNoteDialog.value = true;
+  } catch (error) {
+    ElMessage.error('导出准备失败：' + error.message);
+  } finally {
+    isExporting.value = false;
+  }
+};
+
+const submitNote = async () => {
+  if (!noteForm.title || !noteForm.content) {
+    ElMessage.warning('标题和内容不能为空');
+    return;
+  }
+  
+  noteLoading.value = true;
+  try {
+    // 严格按照后端 CreateNoteDTO.java 构造请求参数
+    const noteDTO = {
+      // 1. 必填项
+      title: noteForm.title,
+      content: noteForm.content,
+      
+      // 2. 来源信息
+      sourceType: noteForm.sourceType || 'AI_CHAT', // 默认为 AI_CHAT
+      sourceRefId: noteForm.sourceRefId || null,     // AI对话ID或为空
+      
+      // 3. 笔记属性
+      tags: noteForm.tags || [],
+      isPrivate: noteForm.isPrivate,
+      
+      // 4. 关联信息 (自由笔记这些字段为 null)
+      courseId: null,
+      chapterId: null,
+      sectionId: null,
+      videoTime: null
+    };
+
+    await createFreedomNote(noteDTO);
+    ElMessage.success('笔记保存成功！');
+    showNoteDialog.value = false;
+  } catch (error) {
+    ElMessage.error('保存失败：' + error.message);
+  } finally {
+    noteLoading.value = false;
+  }
+};
+
 onMounted(() => document.addEventListener('click', handleClickOutside));
 onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 </script>
@@ -448,4 +655,227 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
   border-radius: 6px; text-align: left;
 }
 .copy-option:hover { background: rgba(64, 158, 255, 0.1); color: #409EFF; }
+
+/* 导出按钮样式 */
+.export-btn {
+  margin-right: 12px;
+}
+
+/* 标签输入样式 */
+.tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.tag-input-new {
+  width: 90px;
+  vertical-align: bottom;
+}
+.button-new-tag {
+  height: 24px;
+  line-height: 22px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.note-tag {
+  margin-right: 0;
+}
+</style>
+
+<!-- 全局样式覆盖：针对笔记导出弹窗 (Frosted Glass + Neumorphism) -->
+<style>
+.note-export-dialog.el-dialog {
+  /* 磨砂玻璃背景 (Frosted Glass) - 结合设计文档 */
+  background: rgba(240, 240, 243, 0.75) !important; /* 新拟态背景色 + 透明度 */
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 20px !important;
+  /* 混合阴影：深色投影 + 白色高光 */
+  box-shadow: 
+    20px 20px 60px rgba(163, 177, 198, 0.4), 
+    -20px -20px 60px rgba(255, 255, 255, 0.9) !important;
+  padding: 10px;
+  overflow: visible !important;
+}
+
+.note-export-dialog .el-dialog__header {
+  margin-right: 0;
+  border-bottom: 1px solid rgba(163, 177, 198, 0.1);
+  padding: 20px 20px 15px;
+  margin-bottom: 10px;
+}
+
+.note-export-dialog .el-dialog__title {
+  color: #002FA7; /* 主色调 Klein Blue */
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.note-export-dialog .el-dialog__body {
+  padding: 10px 25px 20px;
+}
+
+.note-export-dialog .el-dialog__footer {
+  padding: 10px 25px 25px;
+  border-top: 1px solid rgba(163, 177, 198, 0.1);
+}
+
+/* 表单 Label */
+.note-export-dialog .el-form-item__label {
+  color: #303133;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* 输入框 - 新拟态凹陷 (Neumorphism Inset) */
+.note-export-dialog .el-input__wrapper,
+.note-export-dialog .el-textarea__inner {
+  background: #eef0f5 !important;
+  /* 经典的 Neumorphism Inset 阴影参数 */
+  box-shadow: 
+    inset 6px 6px 12px #d1d1d4, 
+    inset -6px -6px 12px #ffffff !important;
+  border-radius: 12px !important;
+  border: none !important;
+  padding: 12px 15px !important;
+  transition: all 0.3s ease;
+}
+
+.note-export-dialog .el-input__wrapper:hover,
+.note-export-dialog .el-input__wrapper.is-focus,
+.note-export-dialog .el-textarea__inner:focus {
+  background: #f0f0f3 !important;
+  box-shadow: 
+    inset 4px 4px 8px #ccc, 
+    inset -4px -4px 8px #fff !important;
+}
+
+.note-export-dialog .el-input__inner {
+  color: #303133 !important;
+  font-weight: 500;
+}
+
+/* 标签 - 新拟态凸起 (Neumorphism Raised) */
+.note-export-dialog .el-tag {
+  background: #f0f0f3 !important;
+  border: none !important;
+  color: #002FA7 !important;
+  /* 凸起效果 */
+  box-shadow: 
+    5px 5px 10px #d1d1d4, 
+    -5px -5px 10px #ffffff !important;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  margin-right: 12px !important;
+  font-weight: 500;
+}
+
+.note-export-dialog .el-tag .el-tag__close {
+  color: #606266;
+  transition: all 0.2s;
+}
+.note-export-dialog .el-tag .el-tag__close:hover {
+  background: transparent;
+  color: #F56C6C; /* 危险色 */
+  transform: scale(1.2);
+}
+
+/* 新增标签按钮 */
+.note-export-dialog .button-new-tag {
+  background: #f0f0f3 !important;
+  border: none !important;
+  color: #517B4D !important; /* 副色调 Green Glaze */
+  box-shadow: 
+    5px 5px 10px #d1d1d4, 
+    -5px -5px 10px #ffffff !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease;
+}
+
+.note-export-dialog .button-new-tag:hover {
+  transform: translateY(-2px);
+  color: #409EFF !important;
+  box-shadow: 
+    6px 6px 12px #d1d1d4, 
+    -6px -6px 12px #ffffff !important;
+}
+
+/* 开关 Switch - 定制化 */
+.note-export-dialog .el-switch {
+  height: 24px;
+}
+.note-export-dialog .el-switch__core {
+  background: #e4e4e4;
+  border: none !important;
+  box-shadow: inset 2px 2px 4px #cdcdcd, inset -2px -2px 4px #fff !important;
+  height: 24px;
+  border-radius: 12px;
+}
+.note-export-dialog .el-switch.is-checked .el-switch__core {
+  background: #002FA7 !important;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2) !important;
+}
+.note-export-dialog .el-switch__action {
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+/* 底部按钮 - 新拟态凸起 (Neumorphism Raised) */
+.note-export-dialog .dialog-footer .el-button {
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 28px !important;
+  height: auto !important;
+  font-weight: 600 !important;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 取消按钮 */
+.note-export-dialog .dialog-footer .el-button--default {
+  background: #f0f0f3 !important;
+  color: #606266 !important;
+  box-shadow: 
+    8px 8px 16px #d1d1d4, 
+    -8px -8px 16px #ffffff !important;
+}
+
+.note-export-dialog .dialog-footer .el-button--default:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    10px 10px 20px #d1d1d4, 
+    -10px -10px 20px #ffffff !important;
+  color: #002FA7 !important;
+}
+
+/* 确认按钮 */
+.note-export-dialog .dialog-footer .el-button--primary {
+  background: #f0f0f3 !important;
+  color: #002FA7 !important;
+  box-shadow: 
+    8px 8px 16px #d1d1d4, 
+    -8px -8px 16px #ffffff !important;
+}
+
+.note-export-dialog .dialog-footer .el-button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    10px 10px 20px #d1d1d4, 
+    -10px -10px 20px #ffffff !important;
+  color: #517B4D !important; /* Hover 变绿琉璃色 */
+  background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+}
+
+.note-export-dialog .dialog-footer .el-button--primary:active {
+  transform: translateY(0);
+  box-shadow: 
+    inset 4px 4px 8px #d1d1d4, 
+    inset -4px -4px 8px #ffffff !important;
+}
 </style>
