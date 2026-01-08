@@ -10,6 +10,7 @@
         <result property="remark" column="remark"/>
         <result property="role" column="role"/>
         <result property="avatarUrl" column="avatar_url"/>
+        <result property="courseTitle" column="course_title"/>
     </resultMap>
 
     <select id="getFriendList" resultMap="ChatUserVo">
@@ -63,6 +64,45 @@
             #{friendId}
         </foreach>
         AND ur.status = 1
+    </select>
+
+    <select id="getPendingFriendRequestList" resultMap="ChatUserVo">
+        SELECT u.id AS friend_id,
+               u.nickname,
+               NULL AS remark,
+               u.role,
+               u.avatar_url AS avatar_url,
+               COALESCE(
+                       (
+                           SELECT c.title
+                           FROM user_courses uc_me
+                                    JOIN user_courses uc_other
+                                         ON uc_other.course_id = uc_me.course_id
+                                             AND uc_other.user_id = u.id
+                                    JOIN courses c ON c.id = uc_me.course_id
+                           WHERE uc_me.user_id = #{userId}
+                             AND c.is_deleted = 0
+                           ORDER BY GREATEST(uc_me.enrollment_date, uc_other.enrollment_date) DESC
+                           LIMIT 1
+                       ),
+                       (
+                           SELECT c.title
+                           FROM user_courses uc_me
+                                    JOIN courses c ON c.id = uc_me.course_id
+                           WHERE uc_me.user_id = #{userId}
+                             AND c.teacher_id = u.id
+                             AND c.is_deleted = 0
+                           ORDER BY uc_me.enrollment_date DESC
+                           LIMIT 1
+                       )
+               ) AS course_title
+        FROM user_relationships ur
+                 JOIN users u ON ur.action_user_id = u.id
+        WHERE ur.status = 0
+          AND (ur.user_one_id = #{userId} OR ur.user_two_id = #{userId})
+          AND ur.action_user_id != #{userId}
+          AND (u.is_deleted IS NULL OR u.is_deleted = 0)
+        ORDER BY ur.created_at DESC
     </select>
 
 </mapper>

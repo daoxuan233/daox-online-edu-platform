@@ -1,7 +1,7 @@
 <template>
   <div class="student-layout">
     <!-- 侧边栏 -->
-    <aside class="sidebar modern-sidebar" :class="{ 'open': sidebarOpen }">
+    <aside class="sidebar modern-sidebar" :class="{ 'open': sidebarOpen, 'collapsed': isCollapsed }">
       <div class="sidebar-header">
         <div class="logo modern-logo">
           <div class="logo-icon">
@@ -12,72 +12,89 @@
             <span class="logo-subtitle">学习平台</span>
           </div>
         </div>
+        <div class="collapse-btn" @click="toggleCollapse">
+          <font-awesome-icon :icon="['fas', isCollapsed ? 'chevron-right' : 'chevron-left']" />
+        </div>
       </div>
       
       <nav class="sidebar-nav">
         <ul class="nav-list">
           <li class="nav-item">
-            <router-link to="/index" class="nav-link" exact-active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'home']" />
-              </div>
-              <span class="nav-text">首页</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="首页" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index" class="nav-link" exact-active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'home']" />
+                </div>
+                <span class="nav-text">首页</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/courses" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'book']" />
-              </div>
-              <span class="nav-text">课程中心</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="课程中心" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/courses" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'book']" />
+                </div>
+                <span class="nav-text">课程中心</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/my-courses" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'bookmark']" />
-              </div>
-              <span class="nav-text">我的课程</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="我的课程" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/my-courses" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'bookmark']" />
+                </div>
+                <span class="nav-text">我的课程</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/assessments" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'clipboard-check']" />
-              </div>
-              <span class="nav-text">考试测评</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="考试测评" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/assessments" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'clipboard-check']" />
+                </div>
+                <span class="nav-text">考试测评</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/notes" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'sticky-note']" />
-              </div>
-              <span class="nav-text">自由笔记</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="自由笔记" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/notes" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'sticky-note']" />
+                </div>
+                <span class="nav-text">自由笔记</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/chat" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'comments']" />
-              </div>
-              <span class="nav-text">在线交流</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="在线交流" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/chat" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'comments']" />
+                </div>
+                <span class="nav-text">在线交流</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
           <li class="nav-item">
-            <router-link to="/index/profile" class="nav-link" active-class="active">
-              <div class="nav-icon">
-                <font-awesome-icon :icon="['fas', 'user']" />
-              </div>
-              <span class="nav-text">个人中心</span>
-              <div class="nav-indicator"></div>
-            </router-link>
+            <el-tooltip content="个人中心" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/profile" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'user']" />
+                </div>
+                <span class="nav-text">个人中心</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
           </li>
         </ul>
       </nav>
@@ -200,6 +217,7 @@ import { ElMessage } from 'element-plus';
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
+const isCollapsed = ref(false)
 const searchQuery = ref('')
 const showSearchSuggestions = ref(false)
 const unreadNotifications = ref(3)
@@ -235,6 +253,10 @@ const currentPageTitle = computed(() => {
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
+}
+
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
 }
 
 const closeSidebar = () => {
@@ -370,7 +392,7 @@ onMounted(async () => {
 
 /* 侧边栏样式 */
 .sidebar {
-  width: 280px;
+  width: 240px;
   background: rgba(240, 240, 243, 0.25);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -388,7 +410,6 @@ onMounted(async () => {
 
 .modern-sidebar {
   border-radius: 0 24px 24px 0;
-  position: relative;
 }
 
 .modern-sidebar::before {
@@ -627,7 +648,7 @@ onMounted(async () => {
 /* 主内容区域样式 */
 .main-content {
   flex: 1;
-  margin-left: 5px;
+  margin-left: 240px;
   padding-top: 90px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -651,7 +672,7 @@ onMounted(async () => {
   box-shadow: 0 8px 32px rgba(0, 47, 167, 0.08);
   position: fixed;
   top: 0;
-  left: 280px;
+  left: 240px;
   right: 0;
   z-index: 999;
 }
@@ -1067,16 +1088,99 @@ onMounted(async () => {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 折叠按钮样式 */
+.collapse-btn {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.collapse-btn:hover {
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* 桌面端折叠功能 */
+@media (min-width: 769px) {
+  /* 折叠状态样式 */
+  .sidebar.collapsed {
+    width: 80px;
+  }
+
+  .sidebar.collapsed .logo-text,
+  .sidebar.collapsed .logo-subtitle {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+    display: none;
+  }
+
+  .sidebar.collapsed .sidebar-header {
+    padding: 2rem 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar.collapsed .logo-icon {
+    margin: 0;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .sidebar.collapsed .collapse-btn {
+    right: 50%;
+    transform: translateX(50%);
+    top: auto;
+    bottom: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 0.9rem;
+  }
+
+  .sidebar.collapsed .nav-text,
+  .sidebar.collapsed .nav-indicator {
+    opacity: 0;
+    display: none;
+  }
+
+  .sidebar.collapsed .nav-link {
+    padding: 1rem 0;
+    justify-content: center;
+  }
+
+  .sidebar.collapsed .nav-link::before {
+    display: none;
+  }
+
+  .sidebar.collapsed .nav-item {
+    margin: 0.5rem 10px;
+  }
+
+  /* 内容区域跟随折叠 */
+  .sidebar.collapsed ~ .main-content {
+    margin-left: 80px;
+  }
+
+  .sidebar.collapsed ~ .main-content .navbar {
+    left: 80px;
+  }
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
-  .sidebar {
-    width: 250px;
-  }
-  
-  .main-content {
-    margin-left: 250px;
-  }
-  
   .navbar {
     padding: 0 1.5rem;
   }
@@ -1106,6 +1210,10 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  
+  .collapse-btn {
+    display: none;
   }
   
   .navbar {

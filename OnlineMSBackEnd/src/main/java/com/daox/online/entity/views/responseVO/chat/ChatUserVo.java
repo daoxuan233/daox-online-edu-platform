@@ -37,4 +37,9 @@ public class ChatUserVo implements Serializable {
      * 备注
      */
     private String remark;
+
+    /**
+     * 课程标题
+     */
+    private String courseTitle;
 }

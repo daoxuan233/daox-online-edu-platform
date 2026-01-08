@@ -54,8 +54,12 @@
           }}
         </h4>
         <div class="list-actions">
-          <button class="action-btn" v-if="currentChatType === chatTypes.FRIEND">
+          <button class="action-btn" v-if="currentChatType === chatTypes.FRIEND" @click="openAddFriendModal">
             <font-awesome-icon :icon="['fas', 'user-plus']"/>
+          </button>
+          <button class="action-btn" v-if="currentChatType === chatTypes.FRIEND" title="待处理申请" style="position: relative;" @click="openPendingRequestsModal">
+            <font-awesome-icon :icon="['fas', 'bell']"/>
+            <span v-if="pendingFriendRequestsCount > 0" class="badge">{{ pendingFriendRequestsCount }}</span>
           </button>
           <button class="action-btn" v-if="currentChatType === chatTypes.TOOLS">
             <font-awesome-icon :icon="['fas', 'cog']"/>
@@ -427,6 +431,77 @@
     </div>
   </div>
 
+  <!-- 添加好友模态框 -->
+  <div v-if="showAddFriendModal" class="ppt-modal-overlay" @click="closeAddFriendModal">
+    <div class="ppt-modal" @click.stop style="max-width: 500px;">
+      <div class="ppt-modal-header">
+        <h3>添加好友</h3>
+        <button @click="closeAddFriendModal" class="close-btn">
+          <font-awesome-icon :icon="['fas', 'times']" />
+        </button>
+      </div>
+      
+      <div class="ppt-modal-body">
+        <div class="form-group">
+          <label>查找用户</label>
+          <div style="display: flex; gap: 10px;">
+            <input
+              v-model="addFriendIdentifier"
+              type="text"
+              placeholder="请输入学号/工号"
+              class="form-input"
+              @keyup.enter="handleSearchFriend"
+            />
+            <button class="btn-submit" @click="handleSearchFriend" :disabled="isSearchingFriend" style="min-width: 80px; padding: 8px 16px;">
+              <font-awesome-icon v-if="isSearchingFriend" :icon="['fas', 'spinner']" spin />
+              <span v-else>查找</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 搜索结果展示 -->
+        <div v-if="searchedFriend" class="search-result neumorphism-card" style="padding: 20px; margin-top: 20px; text-align: center;">
+          <div class="friend-avatar" style="width: 80px; height: 80px; margin: 0 auto 15px; border-radius: 50%; overflow: hidden;">
+            <img v-if="searchedFriend.avatarUrl" :src="searchedFriend.avatarUrl" style="width: 100%; height: 100%; object-fit: cover;" />
+            <div v-else class="avatar-placeholder" style="font-size: 2rem;">
+              <font-awesome-icon :icon="['fas', 'user']" />
+            </div>
+          </div>
+          <h4 style="margin: 0 0 5px; color: #002FA7;">{{ searchedFriend.userName }}</h4>
+          <p style="margin: 0 0 15px; color: #64748b; font-size: 0.9rem;">
+            {{ searchedFriend.role === 'student' ? '学生' : (searchedFriend.role === 'teacher' ? '教师' : searchedFriend.role) }}
+          </p>
+          <div v-if="searchedFriend.remark" style="margin-bottom: 10px; color: #666; font-size: 0.85rem;">
+            备注: {{ searchedFriend.remark }}
+          </div>
+
+          <div class="add-friend-action" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+             <button v-if="!showRemarkInput" @click="showRemarkInput = true" class="btn-submit" style="width: 100%;">
+                 <font-awesome-icon :icon="['fas', 'user-plus']" /> 添加好友
+             </button>
+             
+             <div v-else class="remark-input-area">
+                  <input 
+                    v-model="addFriendRemark" 
+                    placeholder="请输入备注(可选)" 
+                    class="form-input" 
+                    style="margin-bottom: 10px;" 
+                    @keyup.enter="confirmAddFriend"
+                  />
+                  <div class="action-buttons" style="display: flex; gap: 10px; justify-content: center;">
+                      <button @click="showRemarkInput = false" class="btn-cancel" style="flex: 1;">取消</button>
+                      <button @click="confirmAddFriend" class="btn-submit" :disabled="isAddingFriend" style="flex: 1;">
+                          <font-awesome-icon v-if="isAddingFriend" :icon="['fas', 'spinner']" spin />
+                          <span v-else>确认发送</span>
+                      </button>
+                  </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PPT生成模态对话框 -->
   <div v-if="showPPTModal" class="ppt-modal-overlay" @click="closePPTModal">
     <div class="ppt-modal" @click.stop>
@@ -549,13 +624,65 @@
       </div>
     </div>
   </div>
+  <!-- 待处理好友申请模态框 -->
+  <div v-if="showPendingRequestsModal" class="ppt-modal-overlay" @click="closePendingRequestsModal">
+    <div class="ppt-modal" @click.stop style="max-width: 600px;">
+      <div class="ppt-modal-header">
+        <h3>待处理好友申请</h3>
+        <button @click="closePendingRequestsModal" class="close-btn">
+          <font-awesome-icon :icon="['fas', 'times']" />
+        </button>
+      </div>
+      
+      <div class="ppt-modal-body">
+        <div v-if="isLoadingPendingRequests" class="loading-state">
+          <font-awesome-icon :icon="['fas', 'spinner']" spin size="2x" />
+          <p>加载中...</p>
+        </div>
+        
+        <div v-else-if="pendingRequests.length === 0" class="empty-state">
+          <font-awesome-icon :icon="['fas', 'inbox']" size="3x" style="color: #ccc; margin-bottom: 1rem;" />
+          <p>暂无待处理的好友申请</p>
+        </div>
+        
+        <div v-else class="requests-list">
+          <div v-for="request in pendingRequests" :key="request.friendId" class="request-item neumorphism-card">
+            <div class="request-user-info">
+              <img v-if="request.avatarUrl" :src="request.avatarUrl" :alt="request.userName" class="request-avatar" />
+              <div v-else class="avatar-placeholder request-avatar">
+                <font-awesome-icon :icon="['fas', 'user']" />
+              </div>
+              <div class="request-details">
+                <h4 class="request-name">
+                    {{ request.userName }}
+                    <span class="role-badge" v-if="request.role">{{ request.role }}</span>
+                </h4>
+                <p class="request-course" v-if="request.courseTitle">
+                  <font-awesome-icon :icon="['fas', 'book']" />
+                  {{ request.courseTitle }}
+                </p>
+                <p class="request-remark" v-if="request.remark">
+                  备注: {{ request.remark }}
+                </p>
+              </div>
+            </div>
+            <div class="request-actions">
+              <button class="confirm-btn" @click="handleConfirmRequest(request)">
+                接受
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import {ref, computed, onMounted, onUnmounted, nextTick} from 'vue'
 import {createWebSocket} from '@/utils/websocket'
 import {getCurrentUserId, parseTokenPayload} from '@/api/index'
-import {getFriendList, getHistoryList, getHistoryDetail, getStudentProfile} from '@/api/students/stuAPI.js'
+import {getFriendList, getHistoryList, getHistoryDetail, getStudentProfile, queryFriend, addFriend, getPendingFriendRequestsCount, getPendingFriendRequests, confirmFriendRequest} from '@/api/students/stuAPI.js'
 import {fetchConversationList, fetchMessagesForConversation, deleteConversationById,getAIChatResponseObject} from '@/api/students/AIChatAPI.js'
 import {chatWithPptAgent, getPptTaskStatus} from '@/api/ppt/pptAPI.js'
 import {ElMessage, ElMessageBox} from 'element-plus'
@@ -584,6 +711,77 @@ const connected = ref(false)
 const error = ref('')
 const currentUserId = ref('')
 
+// 待处理好友申请数量
+const pendingFriendRequestsCount = ref(0)
+
+// 加载待处理好友申请数量
+const loadPendingFriendRequestsCount = async () => {
+  try {
+    const count = await getPendingFriendRequestsCount()
+    if (typeof count === 'number') {
+      pendingFriendRequestsCount.value = count
+    } else if (count && typeof count.data === 'number') {
+      pendingFriendRequestsCount.value = count.data
+    }
+  } catch (error) {
+    console.warn('获取待处理好友申请数量失败:', error)
+  }
+}
+
+// 待处理好友申请弹窗控制
+const showPendingRequestsModal = ref(false)
+const pendingRequests = ref([])
+const isLoadingPendingRequests = ref(false)
+
+// 打开待处理申请弹窗
+const openPendingRequestsModal = async () => {
+  showPendingRequestsModal.value = true
+  isLoadingPendingRequests.value = true
+  try {
+    const response = await getPendingFriendRequests()
+    // 兼容后端可能返回的两种格式: 直接返回数组 或 返回 { data: [] }
+    if (Array.isArray(response)) {
+      pendingRequests.value = response
+    } else if (response && Array.isArray(response.data)) {
+      pendingRequests.value = response.data
+    } else {
+      pendingRequests.value = []
+    }
+  } catch (error) {
+    console.error('获取待处理好友申请失败:', error)
+    ElMessage.error('无法加载好友申请列表')
+  } finally {
+    isLoadingPendingRequests.value = false
+  }
+}
+
+// 关闭待处理申请弹窗
+const closePendingRequestsModal = () => {
+  showPendingRequestsModal.value = false
+  pendingRequests.value = []
+}
+
+// 确认好友申请
+const handleConfirmRequest = async (request) => {
+  try {
+    await confirmFriendRequest(request.friendId)
+    ElMessage.success('已接受好友申请')
+    // 从列表中移除
+    pendingRequests.value = pendingRequests.value.filter(item => item.friendId !== request.friendId)
+    // 更新计数
+    loadPendingFriendRequestsCount()
+    // 刷新好友列表
+    loadFriendsList()
+    
+    if (pendingRequests.value.length === 0) {
+      closePendingRequestsModal()
+    }
+  } catch (error) {
+    console.error('确认好友申请失败:', error)
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
 // 聊天历史记录
 const chatHistory = ref([])
 
@@ -610,6 +808,93 @@ const currentAIConversationId = ref(null)
 // 删除会话相关状态
 const isDeletingConversation = ref(false)
 const conversationToDelete = ref(null)
+
+// 添加好友模态框状态
+const showAddFriendModal = ref(false)
+const addFriendIdentifier = ref('')
+const searchedFriend = ref(null)
+const isSearchingFriend = ref(false)
+
+// 添加好友备注相关
+const addFriendRemark = ref('')
+const isAddingFriend = ref(false)
+const showRemarkInput = ref(false)
+
+// 确认添加好友
+const confirmAddFriend = async () => {
+  if (!searchedFriend.value) return
+  
+  // 尝试获取用户ID，根据可能的字段名
+  const targetId = searchedFriend.value.friendId || searchedFriend.value.id || searchedFriend.value.userId || searchedFriend.value.studentId
+  
+  if (!targetId) {
+    ElMessage.error('无法获取用户ID，无法添加好友')
+    return
+  }
+  
+  isAddingFriend.value = true
+  try {
+    await addFriend(targetId, addFriendRemark.value)
+    ElMessage.success('好友申请已发送')
+    showRemarkInput.value = false
+    addFriendRemark.value = ''
+    // 发送成功后关闭模态框
+    closeAddFriendModal()
+  } catch (error) {
+    console.error('添加好友失败:', error)
+    ElMessage.error(error.message || '发送好友申请失败')
+  } finally {
+    isAddingFriend.value = false
+  }
+}
+
+// 打开添加好友模态框
+const openAddFriendModal = () => {
+  showAddFriendModal.value = true
+  addFriendIdentifier.value = ''
+  searchedFriend.value = null
+  showRemarkInput.value = false
+  addFriendRemark.value = ''
+}
+
+// 关闭添加好友模态框
+const closeAddFriendModal = () => {
+  showAddFriendModal.value = false
+  addFriendIdentifier.value = ''
+  searchedFriend.value = null
+  showRemarkInput.value = false
+  addFriendRemark.value = ''
+}
+
+// 查找好友
+const handleSearchFriend = async () => {
+  if (!addFriendIdentifier.value.trim()) {
+    ElMessage.warning('请输入学号/工号')
+    return
+  }
+
+  isSearchingFriend.value = true
+  searchedFriend.value = null
+  showRemarkInput.value = false
+  addFriendRemark.value = ''
+
+  try {
+    const data = await queryFriend(addFriendIdentifier.value.trim())
+    console.log('查找好友结果:', data)
+
+    if (data) {
+       searchedFriend.value = data
+       ElMessage.success('查找成功')
+    } else {
+       ElMessage.info('未找到该用户')
+    }
+  } catch (error) {
+    console.error('查找好友失败:', error)
+    ElMessage.error(error.message || '查找好友失败')
+  } finally {
+    isSearchingFriend.value = false
+  }
+}
 
 // 表情相关数据
 const showEmojiPicker = ref(false)
@@ -2249,7 +2534,8 @@ onMounted(async () => {
   await Promise.all([
     loadFriendsList(),
     loadChatHistory(),
-    loadAIConversationList() // 添加AI会话列表加载
+    loadAIConversationList(), // 添加AI会话列表加载
+    loadPendingFriendRequestsCount() // 加载待处理好友申请数量
   ])
 
   // 添加事件监听器
@@ -4272,5 +4558,119 @@ onUnmounted(() => {
   .ppt-message-input-area {
     padding: 0.75rem 1rem;
   }
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4d4f;
+  color: white;
+  border-radius: 10px;
+  padding: 0 5px;
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border: 1px solid white;
+}
+
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+}
+
+.request-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.request-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-placeholder.request-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0e0e0;
+  color: #666;
+}
+
+.request-details h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.role-badge {
+  font-size: 0.75rem;
+  background: #e6f7ff;
+  color: #1890ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #91d5ff;
+}
+
+.request-course {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.request-remark {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.confirm-btn {
+  background: #52c41a;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.confirm-btn:hover {
+  background: #389e0d;
 }
 </style>

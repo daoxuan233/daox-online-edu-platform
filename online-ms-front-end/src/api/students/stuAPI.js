@@ -480,3 +480,109 @@ export const submitAssessment = (assessmentId) => {
         );
     });
 };
+
+/**
+ * 查询好友
+ * @param {string} friendIdentifier - 好友标识符（学号/工号）
+ * @returns {Promise<Object>} - Promise对象，返回查询到的好友信息
+ */
+export const queryFriend = (friendIdentifier) => {
+    return new Promise((resolve, reject) => {
+        const params = new URLSearchParams()
+        params.append('friend_identifier', friendIdentifier)
+        API_post('/student/chat/friend',
+            params,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+
+/**
+ * 添加好友
+ * @param {string} targetUserId - 好友ID
+ * @param {string} [remark] - 好友备注（可选）
+ * @returns {Promise<string>} - Promise对象，返回操作结果信息
+ */
+export const addFriend = (targetUserId, remark) => {
+    return new Promise((resolve, reject) => {
+        const params = new URLSearchParams()
+        params.append('targetUserId', targetUserId)
+        if (remark) {
+            params.append('remark', remark)
+        }
+        API_post('/student/chat/friend/add',
+            params,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 确认好友申请
+ * @param {string} targetUserId - 好友ID
+ * @param {string} [remark] - 好友备注（可选）
+ * @returns {Promise<string>} - Promise对象，返回操作结果信息
+ */
+export const confirmFriendRequest = (targetUserId, remark) => {
+    return new Promise((resolve, reject) => {
+        const params = new URLSearchParams()
+        params.append('targetUserId', targetUserId)
+        if (remark) {
+            params.append('remark', remark)
+        }
+        API_post('/student/chat/friend/confirm',
+            params,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 获取待确认好友申请列表
+ * @returns {Promise<Array>} - Promise对象，返回待确认好友申请列表
+ */
+export const getPendingFriendRequests = () => {
+    return new Promise((resolve, reject) => {
+        API_get('/student/chat/friend/pending',
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 统计用户待处理好友申请数
+ * @returns {Promise<number>} - Promise对象，返回待处理好友申请数
+ */
+export const getPendingFriendRequestsCount = () => {
+    return new Promise((resolve, reject) => {
+        API_get('/student/chat/friend/pending/count',
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
