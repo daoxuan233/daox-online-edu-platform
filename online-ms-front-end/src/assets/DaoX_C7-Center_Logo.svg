@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <title>DaoX Logo - C7-Center Perfect Geometry</title>
+    <defs>
+        <!-- Slightly cooler dark metal for center vibes -->
+        <linearGradient id="metalCenter" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#475569" />
+            <stop offset="100%" style="stop-color:#020617" />
+        </linearGradient>
+        <!-- Lava Flow Gradient -->
+        <linearGradient id="lavaCenter" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#fbbf24" />
+            <stop offset="50%" style="stop-color:#ea580c" />
+            <stop offset="100%" style="stop-color:#b91c1c" />
+        </linearGradient>
+    </defs>
+
+    <!-- 1. PERFECT D (Centered) -->
+    <!--
+       Calculation:
+       Center X = 50.
+       "1" part (Rect) starts at X=29, ends at X=41.
+       Semicircle starts at X=41, Radius=30, ends at X=71.
+       Total width = 42. Centered perfectly.
+    -->
+    <path d="M 29 20 V 80 H 41 C 57.5 80 71 66.6 71 50 C 71 33.4 57.5 20 41 20 H 29 Z"
+          fill="url(#metalCenter)" />
+
+    <!-- 2. EXPANDED ORBITS (Centered) -->
+    <!-- Center exactly at 50,50. Rx=46 (Huge), Stroke=8 -->
+    <ellipse cx="50" cy="50" rx="46" ry="16" transform="rotate(45 50 50)"
+             stroke="url(#lavaCenter)" stroke-width="8" stroke-linecap="round"/>
+    <ellipse cx="50" cy="50" rx="46" ry="16" transform="rotate(-45 50 50)"
+             stroke="url(#lavaCenter)" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- 3. Core (Centered) -->
+    <circle cx="50" cy="50" r="7" fill="#fff7ed" />
+</svg>

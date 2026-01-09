@@ -4,7 +4,7 @@
     <aside class="sidebar glass-sidebar" :class="{ 'open': sidebarOpen }">
       <div class="sidebar-header">
         <div class="logo flex-center">
-          <font-awesome-icon :icon="['fas', 'chalkboard-teacher']" class="text-2xl text-primary mr-sm"/>
+          <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="mr-sm" style="width: 32px; height: 32px; object-fit: contain;" />
           <h2 class="text-lg font-bold text-primary">教师工作台</h2>
         </div>
       </div>

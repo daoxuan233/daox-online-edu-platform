@@ -392,20 +392,39 @@
             </div>
           </div>
           <div class="input-toolbar">
-            <button
-                    class="toolbar-btn neumorphism-raised"
-                    title="表情"
-                    @click="toggleEmojiPicker"
-                    :class="{ active: showEmojiPicker }"
+            <div class="expandable-tools" 
+                 :class="{ 'expanded': showToolMenu || showEmojiPicker }" 
+                 @mouseenter="showToolMenu = true" 
+                 @mouseleave="!showEmojiPicker && (showToolMenu = false)"
             >
-              <font-awesome-icon :icon="['fas', 'smile']"/>
-            </button>
-            <button class="toolbar-btn">
-              <font-awesome-icon :icon="['fas', 'paperclip']"/>
-            </button>
-            <button class="toolbar-btn">
-              <font-awesome-icon :icon="['fas', 'image']"/>
-            </button>
+              <button class="toolbar-btn toggle-btn">
+                <font-awesome-icon :icon="['fas', 'plus']" :class="{ 'rotate-icon': showToolMenu || showEmojiPicker }" />
+              </button>
+              
+              <div class="hidden-tools">
+                <button
+                        class="toolbar-btn neumorphism-raised"
+                        title="代码"
+                        @click="openCodeModal"
+                >
+                  <font-awesome-icon :icon="['fas', 'code']"/>
+                </button>
+                <button
+                        class="toolbar-btn neumorphism-raised"
+                        title="表情"
+                        @click.stop="toggleEmojiPicker"
+                        :class="{ active: showEmojiPicker }"
+                >
+                  <font-awesome-icon :icon="['fas', 'smile']"/>
+                </button>
+                <button class="toolbar-btn">
+                  <font-awesome-icon :icon="['fas', 'paperclip']"/>
+                </button>
+                <button class="toolbar-btn">
+                  <font-awesome-icon :icon="['fas', 'image']"/>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="input-container">
@@ -498,6 +517,48 @@
              </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 代码插入模态框 -->
+  <div v-if="showCodeModal" class="ppt-modal-overlay" @click="closeCodeModal">
+    <div class="ppt-modal" @click.stop>
+      <div class="ppt-modal-header">
+        <h3>插入代码片段</h3>
+        <button @click="closeCodeModal" class="close-btn">
+          <font-awesome-icon :icon="['fas', 'times']" />
+        </button>
+      </div>
+      
+      <div class="ppt-modal-body">
+        <div class="form-group">
+          <label for="code-language">编程语言</label>
+          <select id="code-language" v-model="codeFormData.language" class="form-select">
+            <option v-for="lang in codeLanguages" :key="lang.value" :value="lang.value">
+              {{ lang.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="code-content">代码内容</label>
+          <textarea
+            id="code-content"
+            v-model="codeFormData.content"
+            placeholder="请在此粘贴您的代码..."
+            class="form-textarea"
+            rows="10"
+            style="font-family: 'Consolas', 'Monaco', monospace; white-space: pre; font-size: 14px; line-height: 1.5;"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="ppt-modal-footer">
+        <button class="btn-cancel" @click="closeCodeModal">取消</button>
+        <button class="btn-submit" @click="insertCodeSnippet">
+          <font-awesome-icon :icon="['fas', 'check']" /> 确认插入
+        </button>
       </div>
     </div>
   </div>
@@ -898,6 +959,66 @@ const handleSearchFriend = async () => {
 
 // 表情相关数据
 const showEmojiPicker = ref(false)
+const showToolMenu = ref(false)
+// 代码插入相关
+const showCodeModal = ref(false)
+const codeFormData = ref({
+  language: 'java',
+  content: ''
+})
+const codeLanguages = [
+  { label: 'Java', value: 'java' },
+  { label: 'Python', value: 'python' },
+  { label: 'JavaScript', value: 'javascript' },
+  { label: 'TypeScript', value: 'typescript' },
+  { label: 'C++', value: 'cpp' },
+  { label: 'C#', value: 'csharp' },
+  { label: 'HTML', value: 'html' },
+  { label: 'CSS', value: 'css' },
+  { label: 'SQL', value: 'sql' },
+  { label: 'JSON', value: 'json' },
+  { label: 'Shell/Bash', value: 'bash' },
+  { label: 'Go', value: 'go' },
+  { label: 'Rust', value: 'rust' },
+  { label: 'PHP', value: 'php' },
+  { label: 'Vue', value: 'vue' },
+  { label: 'XML', value: 'xml' },
+  { label: 'YAML', value: 'yaml' },
+  { label: 'Markdown', value: 'markdown' },
+  { label: 'Plain Text', value: 'text' }
+]
+
+const openCodeModal = () => {
+  codeFormData.value = { language: 'java', content: '' }
+  showCodeModal.value = true
+  showToolMenu.value = false // 关闭工具菜单
+}
+
+const closeCodeModal = () => {
+  showCodeModal.value = false
+}
+
+const insertCodeSnippet = () => {
+  if (!codeFormData.value.content.trim()) {
+    ElMessage.warning('请输入代码内容')
+    return
+  }
+  
+  const codeBlock = `\n\`\`\`${codeFormData.value.language}\n${codeFormData.value.content}\n\`\`\`\n`
+  messageInput.value += codeBlock
+  
+  closeCodeModal()
+  
+  // 聚焦输入框
+  nextTick(() => {
+    const textarea = document.querySelector('.message-textarea')
+    if (textarea) {
+      textarea.focus()
+      // 滚动到底部
+      textarea.scrollTop = textarea.scrollHeight
+    }
+  })
+}
 const emojiList = ref([
   '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
   '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
@@ -3276,6 +3397,7 @@ onUnmounted(() => {
 
 /* 消息输入区域 */
 .message-input-area {
+  position: relative;
   padding: 1rem 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
@@ -4672,5 +4794,163 @@ onUnmounted(() => {
 
 .confirm-btn:hover {
   background: #389e0d;
+}
+
+/* Neumorphism Raised Style */
+.neumorphism-raised {
+  background: #f0f0f3;
+  box-shadow: 6px 6px 12px #d1d1d4,
+              -6px -6px 12px #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Emoji Picker Styles */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 455px;
+  height: 350px;
+  background: #f0f0f3;
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.emoji-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.emoji-header .close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #a0aec0;
+  font-size: 1.1rem;
+  transition: color 0.2s;
+  padding: 4px;
+}
+
+.emoji-header .close-btn:hover {
+  color: #e53e3e;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  flex: 1;
+}
+
+.emoji-grid::-webkit-scrollbar {
+  width: 6px;
+}
+.emoji-grid::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.02);
+  border-radius: 3px;
+}
+.emoji-grid::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+}
+.emoji-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}
+
+.emoji-item {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-item:hover {
+  background: #e2e8f0;
+  transform: scale(1.2);
+}
+
+.input-toolbar .toolbar-btn.active {
+  box-shadow: inset 4px 4px 8px #d1d1d4,
+              inset -4px -4px 8px #ffffff;
+  color: #002FA7;
+}
+
+/* Expandable Tools Styles */
+.expandable-tools {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 10;
+}
+
+.expandable-tools.expanded {
+  width: auto;
+  padding-right: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.toggle-btn {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  flex-shrink: 0;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.rotate-icon {
+  transform: rotate(45deg);
+  transition: transform 0.3s ease;
+  color: #ef4444;
+}
+
+.hidden-tools {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+  width: 0;
+  margin-left: 0;
+}
+
+.expandable-tools.expanded .hidden-tools {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  width: auto;
+  margin-left: 0.25rem;
 }
 </style>

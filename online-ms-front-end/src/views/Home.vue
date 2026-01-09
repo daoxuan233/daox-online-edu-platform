@@ -4,7 +4,7 @@
     <header class="top-header">
       <div class="header-container">
         <div class="logo-section">
-          <font-awesome-icon :icon="['fas', 'graduation-cap']" class="logo-icon"/>
+          <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="logo-icon" style="height: 40px; width: auto; margin-right: 10px;" />
           <span class="logo-text">DaoX- EduPlatform</span>
         </div>
         <div class="header-actions">

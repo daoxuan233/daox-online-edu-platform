@@ -12,7 +12,7 @@
       <div class="register-form-container neumorphism-glass">
         <div class="form-header">
           <div class="logo-section">
-            <font-awesome-icon :icon="['fas', 'graduation-cap']" class="text-3xl text-primary" />
+            <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" style="width: 48px; height: 48px; object-fit: contain; margin-right: 12px;" />
             <h1 class="logo-text">DaoX- EduPlatform</h1>
           </div>
           <h2 class="form-title">创建新账户</h2>
