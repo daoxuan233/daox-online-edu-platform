@@ -116,26 +116,7 @@
           </div>
         </div>
         
-        <div class="navbar-center">
-          <div class="search-container">
-            <div class="search-wrapper">
-              <font-awesome-icon :icon="['fas', 'search']" class="search-icon" />
-              <input 
-                v-model="searchQuery" 
-                placeholder="搜索课程、资源、讲师..."
-                class="search-input"
-                @focus="onSearchFocus"
-                @blur="onSearchBlur"
-              />
-              <div class="search-suggestions" v-if="showSearchSuggestions">
-                <div class="suggestion-item" v-for="suggestion in searchSuggestions" :key="suggestion.id">
-                  <font-awesome-icon :icon="suggestion.icon" class="suggestion-icon" />
-                  <span>{{ suggestion.text }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- 搜索栏已移除 -->
         
         <div class="navbar-right">
           <div class="navbar-actions">
@@ -218,20 +199,10 @@ const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
 const isCollapsed = ref(false)
-const searchQuery = ref('')
-const showSearchSuggestions = ref(false)
 const unreadNotifications = ref(3)
 const unreadMessages = ref(1)
 const userName = ref('')
 const userAvatar = ref(null)
-
-// 搜索建议数据
-const searchSuggestions = ref([
-  { id: 1, text: 'Vue.js 基础教程', icon: ['fas', 'play-circle'] },
-  { id: 2, text: 'JavaScript 进阶', icon: ['fas', 'code'] },
-  { id: 3, text: '前端开发实战', icon: ['fas', 'laptop-code'] },
-  { id: 4, text: '李老师', icon: ['fas', 'user-tie'] }
-])
 
 // 页面标题映射
 const pageTitles = {
@@ -261,19 +232,6 @@ const toggleCollapse = () => {
 
 const closeSidebar = () => {
   sidebarOpen.value = false
-}
-
-const onSearchFocus = () => {
-  if (searchQuery.value.length > 0) {
-    showSearchSuggestions.value = true
-  }
-}
-
-const onSearchBlur = () => {
-  // 延迟隐藏，允许点击建议项
-  setTimeout(() => {
-    showSearchSuggestions.value = false
-  }, 200)
 }
 
 const toggleNotifications = () => {
@@ -318,15 +276,6 @@ const handleLogout = () => {
     }
   )
 }
-
-// 监听搜索查询变化
-watch(searchQuery, (newVal) => {
-  if (newVal.length > 0) {
-    showSearchSuggestions.value = true
-  } else {
-    showSearchSuggestions.value = false
-  }
-})
 
 // 加载用户头像
 const loadUserAvatar = () => {
@@ -761,109 +710,6 @@ onMounted(async () => {
   font-size: 0.875rem;
 }
 
-/* 搜索区域样式 */
-.navbar-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  max-width: 600px;
-  margin: 0 2rem;
-  position: relative;
-  z-index: 1;
-}
-
-.search-container {
-  width: 100%;
-  position: relative;
-}
-
-.search-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.search-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 1rem 0 3rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 24px;
-  font-size: 0.95rem;
-  color: #4a5568;
-  outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    inset 4px 4px 8px rgba(0, 47, 167, 0.05),
-    inset -2px -2px 4px rgba(255, 255, 255, 0.2);
-}
-
-.search-input::placeholder {
-  color: #a0aec0;
-}
-
-.search-input:focus {
-  border-color: rgba(0, 47, 167, 0.3);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 
-    inset 2px 2px 4px rgba(0, 47, 167, 0.1),
-    inset -1px -1px 2px rgba(255, 255, 255, 0.3),
-    0 0 0 3px rgba(0, 47, 167, 0.1);
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0aec0;
-  font-size: 1rem;
-  pointer-events: none;
-  transition: color 0.3s ease;
-}
-
-.search-input:focus + .search-icon {
-  color: #002FA7;
-}
-
-.search-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  box-shadow: 
-    12px 12px 24px rgba(0, 47, 167, 0.1),
-    -6px -6px 12px rgba(255, 255, 255, 0.8);
-  z-index: 1000;
-}
-
-.suggestion-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: #64748b;
-}
-
-.suggestion-item:hover {
-  background: rgba(0, 47, 167, 0.1);
-  color: #002FA7;
-  transform: translateX(4px);
-}
-
-.suggestion-icon {
-  font-size: 0.875rem;
-}
-
 /* 右侧操作区域样式 */
 .navbar-right {
   display: flex;
@@ -1184,10 +1030,6 @@ onMounted(async () => {
   .navbar {
     padding: 0 1.5rem;
   }
-  
-  .navbar-center {
-    margin: 0 1rem;
-  }
 }
 
 @media (max-width: 768px) {
@@ -1220,14 +1062,6 @@ onMounted(async () => {
     padding: 0 1rem;
   }
   
-  .navbar-center {
-    margin: 0 0.5rem;
-  }
-  
-  .search-input {
-    font-size: 0.875rem;
-  }
-  
   .sidebar-overlay {
     display: block;
   }
@@ -1250,15 +1084,6 @@ onMounted(async () => {
   .navbar {
     height: 64px;
     padding: 0 0.75rem;
-  }
-  
-  .navbar-center {
-    margin: 0 0.25rem;
-  }
-  
-  .search-input {
-    height: 40px;
-    font-size: 0.875rem;
   }
   
   .action-btn {
