@@ -5,7 +5,7 @@
       <div class="sidebar-header">
         <div class="logo modern-logo">
           <div class="logo-icon">
-            <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" style="width: 100%; height: 100%; object-fit: contain;" />
+            <img src="../assets/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" style="width: 100%; height: 100%; object-fit: contain;" />
           </div>
           <div class="logo-text">
             <h2 class="logo-title">DaoX-EduPlatform</h2>

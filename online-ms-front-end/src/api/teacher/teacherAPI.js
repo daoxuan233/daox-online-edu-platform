@@ -1,4 +1,4 @@
-import {API_post, API_get, API_put, getCurrentUserId} from '../index.js'
+import {API_post, API_get, API_put, API_delete, getCurrentUserId} from '../index.js'
 
 /**
  * 修改头像
@@ -39,6 +39,80 @@ export function getTeacherProfile(identifier, success, failure) {
  */
 export function getMyCourseList(success, failure) {
     API_get('/teacher/courses/list', success, failure)
+}
+
+/**
+ * 获取教师待办事项列表
+ * @returns {Promise<Array>} - Promise对象，返回待办事项数组
+ */
+export const getTeacherTodoList = () => {
+    return new Promise((resolve, reject) => {
+        API_get('/teacher/todos',
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 新增教师待办事项
+ * @param {object} todoData - 待办事项数据
+ * @returns {Promise<object>} - Promise对象，返回新增后的待办事项
+ */
+export const createTeacherTodo = (todoData) => {
+    return new Promise((resolve, reject) => {
+        API_post('/teacher/todos',
+            todoData,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 更新教师待办事项
+ * @param {string} todoId - 待办事项ID
+ * @param {object} todoData - 待办事项更新数据
+ * @returns {Promise<object>} - Promise对象，返回更新后的待办事项
+ */
+export const updateTeacherTodo = (todoId, todoData) => {
+    return new Promise((resolve, reject) => {
+        API_put(`/teacher/todos/${todoId}`,
+            todoData,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 删除教师待办事项
+ * @param {string} todoId - 待办事项ID
+ * @returns {Promise<boolean>} - Promise对象，返回删除结果
+ */
+export const deleteTeacherTodo = (todoId) => {
+    return new Promise((resolve, reject) => {
+        API_delete(`/teacher/todos/${todoId}`,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
 }
 
 /**
@@ -239,7 +313,7 @@ export const createCourse = (courseCoreInfo) => {
  */
 export const updateCourseOutline = (courseId, outlineDto) => {
     return new Promise((resolve, reject) => {
-        API_put(`/teacher/courses/${courseId}/outline`,
+        API_post(`/teacher/courses/${courseId}/outline`,
             outlineDto,
             (data) => {
                 resolve(data)
@@ -530,6 +604,32 @@ export const getAllAssessments = () => {
 }
 
 /**
+ * 获取单个测评的结果汇总
+ * @param {string} assessmentId - 测评ID（必填）
+ * @returns {Promise<object>} Promise对象，返回测评结果汇总
+ * @property {string} assessmentId - 测评ID
+ * @property {number} actualParticipantCount - 实际参考人数
+ * @property {number} shouldParticipantCount - 应参考人数（课程学习人数）
+ * @property {number} averageScore - 平均分（测评总分/应参考人数）
+ * @property {number} completionRate - 完成率（实际参考人数/应参考人数）
+ */
+export const getAssessmentResultSummary = (assessmentId) => {
+    return new Promise((resolve, reject) => {
+        if (!assessmentId) {
+            return reject(new Error('获取测评结果汇总时，必须提供测评ID'));
+        }
+        API_get(`/teacher/assessments/${assessmentId}/result-summary`,
+            (data) => {
+                resolve(data);
+            },
+            (message, code) => {
+                reject(new Error(message));
+            }
+        );
+    });
+}
+
+/**
  * 发布测评
  * 将指定ID的测评状态从未发布更新为已发布。
  * @param {string} assessmentId - 要发布的测评的唯一ID (必填)
@@ -647,6 +747,22 @@ export const getGradingTaskDetail = (assessmentId) => {
             return reject(new Error('获取阅卷任务详情时，必须提供测评ID'));
         }
         API_get(`/teacher/grading/tasks/${assessmentId}`,
+            (data) => {
+                resolve(data);
+            },
+            (message, code) => {
+                reject(new Error(message));
+            }
+        );
+    });
+};
+
+export const getGradingTaskStatus = (assessmentId) => {
+    return new Promise((resolve, reject) => {
+        if (!assessmentId) {
+            return reject(new Error('获取阅卷任务状态时，必须提供测评ID'));
+        }
+        API_get(`/teacher/grading/tasks/${assessmentId}/status`,
             (data) => {
                 resolve(data);
             },

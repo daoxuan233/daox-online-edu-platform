@@ -4,6 +4,7 @@ import com.daox.online.entity.mysql.Assessments;
 import com.daox.online.entity.dto.AssessmentCreateDTO;
 import com.daox.online.entity.dto.AssessmentTeacherDTO;
 import com.daox.online.entity.dto.SubmitAnswerRequest;
+import com.daox.online.entity.dto.teacher.assessment.AssessmentResultSummaryDTO;
 import com.daox.online.entity.redis.AssessmentSession;
 import com.daox.online.entity.views.requestDTO.SubmitAnswerDTO;
 import com.daox.online.entity.views.responseVO.assessment.AssessmentPaperVO;
@@ -183,4 +184,13 @@ public interface AssessmentService {
      * @return 试卷结构
      */
     Map<String, Object> getAssessmentPaperStructure(String assessmentId);
+
+    /**
+     * 获取单个测评的结果汇总信息
+     *
+     * @param userId       当前登录教师ID
+     * @param assessmentId 测评ID
+     * @return 测评结果汇总
+     */
+    AssessmentResultSummaryDTO getAssessmentResultSummary(String userId, String assessmentId);
 }

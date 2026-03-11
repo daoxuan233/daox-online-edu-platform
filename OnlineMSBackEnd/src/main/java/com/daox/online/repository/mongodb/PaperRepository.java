@@ -30,6 +30,10 @@ public interface PaperRepository extends MongoRepository<Paper, String> {
      */
     Optional<Paper> findByAssessmentId(String assessmentId);
 
+    Optional<Paper> findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(String assessmentId);
+
+    List<Paper> findAllByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(String assessmentId);
+
     /**
      * 根据测评ID列表查找试卷
      * @param assessmentIds 测评ID列表

@@ -50,8 +50,12 @@
           <el-option label="全部状态" value=""/>
           <el-option label="未开始" value="not_started"/>
           <el-option label="进行中" value="in_progress"/>
-          <el-option label="已完成" value="completed"/>
+          <el-option label="已提交" value="submitted"/>
+          <el-option label="批阅中" value="grading"/>
+          <el-option label="已批阅" value="graded"/>
+          <el-option label="需复查" value="review"/>
           <el-option label="已过期" value="expired"/>
+          <el-option label="已结束" value="ended"/>
         </el-select>
         <el-select
             v-model="filterType"
@@ -60,11 +64,11 @@
             clearable
         >
           <el-option label="全部类型" value=""/>
-          <el-option label="课堂测验" value="quiz"/>
-          <el-option label="章节测试" value="chapter_test"/>
-          <el-option label="期中考试" value="midterm"/>
-          <el-option label="期末考试" value="final"/>
-          <el-option label="作业" value="assignment"/>
+          <el-option label="课堂测验" value="ClassroomExam"/>
+          <el-option label="章节测试" value="ChapterExam"/>
+          <el-option label="期中考试" value="MidtermExam"/>
+          <el-option label="期末考试" value="FinalExam"/>
+          <el-option label="作业" value="homework"/>
         </el-select>
         <el-select
             v-model="sortBy"
@@ -101,14 +105,14 @@
             :key="assessment.id"
             class="assessment-card neumorphism-raised"
             :class="getCardClass(assessment.status)"
-            tabindex="0"
-            @keydown.enter="viewDetails(assessment)"
+            :tabindex="isInteractiveAssessment(assessment) ? 0 : -1"
+            @keydown.enter="isInteractiveAssessment(assessment) && viewDetails(assessment)"
         >
           <!-- 卡片头部 -->
           <header class="card-header">
             <div class="assessment-type">
-              <i :class="getTypeIcon(assessment.type)" aria-hidden="true"></i>
-              <span>{{ getTypeName(assessment.type) }}</span>
+              <i :class="getTypeIcon(assessment.assessmentType)" aria-hidden="true"></i>
+              <span>{{ getTypeName(assessment.assessmentType) }}</span>
             </div>
             <div class="assessment-status">
               <el-tag
@@ -185,11 +189,11 @@
                   <span class="score-total">/{{ assessment.totalScore }}</span>
                 </div>
                 <div class="score-percentage" :class="getScoreClass(assessment.score, assessment.totalScore)">
-                  {{ Math.round((assessment.score / assessment.totalScore) * 100) }}%
+                  {{ getScorePercentage(assessment.score, assessment.totalScore) }}%
                 </div>
               </div>
               <el-progress
-                  :percentage="Math.round((assessment.score / assessment.totalScore) * 100)"
+                  :percentage="getScorePercentage(assessment.score, assessment.totalScore)"
                   :stroke-width="8"
                   :show-text="false"
                   :color="getProgressColor(assessment.score, assessment.totalScore)"
@@ -227,7 +231,7 @@
               </el-button>
 
               <el-button
-                  v-if="assessment.status === 'completed'"
+                  v-if="assessment.status === 'graded'"
                   type="success"
                   size="default"
                   class="action-btn"
@@ -239,7 +243,7 @@
               </el-button>
 
               <el-button
-                  v-if="assessment.status === 'completed' && assessment.allowRetake"
+                  v-if="assessment.status === 'graded' && assessment.allowRetake"
                   size="default"
                   class="action-btn neumorphism-raised"
                   @click="retakeAssessment(assessment)"
@@ -251,17 +255,29 @@
               </el-button>
 
               <el-button
-                  v-if="assessment.status === 'expired'"
+                  v-if="assessment.status === 'expired' || assessment.status === 'ended'"
                   disabled
                   size="default"
                   class="action-btn"
-                  style="background-color: #F56C6C; color: #FFFFFF; border-color: #F56C6C;"
+                  style="background-color: #909399; color: #FFFFFF; border-color: #909399;"
               >
                 <i class="fas fa-times" aria-hidden="true"></i>
-                已过期
+                {{ assessment.status === 'ended' ? '已结束' : '已过期' }}
               </el-button>
 
               <el-button
+                  v-if="assessment.status === 'submitted' || assessment.status === 'grading' || assessment.status === 'review'"
+                  disabled
+                  size="default"
+                  class="action-btn"
+                  style="background-color: #909399; color: #FFFFFF; border-color: #909399;"
+              >
+                <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+                等待批阅
+              </el-button>
+
+              <el-button
+                  v-if="assessment.status !== 'ended'"
                   size="default"
                   class="action-btn neumorphism-inset detail-btn"
                   @click="viewDetails(assessment)"
@@ -407,11 +423,11 @@
               </div>
               <div class="score-percentage"
                    :class="getScoreClass(selectedAssessment.score, selectedAssessment.totalScore)">
-                {{ Math.round((selectedAssessment.score / selectedAssessment.totalScore) * 100) }}%
+                {{ getScorePercentage(selectedAssessment.score, selectedAssessment.totalScore) }}%
               </div>
             </div>
             <el-progress
-                :percentage="Math.round((selectedAssessment.score / selectedAssessment.totalScore) * 100)"
+                :percentage="getScorePercentage(selectedAssessment.score, selectedAssessment.totalScore)"
                 :stroke-width="12"
                 :color="getProgressColor(selectedAssessment.score, selectedAssessment.totalScore)"
                 class="score-progress"
@@ -482,13 +498,14 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted} from 'vue'
-import {useRouter} from 'vue-router'
+import {ref, computed, onMounted, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import {ElMessage} from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
 import {getMyAssessments, startAssessment as startAssessmentAPI} from '@/api/students/stuAPI.js'
 
 const router = useRouter()
+const route = useRoute()
 
 // 响应式数据
 const searchQuery = ref('')
@@ -531,8 +548,10 @@ const loadAssessments = async (status = null) => {
         const statusMap = {
           'not_started': 'not_started',
           'in_progress': 'in_progress',
-          'submitted': 'completed',
-          'graded': 'completed'
+          'submitted': 'submitted',
+          'grading': 'grading',
+          'graded': 'graded',
+          'review': 'review'
         }
         return statusMap[backendStatus] || 'not_started'
       }
@@ -544,7 +563,8 @@ const loadAssessments = async (status = null) => {
         return now > endTime && (item.status === 'not_started' || item.status === 'in_progress')
       }
 
-      const frontendStatus = isExpired() ? 'expired' : mapStatus(item.status)
+      const frontendStatus = Number(item.isPublished) === 2 ? 'ended' : (isExpired() ? 'expired' : mapStatus(item.status))
+      const resolvedTotalScore = normalizeTotalScore(item.fullScore)
 
       /**
        * 类型映射函数：将后端类型转换为前端类型
@@ -558,19 +578,6 @@ const loadAssessments = async (status = null) => {
        * - FinalExam (期末考试) -> final (期末考试)
        * - homework (作业) -> assignment (作业)
        */
-      const mapType = (backendType) => {
-        const typeMapping = {
-          'ClassroomExam': 'quiz',
-          'ChapterExam': 'chapter_test',
-          'MidtermExam': 'midterm',
-          'FinalExam': 'final',
-          'homework': 'assignment'
-        }
-        return typeMapping[backendType] || 'quiz'
-      }
-
-      const frontendType = mapType(item.assessmentType)
-
       return {
         // 后端字段映射
         id: item.assessmentId,
@@ -589,14 +596,15 @@ const loadAssessments = async (status = null) => {
         submitTime: item.submitTime,
         completedAt: item.submitTime, // 使用submitTime作为completedAt
         score: item.score,
-        type: frontendType, // 使用映射后的前端类型
+        type: item.assessmentType || 'UNKNOWN',
         assessmentType: item.assessmentType, // 保留原始后端类型
         canStart: item.canStart,
+        isPublished: item.isPublished,
 
         // 前端需要的额外字段（设置默认值）
         description: '', // 后端没有description字段，设置为空
 
-        totalScore: 100, // 设置默认总分
+        totalScore: resolvedTotalScore,
         allowRetake: false, // 设置默认值
         instructions: [
           "1. 各位考生应自觉维护考试严肃性、权威性和公信力，自觉诚信考试，在规定考试时间内独立作答，考试期间不与任何第三人交流考试内容，通过诚信考试对自身课程学习效果做到客观的诊断评价",
@@ -609,6 +617,15 @@ const loadAssessments = async (status = null) => {
         ] // 设置默认值
       }
     })
+
+    const submittedAssessmentId = String(route.query.submittedAssessmentId || '').trim()
+    if (route.query.from === 'exam_submit' && submittedAssessmentId) {
+      const submittedTarget = assessments.value.find(item => item.id === submittedAssessmentId)
+      if (submittedTarget && (submittedTarget.status === 'not_started' || submittedTarget.status === 'in_progress')) {
+        submittedTarget.status = 'submitted'
+        submittedTarget.completedAt = new Date().toISOString()
+      }
+    }
 
     // 更新统计数据
     updateStats()
@@ -626,13 +643,13 @@ const loadAssessments = async (status = null) => {
  */
 const updateStats = () => {
   const total = assessments.value.length
-  const completed = assessments.value.filter(a => a.status === 'completed').length
-  const pending = assessments.value.filter(a => a.status === 'not_started' || a.status === 'in_progress').length
+  const completed = assessments.value.filter(a => ['graded', 'ended'].includes(a.status)).length
+  const pending = assessments.value.filter(a => ['not_started', 'in_progress', 'submitted', 'grading', 'review', 'expired'].includes(a.status)).length
 
   // 计算平均分
   const gradedAssessments = assessments.value.filter(a => a.score !== null && a.score !== undefined)
   const avgScore = gradedAssessments.length > 0
-      ? Math.round(gradedAssessments.reduce((sum, a) => sum + Number(a.score), 0) / gradedAssessments.length)
+      ? Math.round(gradedAssessments.reduce((sum, a) => sum + getScorePercentage(a.score, a.totalScore), 0) / gradedAssessments.length)
       : 0
 
   stats.value = {
@@ -698,13 +715,13 @@ const totalAssessments = computed(() => filteredAssessments.value.length)
  */
 const getTypeIcon = (type) => {
   const icons = {
-    quiz: 'fas fa-question-circle',        // 课堂测验
-    chapter_test: 'fas fa-file-alt',       // 章节测试
-    midterm: 'fas fa-clipboard-check',     // 期中考试
-    final: 'fas fa-graduation-cap',        // 期末考试
-    assignment: 'fas fa-tasks'             // 作业
+    ClassroomExam: 'fas fa-question-circle',
+    ChapterExam: 'fas fa-file-alt',
+    MidtermExam: 'fas fa-clipboard-check',
+    FinalExam: 'fas fa-graduation-cap',
+    homework: 'fas fa-tasks'
   }
-  return icons[type] || 'fas fa-file'
+  return icons[type] || 'fas fa-question-circle'
 }
 
 /**
@@ -721,21 +738,25 @@ const getTypeIcon = (type) => {
  */
 const getTypeName = (type) => {
   const names = {
-    quiz: '课堂测验',
-    chapter_test: '章节测试',
-    midterm: '期中考试',
-    final: '期末考试',
-    assignment: '作业'
+    ClassroomExam: '课堂测验',
+    ChapterExam: '章节测试',
+    MidtermExam: '期中考试',
+    FinalExam: '期末考试',
+    homework: '作业'
   }
-  return names[type] || '未知类型'
+  return names[type] || (type || '未知类型')
 }
 
 const getStatusType = (status) => {
   const types = {
     not_started: '',
     in_progress: 'warning',
-    completed: 'success',
-    expired: 'danger'
+    submitted: 'info',
+    grading: 'warning',
+    graded: 'success',
+    review: 'danger',
+    expired: 'danger',
+    ended: 'info'
   }
   return types[status] || ''
 }
@@ -744,8 +765,12 @@ const getStatusName = (status) => {
   const names = {
     not_started: '未开始',
     in_progress: '进行中',
-    completed: '已完成',
-    expired: '已过期'
+    submitted: '已提交',
+    grading: '批阅中',
+    graded: '已批阅',
+    review: '需复查',
+    expired: '已过期',
+    ended: '已结束'
   }
   return names[status] || '未知状态'
 }
@@ -763,10 +788,13 @@ const getCardClass = (status) => {
   return {
     'status-not-started': status === 'not_started',
     'status-in-progress': status === 'in_progress',
-    'status-completed': status === 'completed',
-    'status-expired': status === 'expired'
+    'status-completed': status === 'graded',
+    'status-expired': status === 'expired',
+    'status-ended': status === 'ended'
   }
 }
+
+const isInteractiveAssessment = (assessment) => assessment && assessment.status !== 'ended'
 
 const formatDate = (dateString) => {
   const date = new Date(dateString)
@@ -1011,7 +1039,7 @@ const startFromDialog = () => {
 
 // 新增方法
 const getScoreClass = (score, totalScore) => {
-  const percentage = (score / totalScore) * 100
+  const percentage = getScorePercentage(score, totalScore)
   if (percentage >= 90) return 'excellent'
   if (percentage >= 80) return 'good'
   if (percentage >= 70) return 'average'
@@ -1020,12 +1048,32 @@ const getScoreClass = (score, totalScore) => {
 }
 
 const getProgressColor = (score, totalScore) => {
-  const percentage = (score / totalScore) * 100
+  const percentage = getScorePercentage(score, totalScore)
   if (percentage >= 90) return '#67c23a'
   if (percentage >= 80) return '#409eff'
   if (percentage >= 70) return '#e6a23c'
   if (percentage >= 60) return '#f56c6c'
   return '#909399'
+}
+
+const normalizeTotalScore = (rawTotalScore) => {
+  const parsed = Number(rawTotalScore)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0
+  }
+  return parsed
+}
+
+const getScorePercentage = (score, totalScore) => {
+  const safeTotalScore = normalizeTotalScore(totalScore)
+  if (safeTotalScore <= 0) {
+    return 0
+  }
+  const parsedScore = Number(score)
+  if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
+    return 0
+  }
+  return Math.max(0, Math.min(100, Math.round((parsedScore / safeTotalScore) * 100)))
 }
 
 const canStartAssessment = (assessment) => {
@@ -1066,6 +1114,13 @@ onMounted(() => {
   // 组件挂载时加载测评数据
   loadAssessments()
 })
+
+watch(
+    () => route.query.refresh,
+    () => {
+      loadAssessments()
+    }
+)
 </script>
 
 <style scoped>
@@ -1341,6 +1396,27 @@ onMounted(() => {
 .assessment-card.status-expired {
   border-left: 4px solid #f56c6c;
   opacity: 0.7;
+}
+
+.assessment-card.status-ended {
+  border-left: 4px solid #909399;
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.15), rgba(144, 147, 153, 0.08));
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.assessment-card.status-ended:hover {
+  transform: none;
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+  -8px -8px 16px var(--neumorphism-shadow-light);
+}
+
+.assessment-card.status-ended .assessment-type,
+.assessment-card.status-ended .assessment-title,
+.assessment-card.status-ended .time-value,
+.assessment-card.status-ended .info-item,
+.assessment-card.status-ended .time-label i {
+  color: #909399 !important;
 }
 
 @keyframes pulse {

@@ -271,6 +271,8 @@ public class CoursesServiceImpl implements CoursesService {
                 log.error("[getTeacherCourseList.method]查询课程类别信息失败: categoryId={}", course.getCategoryId());
                 return null;
             }
+            // 获取课程价格信息
+            CourseProperties coursePropertiesById = coursesMapper.getCoursePropertiesById(course.getId());
             return new UserCoursesVo()
                     .setCourseId(course.getId())
                     .setCourseTitle(course.getTitle())
@@ -281,7 +283,9 @@ public class CoursesServiceImpl implements CoursesService {
                     .setCategoryName(courseCategoryById.getName())
                     .setCourseCover(course.getCoverImageUrl())
                     .setCourseStatus(course.getStatus())
-                    .setCreateTime(course.getCreatedAt());
+                    .setCreateTime(course.getCreatedAt())
+                    .setCoursePrice(coursePropertiesById.getPrice())
+                    ;
         }).filter(Objects::nonNull).collect(Collectors.toList());
 
         // 3. 如果数据库查询结果非空，则存入缓存
@@ -393,11 +397,18 @@ public class CoursesServiceImpl implements CoursesService {
      */
     @Override
     public boolean joinCourse(String userId, String courseId) {
+        if (isUserAlreadyEnrolled(userId, courseId)) {
+            log.info("[joinCourse.method]用户已加入课程: userId={}, courseId={}", userId, courseId);
+            return false;
+        }
         String id = hybridIdGenerator.generateId();
         int i = coursesMapper.joinCourse(id, userId, courseId, new Date());
         if (i > 0) {
             log.info("[joinCourse.method]加入课程成功: userId={}, courseId={}", userId, courseId);
-            int i1 = coursesMapper.updateCourseEnrollmentCount(courseId, coursesMapper.getCourseById(courseId).getEnrollmentCount() + 1);
+            Courses course = coursesMapper.getCourseById(courseId);
+            Integer enrollmentCount = course != null ? course.getEnrollmentCount() : null;
+            int nextCount = (enrollmentCount == null ? 0 : enrollmentCount) + 1;
+            int i1 = coursesMapper.updateCourseEnrollmentCount(courseId, nextCount);
             if (i1 > 0) {
                 log.info("[joinCourse.method]更新课程成功后课程学习人数+1: courseId={}", courseId);
                 return true;
@@ -407,6 +418,21 @@ public class CoursesServiceImpl implements CoursesService {
         }
         log.info("[joinCourse.method]加入课程失败: userId={}, courseId={}", userId, courseId);
         return false;
+    }
+
+    @Override
+    public boolean isUserEnrolledInCourse(String userId, String courseId) {
+        if (userId == null || userId.isEmpty() || courseId == null || courseId.isEmpty()) {
+            return false;
+        }
+        return coursesMapper.isUserEnrolledInCourse(userId, courseId);
+    }
+
+    private boolean isUserAlreadyEnrolled(String userId, String courseId) {
+        if (userId == null || userId.isEmpty() || courseId == null || courseId.isEmpty()) {
+            return false;
+        }
+        return coursesMapper.isUserEnrolledInCourse(userId, courseId);
     }
 
     /**
@@ -421,7 +447,13 @@ public class CoursesServiceImpl implements CoursesService {
         int i = coursesMapper.quitCourse(userId, courseId);
         if (i > 0) {
             log.info("[quitCourse.method]退出课程成功: userId={}, courseId={}", userId, courseId);
-            int i1 = coursesMapper.updateCourseEnrollmentCount(courseId, coursesMapper.getCourseById(courseId).getEnrollmentCount() - 1);
+            Courses course = coursesMapper.getCourseById(courseId);
+            Integer enrollmentCount = course != null ? course.getEnrollmentCount() : null;
+            int nextCount = (enrollmentCount == null ? 0 : enrollmentCount) - 1;
+            if (nextCount < 0) {
+                nextCount = 0;
+            }
+            int i1 = coursesMapper.updateCourseEnrollmentCount(courseId, nextCount);
             if (i1 > 0) {
                 log.info("[quitCourse.method]更新课程报名人数成功: courseId={}", courseId);
             }
@@ -571,7 +603,21 @@ public class CoursesServiceImpl implements CoursesService {
             properties.setIsNew(1);
             coursePropertiesMapper.insertSelective(properties);
         }
+        refreshTeacherCourseCache(course.getTeacherId());
         return course;
+    }
+
+    private void refreshTeacherCourseCache(String teacherId) {
+        if (!StringUtils.hasText(teacherId)) {
+            return;
+        }
+        String cacheKey = Const.COURSE_INFO_KEY + teacherId;
+        try {
+            redisTemplate.delete(cacheKey);
+            getTeacherCourseList(teacherId);
+        } catch (Exception e) {
+            log.warn("[refreshTeacherCourseCache.method] 刷新教师课程缓存失败: teacherId={}", teacherId, e);
+        }
     }
 
     /**
@@ -658,19 +704,18 @@ public class CoursesServiceImpl implements CoursesService {
         if (outlineDto != null && !CollectionUtils.isEmpty(outlineDto.getOutline())) {
             for (CourseOutlineDto.ChapterDto chapterDto : outlineDto.getOutline()) {
                 String chapterId = chapterDto.getId();
-                // 3.1 处理章节
-                if (!StringUtils.hasText(chapterId)) { // ID为空，是新增章节
+                Chapters oldChapter = StringUtils.hasText(chapterId) ? oldChaptersMap.get(chapterId) : null;
+                if (oldChapter == null) {
                     Chapters newChapter = new Chapters();
-                    chapterId = hybridIdGenerator.generateId(); // 生成新ID
+                    chapterId = hybridIdGenerator.generateId();
                     newChapter.setId(chapterId);
                     newChapter.setCourseId(courseId);
                     newChapter.setTitle(chapterDto.getTitle());
                     newChapter.setOrderIndex(chapterDto.getOrderIndex());
                     chaptersToInsert.add(newChapter);
-                } else { // ID不为空，是现有章节
+                } else {
                     incomingChapterIds.add(chapterId);
-                    Chapters oldChapter = oldChaptersMap.get(chapterId);
-                    if (oldChapter != null && (!Objects.equals(oldChapter.getTitle(), chapterDto.getTitle()) || !Objects.equals(oldChapter.getOrderIndex(), chapterDto.getOrderIndex()))) {
+                    if (!Objects.equals(oldChapter.getTitle(), chapterDto.getTitle()) || !Objects.equals(oldChapter.getOrderIndex(), chapterDto.getOrderIndex())) {
                         oldChapter.setTitle(chapterDto.getTitle());
                         oldChapter.setOrderIndex(chapterDto.getOrderIndex());
                         chaptersToUpdate.add(oldChapter);
@@ -681,21 +726,26 @@ public class CoursesServiceImpl implements CoursesService {
                 if (!CollectionUtils.isEmpty(chapterDto.getSections())) {
                     for (CourseOutlineDto.SectionDto sectionDto : chapterDto.getSections()) {
                         String sectionId = sectionDto.getId();
-                        if (!StringUtils.hasText(sectionId)) { // 新增小节
+                        Sections oldSection = StringUtils.hasText(sectionId) ? oldSectionsMap.get(sectionId) : null;
+                        if (oldSection == null) {
                             Sections newSection = new Sections();
                             newSection.setId(hybridIdGenerator.generateId());
-                            newSection.setChapterId(chapterId); // 关联到章节ID (可能是新的也可能是旧的)
+                            newSection.setChapterId(chapterId);
                             newSection.setTitle(sectionDto.getTitle());
                             newSection.setVideoUrl(sectionDto.getVideoUrl());
                             newSection.setDurationSeconds(sectionDto.getDurationSeconds());
                             newSection.setOrderIndex(sectionDto.getOrderIndex());
                             sectionsToInsert.add(newSection);
-                        } else { // 现有小节
+                        } else {
                             incomingSectionIds.add(sectionId);
-                            Sections oldSection = oldSectionsMap.get(sectionId);
-                            if (oldSection != null && (!Objects.equals(oldSection.getTitle(), sectionDto.getTitle()) || !Objects.equals(oldSection.getOrderIndex(), sectionDto.getOrderIndex()))) {
+                            if (!Objects.equals(oldSection.getTitle(), sectionDto.getTitle())
+                                    || !Objects.equals(oldSection.getOrderIndex(), sectionDto.getOrderIndex())
+                                    || !Objects.equals(oldSection.getVideoUrl(), sectionDto.getVideoUrl())
+                                    || !Objects.equals(oldSection.getDurationSeconds(), sectionDto.getDurationSeconds())) {
                                 oldSection.setTitle(sectionDto.getTitle());
                                 oldSection.setOrderIndex(sectionDto.getOrderIndex());
+                                oldSection.setVideoUrl(sectionDto.getVideoUrl());
+                                oldSection.setDurationSeconds(sectionDto.getDurationSeconds());
                                 sectionsToUpdate.add(oldSection);
                             }
                         }
@@ -965,7 +1015,11 @@ public class CoursesServiceImpl implements CoursesService {
                 log.warn("[publishCourse.method] 课程不存在: userId={}, courseId={}", userId, courseId);
                 return false;
             }
-            return coursesMapper.publishCourse(courseId) > 0;
+            boolean published = coursesMapper.publishCourse(courseId) > 0;
+            if (published) {
+                refreshTeacherCourseCache(userId);
+            }
+            return published;
         }
         return false;
     }

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daox.online.mapper.TeacherTodosMapper">
+
+    <resultMap id="BaseResultMap" type="com.daox.online.entity.mysql.TeacherTodos">
+        <id column="id" property="id" jdbcType="VARCHAR"/>
+        <result column="teacher_id" property="teacherId" jdbcType="VARCHAR"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+        <result column="priority" property="priority" jdbcType="VARCHAR"/>
+        <result column="completed" property="completed" jdbcType="TINYINT"/>
+        <result column="due_date" property="dueDate" jdbcType="TIMESTAMP"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="is_deleted" property="isDeleted" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <select id="selectByTeacherId" resultMap="BaseResultMap">
+        SELECT id, teacher_id, content, priority, completed, due_date, created_at, updated_at, is_deleted
+        FROM teacher_todos
+        WHERE teacher_id = #{teacherId}
+          AND is_deleted = 0
+        ORDER BY updated_at DESC, created_at DESC
+    </select>
+
+    <select id="selectByIdAndTeacherId" resultMap="BaseResultMap">
+        SELECT id, teacher_id, content, priority, completed, due_date, created_at, updated_at, is_deleted
+        FROM teacher_todos
+        WHERE id = #{id}
+          AND teacher_id = #{teacherId}
+          AND is_deleted = 0
+    </select>
+
+    <insert id="insertSelective" parameterType="com.daox.online.entity.mysql.TeacherTodos">
+        INSERT INTO teacher_todos
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="teacherId != null">teacher_id,</if>
+            <if test="content != null">content,</if>
+            <if test="priority != null">priority,</if>
+            <if test="completed != null">completed,</if>
+            <if test="dueDate != null">due_date,</if>
+            created_at,
+            updated_at,
+            is_deleted
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id,jdbcType=VARCHAR},</if>
+            <if test="teacherId != null">#{teacherId,jdbcType=VARCHAR},</if>
+            <if test="content != null">#{content,jdbcType=VARCHAR},</if>
+            <if test="priority != null">#{priority,jdbcType=VARCHAR},</if>
+            <if test="completed != null">#{completed,jdbcType=TINYINT},</if>
+            <if test="dueDate != null">#{dueDate,jdbcType=TIMESTAMP},</if>
+            NOW(),
+            NOW(),
+            0
+        </trim>
+    </insert>
+
+    <update id="updateByPrimaryKeySelective" parameterType="com.daox.online.entity.mysql.TeacherTodos">
+        UPDATE teacher_todos
+        <set>
+            <if test="content != null">content = #{content,jdbcType=VARCHAR},</if>
+            <if test="priority != null">priority = #{priority,jdbcType=VARCHAR},</if>
+            <if test="completed != null">completed = #{completed,jdbcType=TINYINT},</if>
+            <if test="dueDate != null">due_date = #{dueDate,jdbcType=TIMESTAMP},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id,jdbcType=VARCHAR}
+          AND teacher_id = #{teacherId,jdbcType=VARCHAR}
+          AND is_deleted = 0
+    </update>
+
+    <update id="softDeleteByIdAndTeacherId">
+        UPDATE teacher_todos
+        SET is_deleted = 1,
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND teacher_id = #{teacherId}
+          AND is_deleted = 0
+    </update>
+</mapper>

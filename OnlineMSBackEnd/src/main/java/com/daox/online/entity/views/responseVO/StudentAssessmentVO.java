@@ -68,7 +68,27 @@ public class StudentAssessmentVO {
      */
     private BigDecimal score;
     /**
+     * 考核满分（试卷总分）。
+     * <p>
+     * 字段说明：
+     * 1) 优先使用试卷中已持久化的 totalScore；
+     * 2) 若试卷 totalScore 缺失，则由后端按题目分值动态汇总；
+     * 3) 用于前端准确展示“得分/满分”以及百分比，禁止使用硬编码满分。
+     * </p>
+     */
+    private BigDecimal fullScore;
+    /**
      * 是否可开始
      */
     private Boolean canStart;
+    /**
+     * 发布状态（0-未发布，1-已发布，2-已归档）
+     * <p>
+     * 说明：
+     * 1) 该字段用于前后端在“可查看”与“可操作”之间做权限区分；
+     * 2) 学生端可见已归档卡片，但不可发起作答操作；
+     * 3) 该字段仅用于业务判断，不影响历史成绩展示。
+     * </p>
+     */
+    private Integer isPublished;
 }

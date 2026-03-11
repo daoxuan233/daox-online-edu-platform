@@ -110,7 +110,7 @@ public class TeacherGradingService {
         }
 
         // 2. 获取试卷定义，并筛选出所有主观题 (来自 MongoDB)
-        Paper paper = paperRepository.findByAssessmentId(assessmentId)
+        Paper paper = paperRepository.findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("与该测评关联的试卷不存在: " + assessmentId));
 
         List<String> allQuestionIds = paper.getSections().stream()
@@ -155,6 +155,56 @@ public class TeacherGradingService {
         return new GradingDetailDTO(assessmentInfo, progressList);
     }
 
+    public GradingTaskStatusDTO getGradingTaskStatus(String assessmentId) {
+        Assessments assessmentInfo = assessmentsMapper.getAssessmentById(assessmentId);
+        if (assessmentInfo == null) {
+            throw new ResourceNotFoundException("测评不存在: " + assessmentId);
+        }
+
+        Set<String> subjectiveQuestionIds = getSubjectiveQuestionIdsByAssessment(assessmentId);
+        if (subjectiveQuestionIds.isEmpty()) {
+            return new GradingTaskStatusDTO(assessmentId, 0, 0, 0, 100, true);
+        }
+
+        Query query = new Query(Criteria.where("assessment_id").is(assessmentId));
+        List<StudentAnswer> submissions = mongoTemplate.find(query, StudentAnswer.class);
+
+        long totalSubmissionCount = 0L;
+        long pendingSubmissionCount = 0L;
+
+        for (StudentAnswer submission : submissions) {
+            List<StudentAnswer.Answer> answers = Optional.ofNullable(submission.getAnswers()).orElse(Collections.emptyList());
+            List<StudentAnswer.Answer> subjectiveAnswers = answers.stream()
+                    .filter(answer -> subjectiveQuestionIds.contains(answer.getQuestionId()))
+                    .toList();
+            if (subjectiveAnswers.isEmpty()) {
+                continue;
+            }
+
+            totalSubmissionCount++;
+            boolean hasPendingManual = subjectiveAnswers.stream()
+                    .anyMatch(answer -> StudentAnswer.GradingStatus.PENDING_MANUAL.equals(answer.getGradingStatus()));
+            if (hasPendingManual) {
+                pendingSubmissionCount++;
+            }
+        }
+
+        long gradedSubmissionCount = Math.max(0L, totalSubmissionCount - pendingSubmissionCount);
+        int progressPercentage = totalSubmissionCount == 0
+                ? 100
+                : (int) Math.round((gradedSubmissionCount * 100.0) / totalSubmissionCount);
+        boolean completed = pendingSubmissionCount == 0;
+
+        return new GradingTaskStatusDTO(
+                assessmentId,
+                totalSubmissionCount,
+                pendingSubmissionCount,
+                gradedSubmissionCount,
+                progressPercentage,
+                completed
+        );
+    }
+
     /**
      * [新增] 分页获取某道主观题的所有学生答案
      * @param assessmentId 测评 ID
@@ -163,11 +213,34 @@ public class TeacherGradingService {
      * @return 包含学生答案片段 DTO 的分页对象
      */
     public Page<StudentAnswerSnippetDTO> getStudentAnswersForQuestion(String assessmentId, String questionId, Pageable pageable) {
+        BigDecimal questionMaxScore = resolveQuestionMaxScore(assessmentId, questionId);
+
         // --- 步骤 1: (MongoDB) 构建分页查询 ---
+        // 关键说明：
+        // 1) 线上历史数据中，答卷状态并不总是 "grading"（可能是 submitted/graded/review，甚至缺失）；
+        // 2) 若这里强行写死 status=grading，会导致“MongoDB里明明有答案但接口返回空列表”；
+        // 3) 因此采用“题目命中 + 状态白名单兜底”的查询策略，兼容新老数据，避免误判为无答案。
+        Criteria assessmentAndQuestionCriteria = new Criteria().andOperator(
+                Criteria.where("assessment_id").is(assessmentId),
+                Criteria.where("answers.question_id").is(questionId)
+        );
+
+        // 状态兜底策略：
+        // - submitted：已提交但可能尚未进入人工批阅流转的历史数据；
+        // - grading：当前待批阅中的正常状态；
+        // - graded/review：已批阅或复查场景，仍应允许教师回看答案；
+        // - status 缺失/null：兼容早期文档或脏数据，避免“有答案但查不到”。
+        Criteria statusCompatibleCriteria = new Criteria().orOperator(
+                Criteria.where("status").is(StudentAnswer.AnswerStatus.SUBMITTED),
+                Criteria.where("status").is(StudentAnswer.AnswerStatus.GRADING),
+                Criteria.where("status").is(StudentAnswer.AnswerStatus.GRADED),
+                Criteria.where("status").is(StudentAnswer.AnswerStatus.REVIEW),
+                Criteria.where("status").exists(false),
+                Criteria.where("status").is(null)
+        );
+
         Query query = new Query(
-                Criteria.where("assessment_id").is(assessmentId)
-                        .and("status").is("grading") // 只查询状态为 grading 的答卷
-                        .and("answers.question_id").is(questionId) // 确保答案数组中包含这道题
+                new Criteria().andOperator(assessmentAndQuestionCriteria, statusCompatibleCriteria)
         ).with(pageable);
         log.info("[getStudentAnswersForQuestion.method] 获取测评 {} 的主观题 {} 的学生答案列表，分页参数：{}", assessmentId, questionId, pageable);
         // --- 步骤 2: (MongoDB) 执行分页查询 ---
@@ -178,6 +251,21 @@ public class TeacherGradingService {
         Page<StudentAnswer> pageResult = PageableExecutionUtils.getPage(studentAnswersPage, pageable, () -> totalCount);
 
         if (!pageResult.hasContent()) {
+            // 诊断日志（仅在无结果时触发）：
+            // 这里额外查询该测评下最多50份答卷并提取其 question_id，帮助快速定位
+            // “前端传入的 questionId 与学生答卷中的 question_id 不一致”问题。
+            // 该日志不会改变业务返回，仅用于排障。
+            Query diagnoseQuery = new Query(Criteria.where("assessment_id").is(assessmentId)).limit(50);
+            List<StudentAnswer> diagnoseAnswers = mongoTemplate.find(diagnoseQuery, StudentAnswer.class);
+            Set<String> availableQuestionIds = diagnoseAnswers.stream()
+                    .map(StudentAnswer::getAnswers)
+                    .filter(Objects::nonNull)
+                    .flatMap(List::stream)
+                    .map(StudentAnswer.Answer::getQuestionId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            log.warn("[getStudentAnswersForQuestion.method] 未查询到答案。assessmentId={}, questionId={}, 该测评样本答卷中的questionId列表={}",
+                    assessmentId, questionId, availableQuestionIds);
             return Page.empty(pageable);
         }
 
@@ -197,8 +285,10 @@ public class TeacherGradingService {
             String studentName = (user != null) ? user.getNickname() : "未知学生"; // 使用 username 或 name
             String identifier = (user != null) ? user.getIdentifier() : "unknown";
 
-            // 从答案数组中找到对应题目的答案
-            StudentAnswer.Answer answer = sa.getAnswers().stream()
+            // 从答案数组中找到对应题目的答案。
+            // 这里增加 null 安全保护，避免极端脏数据（answers=null）触发空指针导致整个分页失败。
+            List<StudentAnswer.Answer> answers = Optional.ofNullable(sa.getAnswers()).orElse(Collections.emptyList());
+            StudentAnswer.Answer answer = answers.stream()
                     .filter(a -> questionId.equals(a.getQuestionId()))
                     .findFirst()
                     .orElse(new StudentAnswer.Answer(questionId, "【学生未作答】",new BigDecimal(0), StudentAnswer.GradingStatus.AUTO_GRADED, null));
@@ -210,6 +300,7 @@ public class TeacherGradingService {
                     identifier,
                     answer.getGradingStatus(),
                     answer.getResponse(),
+                    questionMaxScore,
                     answer.getScore(),
                     answer.getComment() // 评语字段暂时未实现，后续添加
             );
@@ -225,6 +316,16 @@ public class TeacherGradingService {
      */
     @Transactional // 推荐将此方法标记为事务性，以确保多步更新的一致性
     public BigDecimal gradeAnswer(GradeSubmissionRequest request) {
+        // --- 步骤 0: (Java + MongoDB) 提前校验打分区间 ---
+        // 设计目的：
+        // 1) 防止前端绕过UI限制，直接提交超出满分的非法分数；
+        // 2) 防止负分写入，保证单题分数区间恒定为 [0, 满分]；
+        // 3) 在真正执行 update 之前尽早失败，避免产生脏数据。
+        StudentAnswer submission = studentAnswerRepository.findById(request.submissionId())
+                .orElseThrow(() -> new ResourceNotFoundException("未找到 ID 为 " + request.submissionId() + " 的答卷"));
+        BigDecimal questionMaxScore = resolveQuestionMaxScore(submission.getAssessmentId(), request.questionId());
+        validateScoreRange(request.score(), questionMaxScore);
+
         // --- 步骤 1: (MongoDB) 原子性更新单题分数、评语和状态 ---
         Query query = Query.query(Criteria.where("_id").is(request.submissionId()));
         Update update = new Update()
@@ -271,6 +372,62 @@ public class TeacherGradingService {
     }
 
     /**
+     * 解析指定测评下某道题目的满分。
+     * <p>
+     * 解析规则：
+     * 1) 以测评当前最新版本试卷为权威来源；
+     * 2) 直接在试卷 sections.questions 中定位 questionId 对应分值；
+     * 3) 若题目不存在于试卷，抛出业务异常，避免评分写入“游离题目”。
+     * </p>
+     *
+     * @param assessmentId 测评ID
+     * @param questionId 题目ID
+     * @return 题目满分，最小为 0
+     */
+    private BigDecimal resolveQuestionMaxScore(String assessmentId, String questionId) {
+        Paper paper = paperRepository.findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("与该测评关联的试卷不存在: " + assessmentId));
+
+        return Optional.ofNullable(paper.getSections())
+                .orElse(Collections.emptyList())
+                .stream()
+                .filter(Objects::nonNull)
+                .map(Paper.PaperSection::getQuestions)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .filter(Objects::nonNull)
+                .filter(question -> questionId.equals(question.getQuestionId()))
+                .map(Paper.PaperQuestion::getScore)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("400", "题目不在当前试卷中，无法评分: " + questionId));
+    }
+
+    /**
+     * 校验教师提交分数是否在合法区间内。
+     * <p>
+     * 区间定义：
+     * 1) 下限固定为 0；
+     * 2) 上限为题目满分；
+     * 3) 超出区间时直接拒绝请求并返回明确错误信息。
+     * </p>
+     *
+     * @param score 教师提交分数
+     * @param maxScore 题目满分
+     */
+    private void validateScoreRange(BigDecimal score, BigDecimal maxScore) {
+        if (score == null) {
+            throw new BusinessException("400", "分数不能为空");
+        }
+        if (maxScore == null || maxScore.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("500", "题目满分配置异常，无法评分");
+        }
+        if (score.compareTo(BigDecimal.ZERO) < 0 || score.compareTo(maxScore) > 0) {
+            throw new BusinessException("400", String.format("分数必须在 0 到 %s 之间", maxScore.stripTrailingZeros().toPlainString()));
+        }
+    }
+
+    /**
      * [新增] 完成并归档指定测评的批阅工作
      * @param assessmentId 测评 ID
      * @return 包含处理结果的 DTO
@@ -278,7 +435,7 @@ public class TeacherGradingService {
     @Transactional
     public FinalizeGradingResultDTO finalizeGrading(String assessmentId) {
         // --- 步骤 1: (MongoDB) 获取本次测评所有主观题的权威列表 ---
-        Paper paper = paperRepository.findByAssessmentId(assessmentId)
+        Paper paper = paperRepository.findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("与该测评关联的试卷不存在: " + assessmentId));
 
         List<String> allQuestionIdsInPaper = paper.getSections().stream()
@@ -439,6 +596,20 @@ public class TeacherGradingService {
                     .count();
             return (int) count;
         }));
+    }
+
+    private Set<String> getSubjectiveQuestionIdsByAssessment(String assessmentId) {
+        Paper paper = paperRepository.findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("与该测评关联的试卷不存在: " + assessmentId));
+
+        List<String> allQuestionIdsInPaper = paper.getSections().stream()
+                .flatMap(section -> section.getQuestions().stream().map(Paper.PaperQuestion::getQuestionId))
+                .collect(Collectors.toList());
+
+        return questionRepository.findAllById(allQuestionIdsInPaper).stream()
+                .filter(question -> Question.SUBJECTIVE_TYPES.contains(question.getType()))
+                .map(Question::getId)
+                .collect(Collectors.toSet());
     }
 
     /**

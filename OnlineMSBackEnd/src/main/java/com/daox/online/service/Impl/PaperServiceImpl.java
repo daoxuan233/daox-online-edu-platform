@@ -70,6 +70,7 @@ public class PaperServiceImpl implements PaperService {
         if (paper.getCreatedAt() == null) {
             paper.setCreatedAt(LocalDateTime.now());
         }
+        paper.setUpdatedAt(LocalDateTime.now());
 
         // 检查 assessmentId 是否存在
         if (assessmentById == null) {
@@ -83,7 +84,14 @@ public class PaperServiceImpl implements PaperService {
         }
         // 可以在这里添加更详细的校验，例如检查总分是否大于0，每个区段是否都有题目等
 
-        // 4. 持久化
+        paperRepository.findFirstByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(paper.getAssessmentId())
+                .ifPresent(existingPaper -> {
+                    paper.setId(existingPaper.getId());
+                    if (paper.getCreatedAt() == null) {
+                        paper.setCreatedAt(existingPaper.getCreatedAt());
+                    }
+                });
+
         log.info("[createPaper.method] 试卷校验通过，准备保存。AssessmentId: {}", paper.getAssessmentId());
         return paperRepository.save(paper);
     }
@@ -101,9 +109,10 @@ public class PaperServiceImpl implements PaperService {
             log.warn("[findPaperByAssessmentId.method] 关联的测评 (Assessment) 不存在, AssessmentId: {}", assessmentId);
             return null;
         }
-        // 1. 查找试卷
-        Paper paperByAssessmentId = paperRepository.findByAssessmentId(assessmentId)
-                .orElseThrow(() -> new IllegalStateException("未找到与测评ID关联的试卷: " + assessmentId));
+        // 这里是“编辑器预加载”场景：新建测评后试卷可能尚未创建，这属于正常业务状态。
+        // 因此本方法采用“宽松查询”策略：没有试卷时返回 null，由上层决定是否提示“暂无试卷内容”。
+        // 这样可以避免把“未组卷”误判为系统异常并返回 500。
+        Paper paperByAssessmentId = findLatestPaperByAssessmentIdOrNull(assessmentId);
         if (paperByAssessmentId == null) {
             return null;
         }
@@ -151,8 +160,7 @@ public class PaperServiceImpl implements PaperService {
     @Override
     public PaperDetails getPaperDetails(String assessmentId) {
         // 1. 查找试卷
-        Paper paper = paperRepository.findByAssessmentId(assessmentId)
-                .orElseThrow(() -> new IllegalStateException("未找到与测评ID关联的试卷: " + assessmentId));
+        Paper paper = findLatestPaperByAssessmentId(assessmentId);
 
         // 2. 提取所有题目ID
         List<String> questionIds = paper.getSections().stream()
@@ -171,6 +179,35 @@ public class PaperServiceImpl implements PaperService {
                 .collect(Collectors.toMap(Question::getId, Function.identity()));
 
         return new PaperDetails(paper, questionsMap);
+    }
+
+    private Paper findLatestPaperByAssessmentId(String assessmentId) {
+        List<Paper> papers = paperRepository.findAllByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId);
+        if (papers == null || papers.isEmpty()) {
+            throw new IllegalStateException("未找到与测评ID关联的试卷: " + assessmentId);
+        }
+        if (papers.size() > 1) {
+            log.warn("[findLatestPaperByAssessmentId.method] 测评存在多份试卷记录，将使用最新一份。AssessmentId: {}, count: {}", assessmentId, papers.size());
+        }
+        return papers.get(0);
+    }
+
+    /**
+     * 查询指定测评的最新试卷（宽松模式）
+     * 适用于“新建测评后进入组卷页”这类允许暂时没有试卷的场景。
+     *
+     * @param assessmentId 测评ID
+     * @return 最新试卷；若不存在则返回 null
+     */
+    private Paper findLatestPaperByAssessmentIdOrNull(String assessmentId) {
+        List<Paper> papers = paperRepository.findAllByAssessmentIdOrderByUpdatedAtDescCreatedAtDesc(assessmentId);
+        if (papers == null || papers.isEmpty()) {
+            return null;
+        }
+        if (papers.size() > 1) {
+            log.warn("[findLatestPaperByAssessmentIdOrNull.method] 测评存在多份试卷记录，将使用最新一份。AssessmentId: {}, count: {}", assessmentId, papers.size());
+        }
+        return papers.get(0);
     }
 
     /**

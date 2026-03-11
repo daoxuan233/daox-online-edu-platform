@@ -351,9 +351,9 @@
  * @component GradingCenter
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getGradingTasks } from '@/api/teacher/teacherAPI.js'
+import { getGradingTasks, getGradingTaskStatus } from '@/api/teacher/teacherAPI.js'
 import GradingTaskCard from '@/components/teacher/GradingTaskCard.vue'
 
 /**
@@ -365,6 +365,7 @@ const isLoading = ref(false)
 const error = ref(null)
 // 阅卷任务列表
 const tasks = ref([])
+const refreshTimer = ref(null)
 
 // 统计数据
 const stats = ref({
@@ -412,7 +413,14 @@ const fetchGradingTasks = async () => {
     error.value = null
     
     const response = await getGradingTasks()
-    tasks.value = response || []
+    const latestTasks = response || []
+    tasks.value = latestTasks.map(task => ({
+      ...task,
+      totalSubmissionCount: task.totalSubmissionCount || task.pendingSubmissionCount || 0,
+      progressPercentage: task.pendingSubmissionCount > 0 ? 0 : 100,
+      completed: task.pendingSubmissionCount === 0
+    }))
+    await refreshTaskStatusSilently()
     
     // 更新统计数据
     updateStats()
@@ -423,6 +431,53 @@ const fetchGradingTasks = async () => {
     ElMessage.error(error.value)
   } finally {
     isLoading.value = false
+  }
+}
+
+const refreshTaskStatusSilently = async () => {
+  if (!tasks.value.length) return
+  const snapshot = [...tasks.value]
+  const statusResults = await Promise.all(snapshot.map(async (task) => {
+    try {
+      const status = await getGradingTaskStatus(task.assessmentId)
+      return { assessmentId: task.assessmentId, status }
+    } catch {
+      return { assessmentId: task.assessmentId, status: null }
+    }
+  }))
+
+  const statusMap = new Map(
+    statusResults
+      .filter(item => item.status)
+      .map(item => [item.assessmentId, item.status])
+  )
+
+  tasks.value = tasks.value.map(task => {
+    const status = statusMap.get(task.assessmentId)
+    if (!status) return task
+    return {
+      ...task,
+      pendingSubmissionCount: status.pendingSubmissionCount,
+      totalSubmissionCount: status.totalSubmissionCount,
+      gradedSubmissionCount: status.gradedSubmissionCount,
+      progressPercentage: status.progressPercentage,
+      completed: status.completed
+    }
+  })
+  updateStats()
+}
+
+const startSilentRefresh = () => {
+  stopSilentRefresh()
+  refreshTimer.value = setInterval(async () => {
+    await refreshTaskStatusSilently()
+  }, 8000)
+}
+
+const stopSilentRefresh = () => {
+  if (refreshTimer.value) {
+    clearInterval(refreshTimer.value)
+    refreshTimer.value = null
   }
 }
 
@@ -443,10 +498,11 @@ const updateStats = () => {
   
   // 计算待批阅总数
   const pendingCount = tasks.value.reduce((sum, task) => sum + task.pendingSubmissionCount, 0)
+  const completedCount = tasks.value.filter(task => task.completed).length
   
   stats.value = {
     pendingGrading: pendingCount,
-    completedGrading: 0, // 这个需要从后端获取
+    completedGrading: completedCount,
     averageScore: 0, // 这个需要从后端获取
     averageTime: 0 // 这个需要从后端获取
   }
@@ -608,6 +664,11 @@ const executeBatchAction = () => {
  */
 onMounted(() => {
   fetchGradingTasks()
+  startSilentRefresh()
+})
+
+onUnmounted(() => {
+  stopSilentRefresh()
 })
 </script>
 

@@ -108,6 +108,16 @@
                 <span :class="['status-badge', paperData.assessmentInfo.isPublished ? 'published' : 'draft']">
                   {{ paperData.assessmentInfo.isPublished ? '已发布' : '草稿' }}
                 </span>
+                <el-button
+                  v-if="!paperData.assessmentInfo.isPublished"
+                  size="small"
+                  type="success"
+                  plain
+                  class="publish-inline-btn"
+                  @click="publishFromStatusCard"
+                >
+                  发布测评
+                </el-button>
               </div>
             </div>
           </div>
@@ -528,7 +538,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
-import { getAssessmentDetails, getCourseQuestions, getQuestionsList, createPaper } from '@/api/teacher/teacherAPI.js'
+import { getAssessmentDetails, getCourseQuestions, getQuestionsList, createPaper, getPaperByAssessmentId, publishAssessment } from '@/api/teacher/teacherAPI.js'
 import { getCurrentUserId } from '@/api/index.js'
 
 const route = useRoute()
@@ -927,6 +937,15 @@ const initializePaper = async () => {
       courseId: paperData.value.courseId
     })
 
+    try {
+      const hasExistingPaper = await loadExistingPaper()
+      if (hasExistingPaper) {
+        ElMessage.success('已加载已保存的组卷结果')
+      }
+    } catch (paperError) {
+      console.warn('加载已保存试卷失败，继续使用初始化数据:', paperError)
+    }
+
   } catch (error) {
     console.error('初始化试卷数据失败:', error)
     ElMessage.error(`初始化失败: ${error.message}`)
@@ -1236,24 +1255,20 @@ const validatePaperData = (data) => {
   return errors
 }
 
-// 保存试卷
-const savePaper = async () => {
+const savePaperInternal = async (showSuccess = true) => {
   try {
-    // 获取当前用户ID
     const currentUserId = getCurrentUserId()
     if (!currentUserId) {
       ElMessage.error('无法获取当前用户信息，请重新登录')
-      return
+      return false
     }
     
-    // 更新总分
     paperData.value.totalScore = totalScore.value
     
-    // 准备要发送的数据，严格按照Paper.java结构
     const paperDataToSave = {
       assessmentId: assessmentId.value,
       courseId: courseId.value,
-      creatorId: currentUserId, // 使用从token解析的用户ID
+      creatorId: currentUserId,
       title: paperData.value.title || '',
       description: paperData.value.description || '',
       totalScore: paperData.value.totalScore,
@@ -1263,19 +1278,17 @@ const savePaper = async () => {
         questions: section.questions.map((question, index) => ({
           questionId: question.questionId,
           score: question.score,
-          orderIndex: index // 确保orderIndex从0开始递增
+          orderIndex: index
         }))
       }))
     }
     
-    // 数据验证
     const validationErrors = validatePaperData(paperDataToSave)
     if (validationErrors.length > 0) {
       ElMessage.error(`数据验证失败：${validationErrors.join('；')}`)
-      return
+      return false
     }
     
-    // 显示加载状态
     const loadingMessage = ElMessage({
       message: '正在保存试卷...',
       type: 'info',
@@ -1283,31 +1296,23 @@ const savePaper = async () => {
     })
     
     try {
-      // 调用API保存试卷数据
       const result = await createPaper(paperDataToSave)
-      
-      // 关闭加载消息
       loadingMessage.close()
-      
-      // 更新本地数据
+
       if (result && result.id) {
         paperData.value.id = result.id
       }
       paperData.value.updatedAt = new Date().toISOString()
       hasUnsavedChanges.value = false
-      
-      ElMessage.success('试卷保存成功')
-      
-      // 可选：保存成功后跳转到试卷列表或其他页面
-      // router.push('/teacher/papers')
+      if (showSuccess) {
+        ElMessage.success('试卷保存成功')
+      }
+      return true
       
     } catch (apiError) {
-      // 关闭加载消息
       loadingMessage.close()
-      
+
       console.error('API调用失败:', apiError)
-      
-      // 根据错误类型提供具体的错误信息
       let errorMessage = '保存试卷失败，请重试'
       if (apiError.message) {
         if (apiError.message.includes('网络')) {
@@ -1320,13 +1325,65 @@ const savePaper = async () => {
           errorMessage = `保存失败：${apiError.message}`
         }
       }
-      
       ElMessage.error(errorMessage)
+      return false
     }
     
   } catch (error) {
     console.error('保存试卷时发生未知错误:', error)
     ElMessage.error('保存试卷时发生未知错误，请重试')
+    return false
+  }
+}
+
+const savePaper = async () => {
+  await savePaperInternal(true)
+}
+
+const publishFromStatusCard = async () => {
+  if (!assessmentId.value) {
+    ElMessage.error('测评ID缺失，无法发布')
+    return
+  }
+  if (paperData.value.assessmentInfo?.isPublished) {
+    ElMessage.info('该测评已发布')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      '发布前将先保存当前组卷内容，发布后学生将可以看到并参与测评。',
+      '确认发布',
+      {
+        confirmButtonText: '保存并发布',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  const saved = await savePaperInternal(false)
+  if (!saved) return
+
+  const loadingMessage = ElMessage({
+    message: '正在发布测评...',
+    type: 'info',
+    duration: 0
+  })
+
+  try {
+    const result = await publishAssessment(String(assessmentId.value))
+    loadingMessage.close()
+    paperData.value.assessmentInfo = {
+      ...(paperData.value.assessmentInfo || {}),
+      isPublished: true
+    }
+    ElMessage.success(result || '发布成功')
+  } catch (error) {
+    loadingMessage.close()
+    ElMessage.error(error.message || '发布失败，请重试')
   }
 }
 
@@ -1516,6 +1573,7 @@ const getAssessmentTypeName = (type) => {
 const mapBackendTypeToFrontend = (backendType) => {
   const typeMap = {
     'SINGLE_CHOICE': 'single_choice',
+    'MULTIPLE_CHOICE': 'multiple_choice',
     'MULTI_CHOICE': 'multiple_choice',
     'FILL_IN_BLANKS': 'fill_blank',
     'TRUE_FALSE': 'true_false',
@@ -1533,6 +1591,63 @@ const mapBackendDifficultyToFrontend = (backendDifficulty) => {
     'HARD': 'hard'
   }
   return difficultyMap[backendDifficulty] || 'easy'
+}
+
+const mapPaperQuestionToEditorQuestion = (paperQuestion, sectionIndex, questionIndex) => {
+  const questionData = paperQuestion?.question || {}
+  return {
+    id: generateId(),
+    questionId: questionData.id || paperQuestion?.questionId || '',
+    title: questionData.stem || questionData.title || '未选择题目',
+    type: mapBackendTypeToFrontend(questionData.type),
+    difficulty: mapBackendDifficultyToFrontend(questionData.difficulty),
+    score: Number(paperQuestion?.score) || 0,
+    orderIndex: Number.isFinite(Number(paperQuestion?.orderIndex)) ? Number(paperQuestion.orderIndex) : questionIndex
+  }
+}
+
+const mapPaperSectionToEditorSection = (section, sectionIndex) => {
+  const rawQuestions = Array.isArray(section?.questions) ? section.questions : []
+  const questions = rawQuestions
+    .map((paperQuestion, questionIndex) => mapPaperQuestionToEditorQuestion(paperQuestion, sectionIndex, questionIndex))
+    .filter(question => question.questionId)
+    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .map((question, index) => ({
+      ...question,
+      orderIndex: index
+    }))
+
+  return {
+    id: generateId(),
+    title: section?.title || `第${sectionIndex + 1}部分`,
+    description: section?.description || '',
+    questions,
+    expanded: true
+  }
+}
+
+const loadExistingPaper = async () => {
+  if (!assessmentId.value) return false
+
+  const existingPaper = await getPaperByAssessmentId(assessmentId.value)
+  if (!existingPaper || !Array.isArray(existingPaper.sections)) return false
+
+  const sections = existingPaper.sections
+    .map((section, sectionIndex) => mapPaperSectionToEditorSection(section, sectionIndex))
+    .filter(section => section.questions.length > 0)
+
+  paperData.value.id = existingPaper.id || paperData.value.id
+  paperData.value.title = existingPaper.title || paperData.value.title
+  paperData.value.description = existingPaper.description || paperData.value.description
+  paperData.value.sections = sections
+  paperData.value.totalScore = Number(existingPaper.totalScore) || sections.reduce((total, section) => {
+    return total + section.questions.reduce((sectionTotal, question) => sectionTotal + (question.score || 0), 0)
+  }, 0)
+  paperData.value.createdAt = existingPaper.createdAt || paperData.value.createdAt
+  paperData.value.updatedAt = existingPaper.updatedAt || paperData.value.updatedAt
+
+  hasUnsavedChanges.value = false
+  return true
 }
 
 // 格式化日期时间
@@ -2714,6 +2829,10 @@ window.addEventListener('beforeunload', (e) => {
 .status-badge.draft {
   background: linear-gradient(135deg, #f56c6c, #f78989);
   color: white;
+}
+
+.publish-inline-btn {
+  margin-left: 8px;
 }
 
 .time-details {

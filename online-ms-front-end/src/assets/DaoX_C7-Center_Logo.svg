@@ -1,16 +1,16 @@
 <svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
     <title>DaoX Logo - C7-Center Perfect Geometry</title>
     <defs>
-        <!-- Slightly cooler dark metal for center vibes -->
+        <!-- 中心氛围采用略带冷色调的深色金属风格 -->
         <linearGradient id="metalCenter" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#475569" />
-            <stop offset="100%" style="stop-color:#020617" />
+            <stop offset="0%" style="stop-color:#517B4D" />
+            <stop offset="100%" style="stop-color:#002FA7" />
         </linearGradient>
-        <!-- Lava Flow Gradient -->
+        <!-- 熔岩流渐变 -->
         <linearGradient id="lavaCenter" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" style="stop-color:#fbbf24" />
-            <stop offset="50%" style="stop-color:#ea580c" />
-            <stop offset="100%" style="stop-color:#b91c1c" />
+            <stop offset="50%" style="stop-color:#002FA7" />
+            <stop offset="100%" style="stop-color:#517B4D" />
         </linearGradient>
     </defs>
 

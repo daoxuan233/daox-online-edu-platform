@@ -76,6 +76,8 @@ public interface CoursesService {
      */
     boolean joinCourse(String userId, String courseId);
 
+    boolean isUserEnrolledInCourse(String userId, String courseId);
+
     /**
      * 退出课程
      *

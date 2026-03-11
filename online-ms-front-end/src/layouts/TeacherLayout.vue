@@ -1,44 +1,58 @@
 <template>
   <div class="teacher-layout">
+    <!-- 背景装饰 -->
+    <div class="bg-decoration-1"></div>
+    <div class="bg-decoration-2"></div>
+
     <!-- 侧边栏 -->
     <aside class="sidebar glass-sidebar" :class="{ 'open': sidebarOpen }">
       <div class="sidebar-header">
         <div class="logo flex-center">
-          <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="mr-sm" style="width: 32px; height: 32px; object-fit: contain;" />
-          <h2 class="text-lg font-bold text-primary">教师工作台</h2>
+          <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="logo-img" />
+          <h2 class="logo-text">教师工作台</h2>
         </div>
       </div>
 
-      <nav class="sidebar-nav mt-lg">
+      <nav class="sidebar-nav">
         <ul class="nav-list">
           <li class="nav-item">
             <router-link to="/teacher" class="nav-link" exact-active-class="active">
-              <font-awesome-icon :icon="['fas', 'tachometer-alt']"/>
-              <span>工作台</span>
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'tachometer-alt']"/>
+              </div>
+              <span class="nav-text">工作台</span>
             </router-link>
           </li>
           <li class="nav-item">
             <router-link to="/teacher/courses" class="nav-link" exact-active-class="active">
-              <font-awesome-icon :icon="['fas', 'book-open']"/>
-              <span>课程管理</span>
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'book-open']"/>
+              </div>
+              <span class="nav-text">课程管理</span>
             </router-link>
           </li>
           <li class="nav-item">
             <router-link to="/teacher/questions" class="nav-link" exact-active-class="active">
-              <font-awesome-icon :icon="['fas', 'question-circle']"/>
-              <span>题库管理</span>
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'question-circle']"/>
+              </div>
+              <span class="nav-text">题库管理</span>
             </router-link>
           </li>
           <li class="nav-item">
             <router-link to="/teacher/assessments" class="nav-link" exact-active-class="active">
-              <font-awesome-icon :icon="['fas', 'clipboard-list']"/>
-              <span>考试管理</span>
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'clipboard-list']"/>
+              </div>
+              <span class="nav-text">考试管理</span>
             </router-link>
           </li>
           <li class="nav-item">
             <router-link to="/teacher/grading" class="nav-link" exact-active-class="active">
-              <font-awesome-icon :icon="['fas', 'graduation-cap']"/>
-              <span>阅卷中心</span>
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'graduation-cap']"/>
+              </div>
+              <span class="nav-text">阅卷中心</span>
             </router-link>
           </li>
         </ul>
@@ -49,35 +63,40 @@
     <div class="main-content">
       <!-- 顶部导航栏 -->
       <header class="navbar glass-navbar">
-        <div class="navbar-left flex">
-          <button class="menu-toggle neumorphism-button" @click="toggleSidebar">
+        <div class="navbar-left">
+          <button class="menu-toggle neu-button-icon" @click="toggleSidebar">
             <font-awesome-icon :icon="['fas', 'bars']"/>
           </button>
-          <div class="breadcrumb ml-lg">
-            <span class="text-muted">{{ currentPageTitle }}</span>
+          <div class="breadcrumb">
+            <span class="breadcrumb-item">首页</span>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-current">{{ currentPageTitle }}</span>
           </div>
         </div>
 
-        <div class="navbar-right flex">
-
-          <div class="notifications mr-md">
-            <el-badge :value="3" class="notification-badge"  @click="toggleNotifications">
-              <font-awesome-icon :icon="['fas', 'bell']" class="text-lg cursor-pointer"/>
+        <div class="navbar-right">
+          <div class="notifications">
+            <el-badge :value="3" class="notification-badge" @click="toggleNotifications">
+              <button class="neu-button-icon sm">
+                <font-awesome-icon :icon="['fas', 'bell']" />
+              </button>
             </el-badge>
           </div>
 
           <div class="user-menu">
-            <el-dropdown @command="handleUserCommand">
-              <div class="user-avatar flex-center">
-                <div class="avatar-placeholder" v-if="!teacherInfo.avatar">
-                  <font-awesome-icon :icon="['fas', 'user-circle']"/>
+            <el-dropdown @command="handleUserCommand" trigger="click">
+              <div class="user-profile-trigger">
+                <div class="avatar-wrapper">
+                  <img v-if="teacherInfo.avatar" :src="teacherInfo.avatar" :alt="teacherInfo.name" class="user-avatar-img"/>
+                  <div v-else class="avatar-placeholder">
+                    {{ teacherInfo.name ? teacherInfo.name.charAt(0) : 'T' }}
+                  </div>
                 </div>
-                <img v-else :src="teacherInfo.avatar" :alt="teacherInfo.name" class="user-avatar-img"/>
-                <span class="username ml-sm">{{ teacherInfo.name }}</span>
-                <font-awesome-icon :icon="['fas', 'chevron-down']" class="ml-sm"/>
+                <span class="username">{{ teacherInfo.name }}</span>
+                <font-awesome-icon :icon="['fas', 'chevron-down']" class="dropdown-icon"/>
               </div>
               <template #dropdown>
-                <el-dropdown-menu>
+                <el-dropdown-menu class="custom-dropdown">
                   <el-dropdown-item command="profile">
                     <font-awesome-icon :icon="['fas', 'user']" class="mr-sm"/>
                     个人资料
@@ -91,8 +110,8 @@
                     教学统计
                   </el-dropdown-item>
                   <el-dropdown-item command="logout" divided>
-                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-sm"/>
-                    退出登录
+                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="text-danger mr-sm"/>
+                    <span class="text-danger">退出登录</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -102,15 +121,20 @@
       </header>
 
       <!-- 页面内容 -->
-      <main class="page-content">
-        <router-view/>
+      <main class="page-content-wrapper">
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
 
     <!-- 移动端遮罩 -->
     <div
         v-if="sidebarOpen"
-        class="sidebar-overlay show"
+        class="sidebar-overlay"
+        :class="{ 'show': sidebarOpen }"
         @click="closeSidebar"
     ></div>
   </div>
@@ -126,7 +150,7 @@ import {getTeacherProfile} from '@/api/teacher/teacherAPI.js'
 
 const route = useRoute()
 const router = useRouter()
-const sidebarOpen = ref(false)
+const sidebarOpen = ref(true)
 
 // 教师信息
 const teacherInfo = ref({
@@ -243,422 +267,398 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* CSS变量定义 */
+/* CSS变量定义 - 现代科技感配色 */
 :root {
-  /* 新拟态设计颜色 */
-  --neumorphism-bg: #f0f0f3;
-  --neumorphism-shadow-light: #ffffff;
-  --neumorphism-shadow-dark: #d1d1d4;
-
-  /* 磨砂玻璃效果 */
-  --glass-bg: rgba(255, 255, 255, 0.25);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-backdrop: blur(10px);
-
-  /* 主题色彩 */
-  --primary-color: #002FA7;
-  --secondary-color: #517B4D;
-  --success-color: #67C23A;
-  --warning-color: #E6A23C;
-  --danger-color: #F56C6C;
-  --info-color: #909399;
-
+  /* 核心颜色 */
+  --primary-color: #2563EB; /* 科技蓝 */
+  --primary-light: #60A5FA;
+  --primary-dark: #1E40AF;
+  --secondary-color: #10B981; /* 活力绿 */
+  --accent-color: #F59E0B; /* 强调色 */
+  
+  /* 背景色 */
+  --bg-base: #F8FAFC;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass-strong: rgba(255, 255, 255, 0.9);
+  
   /* 文字颜色 */
-  --text-primary: #303133;
-  --text-secondary: #606266;
-  --text-auxiliary: #909399;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
 
-  /* 间距和圆角 */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --border-radius-sm: 8px;
-  --border-radius-md: 12px;
+  /* 阴影 - 新拟态/Glassmorphism */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-neu-light: -5px -5px 10px #ffffff, 5px 5px 10px #d1d5db;
+  --shadow-neu-pressed: inset 3px 3px 6px #d1d5db, inset -3px -3px 6px #ffffff;
+  
+  /* 边框 */
+  --border-glass: 1px solid rgba(255, 255, 255, 0.5);
   --border-radius-lg: 16px;
-
-  /* 过渡效果 */
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  --border-radius-xl: 24px;
 }
 
 .teacher-layout {
   display: flex;
   min-height: 100vh;
-  background: var(--neumorphism-bg);
+  background-color: #F0F2F5;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* 侧边栏样式 - 磨砂玻璃效果 */
-.sidebar {
-  width: 250px;
-  z-index: 200;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-backdrop);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  border-right: 1px solid var(--glass-border);
-  transition: transform var(--transition-normal);
   position: relative;
+  overflow-x: hidden;
 }
 
-.sidebar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg,
-  rgba(255, 255, 255, 0.1) 0%,
-  rgba(255, 255, 255, 0.05) 100%);
+/* 背景装饰 - 增加层次感 */
+.bg-decoration-1 {
+  position: fixed;
+  top: -10%;
+  right: -5%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  z-index: 0;
   pointer-events: none;
 }
 
+.bg-decoration-2 {
+  position: fixed;
+  bottom: -10%;
+  left: -5%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 侧边栏 - 高级磨砂玻璃 */
+.sidebar {
+  width: 260px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+}
+
 .sidebar-header {
-  padding: var(--spacing-lg) 0;
-  border-bottom: 1px solid var(--glass-border);
-  position: relative;
-  z-index: 1;
+  padding: 32px 24px;
 }
 
 .logo {
-  padding: 0 var(--spacing-md);
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(37, 99, 235, 0.2));
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0 16px;
+  overflow-y: auto;
 }
 
 .nav-list {
   list-style: none;
-  padding: var(--spacing-md) 0;
+  padding: 0;
   margin: 0;
-}
-
-.nav-item {
-  margin-bottom: var(--spacing-md);
-}
-
-.navbar-left {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-  position: relative;
-  margin-bottom: 15px;
-  margin-top: 10px;
-  z-index: 1;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* 右侧操作区域样式 */
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  position: relative;
-  z-index: 1;
-  /*右对齐*/
-  justify-content: flex-end;
-}
-
-/* 导航链接 - 新拟态效果 */
 .nav-link {
   display: flex;
   align-items: center;
-  padding: var(--spacing-md);
-  color: var(--text-secondary);
+  padding: 12px 16px;
+  color: #64748B;
   text-decoration: none;
-  border-radius: var(--border-radius-md);
-  margin: 0 var(--spacing-sm);
-  transition: all var(--transition-normal);
-  background: var(--neumorphism-bg);
-  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-  -4px -4px 8px var(--neumorphism-shadow-light);
-  position: relative;
-  overflow: hidden;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 15px;
 }
 
-.nav-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg,
-  transparent,
-  rgba(255, 255, 255, 0.2),
-  transparent);
-  transition: left var(--transition-normal);
+.icon-wrapper {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  transition: all 0.3s ease;
 }
 
 .nav-link:hover {
-  color: var(--secondary-color);
-  transform: translateY(-2px);
-  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-  -6px -6px 12px var(--neumorphism-shadow-light);
-}
-
-.nav-link:hover::before {
-  left: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  color: #2563EB;
+  transform: translateX(4px);
 }
 
 .nav-link.active {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
-  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2),
-  inset -4px -4px 8px rgba(255, 255, 255, 0.1),
-  0 8px 16px rgba(81, 123, 77, 0.3);
+  background: white;
+  color: #2563EB;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  font-weight: 600;
 }
 
-.nav-link i {
-  width: 20px;
-  margin-right: var(--spacing-sm);
-  font-size: 16px;
+.nav-link.active .icon-wrapper {
+  color: #2563EB;
+  transform: scale(1.1);
 }
 
 /* 主内容区域 */
 .main-content {
   flex: 1;
-  transition: margin-left var(--transition-normal);
-  background: var(--neumorphism-bg);
-}
-
-/* 顶部导航栏 - 磨砂玻璃效果 */
-.navbar {
-  height: 0px;
-  padding: 0 var(--spacing-lg);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-backdrop);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
   position: relative;
-  z-index: 100;
+  z-index: 10;
+  width: calc(100% - 260px);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.navbar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg,
-  rgba(255, 255, 255, 0.1) 0%,
-  rgba(255, 255, 255, 0.05) 50%,
-  rgba(255, 255, 255, 0.1) 100%);
-  pointer-events: none;
+/* 顶部导航栏 - 悬浮玻璃 */
+.navbar {
+  height: 72px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  margin-top: 8px;
 }
 
-/* 菜单切换按钮 - 新拟态效果 */
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
 .menu-toggle {
   display: none;
+}
+
+@media (min-width: 1025px) {
+  .menu-toggle {
+    display: flex;
+  }
+
+  .sidebar {
+    min-width: 260px;
+  }
+
+  .sidebar:not(.open) {
+    width: 80px;
+    min-width: 80px;
+  }
+
+  .sidebar:not(.open) .sidebar-header {
+    padding: 24px 0;
+  }
+
+  .sidebar:not(.open) .logo {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .sidebar:not(.open) .logo-text {
+    display: none;
+  }
+
+  .sidebar:not(.open) .sidebar-nav {
+    padding: 0 10px;
+  }
+
+  .sidebar:not(.open) .nav-link {
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .sidebar:not(.open) .nav-link:hover {
+    transform: none;
+  }
+
+  .sidebar:not(.open) .icon-wrapper {
+    margin-right: 0;
+  }
+
+  .sidebar:not(.open) .nav-text {
+    display: none;
+  }
+
+  .sidebar:not(.open) + .main-content {
+    width: calc(100% - 80px);
+  }
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748B;
+}
+
+.breadcrumb-separator {
+  color: #CBD5E1;
+}
+
+.breadcrumb-current {
+  color: #0F172A;
+  font-weight: 600;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* 新拟态按钮图标 */
+.neu-button-icon {
   width: 40px;
   height: 40px;
+  border-radius: 12px;
   border: none;
-  border-radius: var(--border-radius-md);
-  background: var(--neumorphism-bg);
-  color: var(--text-secondary);
+  background: #F8FAFC;
+  color: #64748B;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-  -4px -4px 8px var(--neumorphism-shadow-light);
-  position: relative;
-  z-index: 1;
-}
-
-.menu-toggle:hover {
-  color: var(--primary-color);
-  transform: translateY(-1px);
-  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-  -6px -6px 12px var(--neumorphism-shadow-light);
-}
-
-.menu-toggle:active {
-  transform: translateY(0);
-  box-shadow: inset 2px 2px 4px var(--neumorphism-shadow-dark),
-  inset -2px -2px 4px var(--neumorphism-shadow-light);
-}
-
-/* 快捷操作按钮 */
-.quick-actions .el-button {
-  border-radius: var(--border-radius-md);
-  border: none;
-  background: var(--neumorphism-bg);
-  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-  -4px -4px 8px var(--neumorphism-shadow-light);
-  transition: all var(--transition-normal);
-  position: relative;
-  z-index: 1;
-}
-
-.quick-actions .el-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-  -6px -6px 12px var(--neumorphism-shadow-light);
-}
-
-.quick-actions .el-button.el-button--primary {
-  background: linear-gradient(135deg, var(--primary-color), #4A90E2);
-  color: white;
-}
-
-.quick-actions .el-button.el-button--success {
-  background: linear-gradient(135deg, var(--secondary-color), var(--success-color));
-  color: white;
-}
-
-/* 通知徽章 */
-.notification-badge {
-  cursor: pointer;
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius-md);
-  background: var(--neumorphism-bg);
-  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-  -4px -4px 8px var(--neumorphism-shadow-light);
-  transition: all var(--transition-normal);
-  position: relative;
-  z-index: 1;
-}
-
-.notification-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-  -6px -6px 12px var(--neumorphism-shadow-light);
-}
-
-/* 用户头像区域 */
-.user-avatar {
-  cursor: pointer;
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius-md);
-  background: var(--neumorphism-bg);
-  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-  -4px -4px 8px var(--neumorphism-shadow-light);
-  transition: all var(--transition-normal);
-  position: relative;
-  z-index: 1;
-}
-
-.user-avatar:hover {
-  transform: translateY(-1px);
-  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-  -6px -6px 12px var(--neumorphism-shadow-light);
-}
-
-.avatar-placeholder {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
-  font-size: 18px;
-  box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.2),
-  inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: -4px -4px 10px #ffffff, 4px 4px 10px #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.neu-button-icon:hover {
+  color: #2563EB;
+  transform: translateY(-2px);
+  box-shadow: -6px -6px 12px #ffffff, 6px 6px 12px #cbd5e1;
+}
+
+.neu-button-icon:active {
+  transform: translateY(0);
+  box-shadow: inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff;
+}
+
+.neu-button-icon.sm {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+
+/* 用户配置触发器 */
+.user-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-profile-trigger:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.avatar-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .user-avatar-img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.2),
-  inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2563EB, #60A5FA);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .username {
-  font-weight: 500;
-  color: var(--text-primary);
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-/* 页面内容区域 */
-.page-content {
-  padding: var(--spacing-lg);
-  min-height: calc(100vh - 64px);
-  background: var(--neumorphism-bg);
-  position: relative;
-  margin-top: 4.5rem;
-}
-
-.page-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 80%,
-  rgba(0, 47, 167, 0.03) 0%,
-  transparent 50%),
-  radial-gradient(circle at 80% 20%,
-      rgba(81, 123, 77, 0.03) 0%,
-      transparent 50%);
-  pointer-events: none;
-}
-
-/* 侧边栏遮罩 */
-.sidebar-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 150;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-
-.sidebar-overlay.show {
-  opacity: 1;
-}
-
-/* 面包屑导航 */
-.breadcrumb {
-  color: var(--text-auxiliary);
+  font-weight: 600;
+  color: #0F172A;
   font-size: 14px;
-  font-weight: 400;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
-/* 动画效果 */
-@keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
+.dropdown-icon {
+  font-size: 12px;
+  color: #94A3B8;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
-    -4px -4px 8px var(--neumorphism-shadow-light);
-  }
-  50% {
-    box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
-    -6px -6px 12px var(--neumorphism-shadow-light);
-  }
+/* 页面内容包裹器 */
+.page-content-wrapper {
+  flex: 1;
+  padding: 0 32px 32px 32px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
+/* 过渡动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
   .sidebar {
     position: fixed;
     transform: translateX(-100%);
-    z-index: 200;
-    width: 280px;
-    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.15),
-    0 0 0 1px var(--glass-border);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.1);
   }
 
   .sidebar.open {
@@ -666,100 +666,54 @@ onMounted(() => {
   }
 
   .main-content {
-    margin-left: 0;
+    width: 100%;
   }
 
   .menu-toggle {
     display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .quick-actions {
-    display: none;
   }
 
   .sidebar-overlay {
     display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
   }
 
-  .breadcrumb {
-    display: none;
+  .sidebar-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
   }
-
+  
   .navbar {
-    padding: 0 var(--spacing-md);
+    padding: 0 20px;
   }
-
-  .page-content {
-    padding: var(--spacing-md);
-  }
-}
-
-@media (max-width: 480px) {
-  .username {
-    display: none;
-  }
-
-  .notifications {
-    margin-right: var(--spacing-sm);
-  }
-
-  .sidebar {
-    width: 100vw;
-  }
-
-  .navbar {
-    padding: 0 var(--spacing-sm);
-  }
-
-  .page-content {
-    padding: var(--spacing-sm);
-  }
-
-  .nav-link {
-    padding: var(--spacing-lg) var(--spacing-md);
-    font-size: 16px;
-  }
-
-  .logo h2 {
-    font-size: 18px;
+  
+  .page-content-wrapper {
+    padding: 0 20px 20px 20px;
   }
 }
 
-/* 深色主题支持 */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --neumorphism-bg: #2a2a2a;
-    --neumorphism-shadow-light: #363636;
-    --neumorphism-shadow-dark: #1e1e1e;
-    --glass-bg: rgba(0, 0, 0, 0.25);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --text-primary: #ffffff;
-    --text-secondary: #cccccc;
-    --text-auxiliary: #999999;
-  }
+/* 文本辅助类 */
+.text-danger {
+  color: #EF4444;
 }
 
-/* 高对比度模式 */
-@media (prefers-contrast: high) {
-  .nav-link {
-    border: 2px solid transparent;
-  }
-
-  .nav-link:focus {
-    border-color: var(--primary-color);
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-  }
+.mr-sm {
+  margin-right: 8px;
 }
 
-/* 减少动画模式 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

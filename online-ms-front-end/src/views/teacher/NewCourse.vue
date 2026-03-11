@@ -393,7 +393,7 @@
 
 <script setup>
 import {ref, computed, onMounted, nextTick} from 'vue'
-import {useRouter} from 'vue-router'
+import {useRouter, useRoute} from 'vue-router'
 import {updateCoverTeacher,updateCourseCover,createCourse as createCourseAPI} from '@/api/teacher/teacherAPI.js'
 import {getCourseCategoryTree} from '@/api/publicApi.js'
 import {getOptimizationAssistantResponse,getOptimizationAssistantCrowd,getOptimizationAssistantRequirements} from '@/api/teacher/TeacherAIChatAPI.js'
@@ -401,6 +401,7 @@ import {ElMessage, ElMessageBox} from 'element-plus'
 import {getCurrentUserId} from "@/api/index.js";
 
 const router = useRouter()
+const route = useRoute()
 
 // 上传相关的响应式变量
 const coverUrl = ref('')
@@ -450,7 +451,7 @@ const saveCourseCover = async () => {
 
     // 检查是否有课程ID（编辑模式下需要）
     if (!route.params.id) {
-      ElMessage.warning('课程ID不存在，无法保存封面')
+      ElMessage.warning('当前是新建课程页面，请先创建课程后再单独保存封面')
       return
     }
 

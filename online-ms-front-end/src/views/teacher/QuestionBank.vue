@@ -1,21 +1,21 @@
 <template>
   <div class="question-bank-container">
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header glass-panel">
       <div class="header-content">
         <div class="header-left">
           <h1 class="page-title">
-            <i class="fas fa-question-circle"></i>
+            <span class="icon-box header-icon"><font-awesome-icon :icon="['fas', 'book-open']"/></span>
             题库管理
           </h1>
           <p class="page-subtitle">管理和组织您的题目资源</p>
         </div>
         <div class="header-actions">
-          <el-button class="action-btn import-btn">
+          <el-button class="glass-btn import-btn">
             <font-awesome-icon :icon="['fas', 'file-import']" />
             批量导入
           </el-button>
-          <el-button type="primary" class="action-btn create-btn" @click="openCreateDialog">
+          <el-button type="primary" class="gradient-btn create-btn" @click="openCreateDialog">
             <font-awesome-icon :icon="['fas', 'plus']" />
             创建题目
           </el-button>
@@ -26,9 +26,9 @@
     <!-- 统计卡片 -->
     <div class="stats-section">
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-question-circle"></i>
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-blue">
+            <font-awesome-icon :icon="['fas', 'question-circle']"/>
           </div>
           <div class="stat-content">
             <div class="stat-number">{{ stats.totalQuestions }}</div>
@@ -36,9 +36,9 @@
           </div>
         </div>
         
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-check-circle"></i>
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-green">
+            <font-awesome-icon :icon="['fas', 'check-circle']"/>
           </div>
           <div class="stat-content">
             <div class="stat-number">{{ stats.singleChoice }}</div>
@@ -46,9 +46,9 @@
           </div>
         </div>
         
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-list-ul"></i>
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-purple">
+            <font-awesome-icon :icon="['fas', 'list-ul']"/>
           </div>
           <div class="stat-content">
             <div class="stat-number">{{ stats.multipleChoice }}</div>
@@ -56,13 +56,33 @@
           </div>
         </div>
         
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-edit"></i>
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-orange">
+            <font-awesome-icon :icon="['fas', 'edit']"/>
           </div>
           <div class="stat-content">
             <div class="stat-number">{{ stats.essay }}</div>
             <div class="stat-label">问答题</div>
+          </div>
+        </div>
+        
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-pink">
+            <font-awesome-icon :icon="['fas', 'pen-alt']"/>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ stats.fill }}</div>
+            <div class="stat-label">填空题</div>
+          </div>
+        </div>
+        
+        <div class="stat-card glass-card hover-lift">
+          <div class="stat-icon gradient-indigo">
+            <font-awesome-icon :icon="['fas', 'code']"/>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ stats.coding }}</div>
+            <div class="stat-label">编程题</div>
           </div>
         </div>
       </div>
@@ -70,11 +90,11 @@
 
     <!-- 筛选和搜索 -->
     <div class="filter-section">
-      <div class="filter-card">
+      <div class="filter-card glass-card">
         <div class="filter-row">
           <div class="filter-group">
             <label class="filter-label">题目类型</label>
-            <el-select v-model="filters.type" placeholder="全部类型" class="filter-select">
+            <el-select v-model="filters.type" placeholder="全部类型" class="glass-select" popper-class="glass-dropdown">
               <el-option label="全部类型" value="" />
               <el-option label="单选题" value="single" />
               <el-option label="多选题" value="multiple" />
@@ -86,7 +106,7 @@
           
           <div class="filter-group">
             <label class="filter-label">难度等级</label>
-            <el-select v-model="filters.difficulty" placeholder="全部难度" class="filter-select">
+            <el-select v-model="filters.difficulty" placeholder="全部难度" class="glass-select" popper-class="glass-dropdown">
               <el-option label="全部难度" value="" />
               <el-option label="简单" value="easy" />
               <el-option label="中等" value="medium" />
@@ -96,7 +116,7 @@
           
           <div class="filter-group">
             <label class="filter-label">所属课程</label>
-            <el-select v-model="filters.course" placeholder="全部课程" class="filter-select">
+            <el-select v-model="filters.course" placeholder="全部课程" class="glass-select" popper-class="glass-dropdown">
               <el-option label="全部课程" value="" />
               <el-option label="Vue.js 基础" value="vue-basic" />
               <el-option label="React 进阶" value="react-advanced" />
@@ -106,7 +126,7 @@
           
           <div class="filter-group">
             <label class="filter-label">标签</label>
-            <el-select v-model="filters.tags" placeholder="选择标签" multiple class="filter-select">
+            <el-select v-model="filters.tags" placeholder="选择标签" multiple class="glass-select" popper-class="glass-dropdown">
               <el-option label="基础" value="basic" />
               <el-option label="进阶" value="advanced" />
               <el-option label="实战" value="practice" />
@@ -120,7 +140,7 @@
             <el-input 
               v-model="filters.search" 
               placeholder="搜索题目内容、标签或知识点..."
-              class="search-input"
+              class="glass-input search-input"
             >
               <template #prefix>
                 <font-awesome-icon :icon="['fas', 'search']" />
@@ -129,11 +149,11 @@
           </div>
           
           <div class="action-group">
-            <el-button class="filter-btn" @click="resetFilters">
+            <el-button class="glass-btn" @click="resetFilters">
               <font-awesome-icon :icon="['fas', 'undo']" />
               重置
             </el-button>
-            <el-button type="primary" class="filter-btn">
+            <el-button type="primary" class="gradient-btn">
               <font-awesome-icon :icon="['fas', 'search']" />
               搜索
             </el-button>
@@ -144,13 +164,13 @@
 
     <!-- 题目列表 -->
     <div class="questions-section">
-      <div class="section-header">
+      <div class="section-header glass-panel">
         <div class="header-left">
           <h3>题目列表</h3>
           <span class="question-count">共 {{ filteredQuestions.length }} 道题目</span>
         </div>
         <div class="header-actions">
-          <el-select v-model="sortBy" placeholder="排序方式" class="sort-select">
+          <el-select v-model="sortBy" placeholder="排序方式" class="glass-select small" popper-class="glass-dropdown">
             <el-option label="创建时间" value="createTime" />
             <el-option label="更新时间" value="updateTime" />
             <el-option label="难度等级" value="difficulty" />
@@ -163,12 +183,12 @@
           <div 
             v-for="question in paginatedQuestions" 
             :key="question.id"
-            class="question-card"
+            class="question-card glass-card hover-lift"
           >
             <div class="question-header">
               <div class="question-type">
                 <span :class="['type-badge', question.type]">
-                  <i :class="getTypeIcon(question.type)"></i>
+                  <font-awesome-icon :icon="getTypeIcon(question.type).split(' ')" />
                   {{ getTypeName(question.type) }}
                 </span>
                 <span :class="['difficulty-badge', question.difficulty]">
@@ -177,11 +197,11 @@
               </div>
               <div class="question-actions">
                 <el-dropdown trigger="click">
-                  <el-button class="action-btn">
-                    <i class="fas fa-ellipsis-v"></i>
+                  <el-button class="icon-btn" text>
+                    <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
                   </el-button>
                   <template #dropdown>
-                    <el-dropdown-menu>
+                    <el-dropdown-menu class="glass-dropdown-menu">
                       <el-dropdown-item>
                         <font-awesome-icon :icon="['fas', 'edit']" /> 编辑
                       </el-dropdown-item>
@@ -191,7 +211,7 @@
                       <el-dropdown-item>
                         <font-awesome-icon :icon="['fas', 'eye']" /> 预览
                       </el-dropdown-item>
-                      <el-dropdown-item divided>
+                      <el-dropdown-item divided class="danger-item">
                         <font-awesome-icon :icon="['fas', 'trash']" /> 删除
                       </el-dropdown-item>
                     </el-dropdown-menu>
@@ -201,7 +221,12 @@
             </div>
             
             <div class="question-content">
-              <div class="question-text">{{ question.content }}</div>
+              <el-tooltip placement="top-start" :show-after="250" effect="light">
+                <template #content>
+                  <div class="hover-full-text">{{ question.content }}</div>
+                </template>
+                <div class="question-text text-clamp-2">{{ question.content }}</div>
+              </el-tooltip>
               
               <div v-if="question.type === 'single' || question.type === 'multiple'" class="question-options">
                 <div 
@@ -210,30 +235,45 @@
                   :class="['option-item', { correct: question.correctAnswers.includes(index) }]"
                 >
                   <span class="option-label">{{ String.fromCharCode(65 + index) }}.</span>
-                  <span class="option-text">{{ option }}</span>
-                  <i v-if="question.correctAnswers.includes(index)" class="fas fa-check correct-icon"></i>
+                  <el-tooltip placement="top-start" :show-after="250" effect="light">
+                    <template #content>
+                      <div class="hover-full-text">{{ option }}</div>
+                    </template>
+                    <span class="option-text text-clamp-1">{{ option }}</span>
+                  </el-tooltip>
+                  <font-awesome-icon v-if="question.correctAnswers.includes(index)" :icon="['fas', 'check']" class="correct-icon" />
                 </div>
               </div>
               
               <div v-if="question.type === 'fill'" class="question-answer">
                 <div class="answer-label">参考答案：</div>
-                <div class="answer-content" v-html="question.answer ? question.answer.replace(/\n/g, '<br>') : ''"></div>
+                <el-tooltip placement="top-start" :show-after="250" effect="light">
+                  <template #content>
+                    <div class="hover-full-text">{{ question.answer || '' }}</div>
+                  </template>
+                  <div class="answer-content text-clamp-2" v-html="question.answer ? question.answer.replace(/\n/g, '<br>') : ''"></div>
+                </el-tooltip>
               </div>
               
               <div v-if="question.type === 'essay'" class="question-answer">
                 <div class="answer-label">参考答案：</div>
-                <div class="answer-content" v-html="question.answer ? question.answer.replace(/\n/g, '<br>') : ''"></div>
+                <el-tooltip placement="top-start" :show-after="250" effect="light">
+                  <template #content>
+                    <div class="hover-full-text">{{ question.answer || '' }}</div>
+                  </template>
+                  <div class="answer-content text-clamp-2" v-html="question.answer ? question.answer.replace(/\n/g, '<br>') : ''"></div>
+                </el-tooltip>
               </div>
               
               <div v-if="question.type === 'judge'" class="question-judge">
                 <div class="judge-options">
                   <div :class="['judge-option', { 'correct': question.answer === true, 'selected': question.answer === true }]">
                     <span class="judge-label">正确</span>
-                    <i v-if="question.answer === true" class="fas fa-check correct-icon"></i>
+                    <font-awesome-icon v-if="question.answer === true" :icon="['fas', 'check']" class="correct-icon" />
                   </div>
                   <div :class="['judge-option', { 'correct': question.answer === false, 'selected': question.answer === false }]">
                     <span class="judge-label">错误</span>
-                    <i v-if="question.answer === false" class="fas fa-check correct-icon"></i>
+                    <font-awesome-icon v-if="question.answer === false" :icon="['fas', 'check']" class="correct-icon" />
                   </div>
                 </div>
               </div>
@@ -242,11 +282,7 @@
             <div class="question-footer">
               <div class="question-meta">
                 <span class="meta-item">
-                  <i class="fas fa-book"></i>
-                  {{ question.course }}
-                </span>
-                <span class="meta-item">
-                  <i class="fas fa-clock"></i>
+                  <font-awesome-icon :icon="['fas', 'clock']" />
                   {{ question.createTime }}
                 </span>
               </div>
@@ -256,9 +292,14 @@
                   v-for="tag in question.tags" 
                   :key="tag"
                   size="small"
-                  class="question-tag"
+                  class="question-tag glass-tag"
                 >
-                  {{ tag }}
+                  <el-tooltip placement="top" :show-after="250" effect="light">
+                    <template #content>
+                      <div class="hover-full-text">{{ tag }}</div>
+                    </template>
+                    <span class="text-clamp-1">{{ tag }}</span>
+                  </el-tooltip>
                 </el-tag>
               </div>
             </div>
@@ -273,7 +314,8 @@
             :page-sizes="[10, 20, 50, 100]"
             :total="filteredQuestions.length"
             layout="total, sizes, prev, pager, next, jumper"
-            class="custom-pagination"
+            class="glass-pagination"
+            background
           />
         </div>
       </div>
@@ -284,12 +326,13 @@
       v-model="showCreateDialog" 
       title="创建新题目" 
       width="800px"
-      class="create-dialog"
+      custom-class="glass-dialog"
+      :close-on-click-modal="false"
     >
       <div class="create-form">
-        <el-form :model="newQuestion" label-width="100px">
+        <el-form :model="newQuestion" label-width="100px" class="modern-form">
           <el-form-item label="题目类型">
-            <el-select v-model="newQuestion.type" placeholder="请选择题目类型">
+            <el-select v-model="newQuestion.type" placeholder="请选择题目类型" class="glass-select" popper-class="glass-dropdown">
               <el-option label="单选题" value="single" />
               <el-option label="多选题" value="multiple" />
               <el-option label="判断题" value="judge" />
@@ -299,7 +342,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="题目难度">
-            <el-select v-model="newQuestion.difficulty" placeholder="请选择题目难度">
+            <el-select v-model="newQuestion.difficulty" placeholder="请选择题目难度" class="glass-select" popper-class="glass-dropdown">
               <el-option label="简单" value="easy" />
               <el-option label="中等" value="medium" />
               <el-option label="困难" value="hard" />
@@ -312,6 +355,7 @@
               type="textarea" 
               :rows="4"
               placeholder="请输入题目内容（题干）"
+              class="glass-input"
             />
           </el-form-item>
           
@@ -319,11 +363,11 @@
           <template v-if="newQuestion.type === 'single' || newQuestion.type === 'multiple'">
             <el-form-item label="选项设置">
               <div class="options-container">
-                <div v-for="(option, index) in newQuestion.options" :key="index" class="option-item">
+                <div v-for="(option, index) in newQuestion.options" :key="index" class="option-item-edit">
                   <el-input 
                     v-model="newQuestion.options[index]" 
                     :placeholder="`选项 ${String.fromCharCode(65 + index)}`"
-                    class="option-input"
+                    class="option-input glass-input"
                   />
                   <el-button 
                     v-if="newQuestion.options.length > 2" 
@@ -339,9 +383,8 @@
                 <el-button 
                   v-if="newQuestion.options.length < 6" 
                   @click="addOption" 
-                  type="primary" 
+                  class="glass-btn add-option-btn"
                   size="small"
-                  plain
                 >
                   <el-icon><Plus /></el-icon>
                   添加选项
@@ -354,6 +397,8 @@
                 v-model="newQuestion.answer" 
                 :placeholder="newQuestion.type === 'single' ? '请选择正确答案' : '请选择正确答案（可多选）'"
                 :multiple="newQuestion.type === 'multiple'"
+                class="glass-select"
+                popper-class="glass-dropdown"
               >
                 <el-option 
                   v-for="(option, index) in newQuestion.options.filter(opt => opt.trim())" 
@@ -368,7 +413,7 @@
           <!-- 判断题答案 -->
           <template v-if="newQuestion.type === 'judge'">
             <el-form-item label="正确答案">
-              <el-select v-model="newQuestion.answer" placeholder="请选择正确答案">
+              <el-select v-model="newQuestion.answer" placeholder="请选择正确答案" class="glass-select" popper-class="glass-dropdown">
                 <el-option label="正确" :value="true" />
                 <el-option label="错误" :value="false" />
               </el-select>
@@ -383,6 +428,7 @@
                 type="textarea" 
                 :rows="newQuestion.type === 'essay' || newQuestion.type === 'coding' ? 6 : 3"
                 placeholder="请输入参考答案"
+                class="glass-input"
               />
             </el-form-item>
           </template>
@@ -393,6 +439,7 @@
               type="textarea" 
               :rows="3"
               placeholder="请输入答案解析（可选）"
+              class="glass-input"
             />
           </el-form-item>
           
@@ -404,6 +451,8 @@
               @change="handleCourseChange"
               filterable
               clearable
+              class="glass-select"
+              popper-class="glass-dropdown"
             >
               <el-option 
                 v-for="course in courseList" 
@@ -429,7 +478,7 @@
           
           <!-- 选中课程的卡片显示 -->
           <el-form-item v-if="selectedCourse" label="选中课程">
-            <div class="selected-course-card">
+            <div class="selected-course-card glass-panel">
               <div class="course-card-header">
                 <img 
                   :src="selectedCourse.courseCover || selectedCourse.coverUrl || '/default-course-cover.jpg'" 
@@ -441,11 +490,11 @@
                   <p class="course-description">{{ selectedCourse.courseDescription || selectedCourse.description || '暂无描述' }}</p>
                   <div class="course-meta">
                     <span class="meta-item">
-                      <i class="fas fa-users"></i>
+                      <font-awesome-icon :icon="['fas', 'users']" />
                       {{ selectedCourse.enrollmentCount || 0 }} 人学习
                     </span>
                     <span class="meta-item">
-                      <i class="fas fa-clock"></i>
+                      <font-awesome-icon :icon="['fas', 'clock']" />
                       {{ formatCourseDate(selectedCourse.createTime || selectedCourse.createdAt) }}
                     </span>
                   </div>
@@ -459,9 +508,10 @@
               v-model="tagInput" 
               placeholder="输入标签，多个标签请用中文顿号、分隔"
               @keyup.enter="addTag"
+              class="glass-input"
             />
             <div class="tag-input-hint">
-              <i class="fas fa-info-circle"></i>
+              <font-awesome-icon :icon="['fas', 'info-circle']" />
               多个标签请用中文顿号、分隔
             </div>
             <div class="tags-container" v-if="newQuestion.tags.length > 0">
@@ -470,7 +520,7 @@
                 :key="index" 
                 closable 
                 @close="removeTag(index)"
-                class="tag-item"
+                class="tag-item glass-tag"
               >
                 {{ tag }}
               </el-tag>
@@ -481,9 +531,11 @@
       
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showCreateDialog = false">取消</el-button>
-          <el-button type="primary" @click="createQuestionAISuggestion" :loading="aiSuggestionLoading" :disabled="aiSuggestionLoading">AI智能建议</el-button>
-          <el-button type="primary" @click="createQuestion">创建题目</el-button>
+          <el-button class="glass-btn" @click="showCreateDialog = false">取消</el-button>
+          <el-button class="glass-btn ai-btn" @click="createQuestionAISuggestion" :loading="aiSuggestionLoading" :disabled="aiSuggestionLoading">
+             <font-awesome-icon :icon="['fas', 'magic']" class="ai-icon" /> AI智能建议
+          </el-button>
+          <el-button type="primary" class="gradient-btn" @click="createQuestion">创建题目</el-button>
         </div>
       </template>
     </el-dialog>
@@ -502,7 +554,9 @@ const stats = ref({
   totalQuestions: 156,
   singleChoice: 68,
   multipleChoice: 42,
-  essay: 46
+  essay: 46,
+  fill: 0,
+  coding: 0
 })
 
 // 筛选条件
@@ -548,9 +602,6 @@ const tagInput = ref('')
 
 // 模拟题目数据
 const questions = ref([])
-
-
-
 
 // 筛选后的题目
 const filteredQuestions = computed(() => {
@@ -1102,12 +1153,16 @@ const updateStats = () => {
   const singleChoice = questions.value.filter(q => q.type === 'single').length
   const multipleChoice = questions.value.filter(q => q.type === 'multiple').length
   const essay = questions.value.filter(q => q.type === 'essay').length
+  const fill = questions.value.filter(q => q.type === 'fill').length
+  const coding = questions.value.filter(q => q.type === 'coding').length
   
   stats.value = {
     totalQuestions: total,
     singleChoice,
     multipleChoice,
-    essay
+    essay,
+    fill,
+    coding
   }
 }
 
@@ -1306,777 +1361,481 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+:root {
+  --primary-gradient: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --text-primary: #2c3e50;
+  --text-secondary: #606266;
+  --primary-color: #002FA7; /* Klein Blue */
+  --success-color: #67C23A;
+  --warning-color: #E6A23C;
+  --danger-color: #F56C6C;
+  --info-color: #909399;
+}
+
 .question-bank-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f0f3 0%, #e8e8eb 100%);
-  padding: 0;
+  background-color: transparent;
+  padding: 24px;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
 }
 
-/* 页面头部 */
-.page-header {
-  background: rgba(255, 255, 255, 0.95);
+/* Glass Components */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 24px 30px;
-}
-
-/* 选中课程卡片样式 */
-.selected-course-card {
-  background: #f0f0f3;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 
-    8px 8px 16px #d1d1d4,
-    -8px -8px 16px #ffffff;
-  transition: all 0.3s ease;
-}
-
-.selected-course-card:hover {
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
-  transform: translateY(-2px);
-}
-
-.course-card-header {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.course-cover {
-  width: 80px;
-  height: 60px;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
-}
-
-.course-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.course-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
-}
-
-.course-description {
-  font-size: 14px;
-  color: #606266;
-  margin: 0 0 12px 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.course-meta {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.course-meta .meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #909399;
-}
-
-.course-meta .meta-item i {
-  font-size: 12px;
-  color: #002FA7;
-}
-
-/* 标签输入提示样式 */
-.tag-input-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.4;
-}
-
-.tag-input-hint i {
-  color: #409EFF;
-  font-size: 12px;
-}
-
-/* 创建题目对话框样式 */
-.create-dialog {
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
-  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
-.create-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px 30px;
-  border-bottom: none;
-}
-
-.create-dialog :deep(.el-dialog__title) {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.create-dialog :deep(.el-dialog__body) {
-  padding: 30px;
-  background: #f8f9fa;
-}
-
-.create-form {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.create-form :deep(.el-form-item__label) {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.option-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.option-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  background: #f0f0f3;
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
-}
-
-.option-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 
-    2px 2px 4px #d1d1d4,
-    -2px -2px 4px #ffffff;
-}
-
-.option-btn:active {
-  transform: translateY(0);
-  box-shadow: 
-    inset 2px 2px 4px #d1d1d4,
-    inset -2px -2px 4px #ffffff;
-}
-
-.add-option-btn {
-  color: #002FA7;
-  font-weight: bold;
-}
-
-.add-option-btn:hover {
-  color: #517B4D;
-}
-
-.remove-option-btn {
-  margin-left: 10px;
-  color: #F56C6C;
-  background: transparent;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: bold;
-}
-
-.remove-option-btn:hover {
-  color: #E6A23C;
-}
-
-.create-form :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.8);
-  border: none;
-  background: #f0f0f3;
-}
-
-.create-form :deep(.el-select .el-input__wrapper) {
-  border-radius: 12px;
-  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.8);
-}
-
-.create-form :deep(.el-textarea__inner) {
-  border-radius: 12px;
-  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.8);
-  border: none;
-  background: #f0f0f3;
-}
-
-/* 选项容器样式 */
-.options-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.option-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.option-input {
-  flex: 1;
-}
-
-.option-item :deep(.el-button.is-circle) {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1), -2px -2px 5px rgba(255, 255, 255, 0.8);
-  border: none;
-  background: #f0f0f3;
-}
-
-/* 标签容器样式 */
-.tags-container {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag-item {
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 20px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1), -2px -2px 5px rgba(255, 255, 255, 0.8);
-  border: none;
-  background: #f0f0f3;
-  color: #667eea;
-  font-weight: 500;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* 对话框底部按钮样式 */
-.dialog-footer {
+.glass-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Header */
+.page-header {
+  padding: 24px 32px;
+  margin-bottom: 24px;
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 30px;
-  background: #f8f9fa;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.dialog-footer :deep(.el-button) {
-  border-radius: 12px;
-  padding: 12px 24px;
-  font-weight: 600;
-  box-shadow: 
-    8px 8px 16px #d1d1d4,
-    -8px -8px 16px #ffffff;
-  border: none;
-  background: #f0f0f3;
-  color: #2c3e50;
-  transition: all 0.3s ease;
-}
-
-.dialog-footer :deep(.el-button--primary) {
-  background: #f0f0f3;
-  color: #002FA7;
-  box-shadow: 
-    8px 8px 16px #d1d1d4,
-    -8px -8px 16px #ffffff;
-}
-
-.dialog-footer :deep(.el-button:hover) {
-  transform: translateY(-2px);
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
-}
-
-.dialog-footer :deep(.el-button--primary:hover) {
-  color: #517B4D;
-  transform: translateY(-2px);
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
-}
-
-.dialog-footer :deep(.el-button:active) {
-  transform: translateY(0);
-  box-shadow: 
-    inset 4px 4px 8px #d1d1d4,
-    inset -4px -4px 8px #ffffff;
+  align-items: center;
+  position: relative;
+  z-index: 10;
 }
 
 .header-content {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.header-left {
+  display: flex;
+  flex-direction: column;
+}
+
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
+  color: var(--text-primary);
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  letter-spacing: -0.5px;
 }
 
-.page-title i {
-  color: #002FA7;
+.icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
 }
 
 .page-subtitle {
-  color: #6b7280;
-  margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  margin-left: 64px;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
-.action-btn {
-  padding: 12px 24px;
+.glass-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: var(--text-primary);
+  padding: 10px 24px;
   border-radius: 12px;
   font-weight: 600;
+  height: 44px;
+  backdrop-filter: blur(4px);
   transition: all 0.3s ease;
-  background: #f0f0f3;
-  border: none;
-  cursor: pointer;
-  box-shadow: 
-    8px 8px 16px #d1d1d4,
-    -8px -8px 16px #ffffff;
 }
 
-.action-btn:hover {
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #2563eb;
+  border-color: #2563eb;
   transform: translateY(-2px);
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
 }
 
-.action-btn:active {
-  transform: translateY(0);
-  box-shadow: 
-    inset 4px 4px 8px #d1d1d4,
-    inset -4px -4px 8px #ffffff;
-}
-
-.import-btn {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  color: #6c757d;
-}
-
-.create-btn {
-  background: #f0f0f3;
+.gradient-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   border: none;
-  color: #002FA7;
-  box-shadow: 
-    8px 8px 16px #d1d1d4,
-    -8px -8px 16px #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  height: 44px;
+  color: white;
+  transition: all 0.3s ease;
 }
 
-.create-btn:hover {
-  color: #517B4D;
+.gradient-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 
-    4px 4px 8px #d1d1d4,
-    -4px -4px 8px #ffffff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
 }
 
-.create-btn:active {
-  transform: translateY(0);
-  box-shadow: 
-    inset 4px 4px 8px #d1d1d4,
-    inset -4px -4px 8px #ffffff;
-}
-
-/* 统计卡片 */
+/* Stats */
 .stats-section {
-  padding: 30px;
-  padding-bottom: 0;
+  margin-bottom: 32px;
 }
 
 .stats-grid {
-  max-width: 1400px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
   padding: 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.1),
-    -20px -20px 40px rgba(255, 255, 255, 0.8),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    25px 25px 50px rgba(0, 0, 0, 0.15),
-    -25px -25px 50px rgba(255, 255, 255, 0.9);
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #002FA7, #517B4D);
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 28px;
   color: white;
-  font-size: 24px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); }
+.gradient-green { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+.gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%); }
+.gradient-orange { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+.gradient-pink { background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); }
+.gradient-indigo { background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); }
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
 }
 
 .stat-number {
   font-size: 32px;
-  font-weight: 700;
-  color: #2c3e50;
-  line-height: 1;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  color: #6b7280;
   font-size: 14px;
-  margin-top: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
-/* 筛选区域 */
+/* Filters */
 .filter-section {
-  padding: 30px;
-  padding-bottom: 0;
+  margin-bottom: 32px;
 }
 
 .filter-card {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
   padding: 24px;
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.1),
-    -20px -20px 40px rgba(255, 255, 255, 0.8);
 }
 
 .filter-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 180px;
 }
 
 .filter-label {
-  font-weight: 500;
-  color: #374151;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: 4px;
 }
 
-.filter-select {
-  width: 100%;
+/* Deep selector for Element Plus inputs to override styles */
+.glass-select :deep(.el-input__wrapper),
+.glass-input :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 8px 16px;
+  height: 40px;
+  transition: all 0.3s;
+}
+
+.glass-select :deep(.el-input__wrapper:hover),
+.glass-input :deep(.el-input__wrapper:hover) {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #3b82f6;
+}
+
+.glass-select :deep(.el-input__wrapper.is-focus),
+.glass-input :deep(.el-input__wrapper.is-focus) {
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  border-color: #3b82f6;
+}
+
+.glass-select.small :deep(.el-input__wrapper) {
+  height: 32px;
+  padding: 4px 12px;
 }
 
 .search-row {
   display: flex;
-  gap: 16px;
-  align-items: end;
+  gap: 24px;
+  align-items: center;
 }
 
 .search-group {
   flex: 1;
 }
 
-.search-input {
-  width: 100%;
-}
-
 .action-group {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
-.filter-btn {
-  padding: 10px 20px;
-  border-radius: 10px;
-}
-
-/* 题目列表 */
+/* Questions List */
 .questions-section {
-  padding: 30px;
+  margin-bottom: 32px;
 }
 
 .section-header {
-  max-width: 1400px;
-  margin: 0 auto 24px auto;
+  padding: 16px 24px;
+  margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.section-header h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
+.header-left h3 {
   margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-block;
+  margin-right: 16px;
 }
 
 .question-count {
-  color: #6b7280;
-  font-size: 14px;
-  margin-left: 12px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-
-
-.sort-select {
-  width: 150px;
-}
-
-.questions-content {
-  max-width: 1400px;
-  margin: 0 auto;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 10px;
+  border-radius: 20px;
 }
 
 .questions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 28px;
 }
 
 .question-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-}
-
-.question-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.15),
-    -20px -20px 40px rgba(255, 255, 255, 0.9);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .question-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 
 .question-type {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .type-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  backdrop-filter: blur(4px);
 }
 
-.type-badge.single {
-  background: rgba(0, 47, 167, 0.1);
-  color: #002FA7;
-}
-
-.type-badge.multiple {
-  background: rgba(81, 123, 77, 0.1);
-  color: #517B4D;
-}
-
-.type-badge.fill {
-  background: rgba(255, 193, 7, 0.1);
-  color: #ffc107;
-}
-
-.type-badge.essay {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
-}
-
-.type-badge.coding {
-  background: rgba(111, 66, 193, 0.1);
-  color: #6f42c1;
-}
+.type-badge.single { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+.type-badge.multiple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
+.type-badge.judge { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.type-badge.fill { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.type-badge.essay { background: rgba(236, 72, 153, 0.1); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.2); }
+.type-badge.coding { background: rgba(99, 102, 241, 0.1); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.2); }
 
 .difficulty-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.difficulty-badge.easy {
-  background: rgba(40, 167, 69, 0.1);
-  color: #28a745;
+.difficulty-badge.easy { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
+.difficulty-badge.medium { background: rgba(217, 119, 6, 0.1); color: #d97706; }
+.difficulty-badge.hard { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+
+.icon-btn {
+  color: var(--text-secondary);
+  font-size: 16px;
+  transition: color 0.2s;
 }
 
-.difficulty-badge.medium {
-  background: rgba(255, 193, 7, 0.1);
-  color: #ffc107;
-}
-
-.difficulty-badge.hard {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
+.icon-btn:hover {
+  color: #3b82f6;
 }
 
 .question-content {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  flex: 1;
 }
 
 .question-text {
   font-size: 16px;
-  color: #2c3e50;
+  color: var(--text-primary);
   line-height: 1.6;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  font-weight: 500;
 }
 
 .question-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .option-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(248, 249, 250, 0.8);
-  transition: all 0.2s ease;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.option-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .option-item.correct {
-  background: rgba(40, 167, 69, 0.1);
-  border: 1px solid rgba(40, 167, 69, 0.2);
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
 .option-label {
-  font-weight: 600;
-  color: #6b7280;
-  min-width: 20px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  width: 24px;
 }
 
 .option-text {
   flex: 1;
-  color: #374151;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .correct-icon {
-  color: #28a745;
+  color: #22c55e;
 }
 
 .question-answer {
-  padding: 12px;
-  background: rgba(248, 249, 250, 0.8);
-  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.6);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
-.question-judge {
-  margin-top: 12px;
+.answer-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.answer-content {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  cursor: pointer;
 }
 
 .judge-options {
   display: flex;
-  gap: 12px;
-  justify-content: flex-start;
+  gap: 16px;
 }
 
 .judge-option {
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: rgba(248, 249, 250, 0.8);
-  border: 1px solid rgba(229, 231, 235, 0.8);
-  transition: all 0.2s ease;
-  min-width: 80px;
-  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
 .judge-option.correct {
-  background: rgba(40, 167, 69, 0.1);
-  border: 1px solid rgba(40, 167, 69, 0.3);
-}
-
-.judge-option.selected {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
   font-weight: 600;
-}
-
-.judge-label {
-  color: #374151;
-  font-size: 14px;
-}
-
-.judge-option.correct .judge-label {
-  color: #28a745;
-  font-weight: 600;
-}
-
-.answer-label {
-  font-weight: 500;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-
-.answer-content {
-  color: #374151;
 }
 
 .question-footer {
@@ -2085,6 +1844,7 @@ onMounted(async () => {
   align-items: center;
   padding-top: 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: auto;
 }
 
 .question-meta {
@@ -2095,111 +1855,175 @@ onMounted(async () => {
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .question-tags {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 60%;
+  justify-content: flex-end;
 }
 
-.question-tag {
-  background: rgba(0, 47, 167, 0.1);
-  color: #002FA7;
-  border: none;
+.glass-tag {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 
-/* 分页 */
+/* Pagination */
 .pagination-wrapper {
   display: flex;
   justify-content: center;
+  margin-top: 32px;
+}
+
+.glass-pagination :deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: #2563eb;
+}
+
+.glass-pagination :deep(.el-pagination.is-background .el-pager li) {
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.glass-pagination :deep(.btn-prev),
+.glass-pagination :deep(.btn-next) {
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+}
+
+.text-clamp-1 {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hover-full-text {
+  white-space: pre-wrap;
+  max-width: 420px;
+  line-height: 1.6;
+  color: #334155;
+  font-size: 13px;
+}
+
+.pagination-wrapper {
   margin-top: 30px;
-}
-
-.custom-pagination {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 16px 24px;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
-}
-
-/* 对话框样式 */
-.create-dialog :deep(.el-dialog) {
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-}
-
-.create-form {
-  padding: 20px 0;
-}
-
-.dialog-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+}
+
+/* Dialog */
+.create-form {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.options-container {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .questions-grid {
-    grid-template-columns: 1fr;
-  }
+.option-item-edit {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-@media (max-width: 768px) {
-  .page-header {
-    padding: 20px 16px;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .stats-section,
-  .filter-section,
-  .questions-section {
-    padding: 20px 16px;
-  }
-  
-  .stats-grid {
+.remove-option-btn {
+  flex-shrink: 0;
+}
+
+.add-option-btn {
+  align-self: flex-start;
+}
+
+.selected-course-card {
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.course-card-header {
+  display: flex;
+  gap: 16px;
+}
+
+.course-cover {
+  width: 100px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.course-info {
+  flex: 1;
+}
+
+.course-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.course-description {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tag-input-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tags-container {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+  color: white;
+  border: none;
+}
+
+.ai-btn:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
+  color: white;
+}
+
+@media (max-width: 1200px) {
+  .questions-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .filter-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .header-actions {
-    justify-content: space-between;
-  }
-  
-  .question-footer {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
   }
 }
 </style>

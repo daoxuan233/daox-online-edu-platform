@@ -34,7 +34,7 @@ public interface CourseMapper {
             "FROM learning_progress lp " +
             "JOIN sections s ON lp.section_id = s.id " +
             "JOIN chapters c ON s.chapter_id = c.id " +
-            "WHERE lp.user_id = #{userId};\n")
+            "WHERE lp.user_id = #{userId};")
     Integer getProgressCourseCount(@Param("userId") String userId);
 
     /**

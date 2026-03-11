@@ -14,9 +14,9 @@
           </p>
         </div>
         <div class="task-status">
-          <span class="status-badge pending">
-            <i class="fas fa-clock"></i>
-            待批阅
+          <span :class="['status-badge', task.completed ? 'completed' : 'pending']">
+            <i :class="task.completed ? 'fas fa-check-circle' : 'fas fa-clock'"></i>
+            {{ task.completed ? '已完成' : '待批阅' }}
           </span>
         </div>
       </div>
@@ -30,7 +30,7 @@
             </div>
             <div class="stat-content">
               <span class="stat-number">{{ task.pendingSubmissionCount }}</span>
-              <span class="stat-label">份待批阅</span>
+              <span class="stat-label">{{ task.completed ? '份待处理' : '份待批阅' }}</span>
             </div>
           </div>
           
@@ -49,10 +49,12 @@
         <div class="progress-section">
           <div class="progress-info">
             <span class="progress-label">批阅进度</span>
-            <span class="progress-text">{{ task.pendingSubmissionCount }} 份待处理</span>
+            <span class="progress-text">
+              {{ task.completed ? '已全部完成' : `${task.pendingSubmissionCount} 份待处理` }}
+            </span>
           </div>
           <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: '0%' }"></div>
+            <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
           </div>
         </div>
       </div>
@@ -61,7 +63,7 @@
       <div class="card-footer">
         <div class="action-hint">
           <i class="fas fa-arrow-right"></i>
-          点击开始批阅
+          {{ task.completed ? '批阅已完成' : '点击开始批阅' }}
         </div>
         <div class="priority-indicator" v-if="task.pendingSubmissionCount > 10">
           <i class="fas fa-exclamation-triangle"></i>
@@ -93,6 +95,8 @@
  * Props定义
  * @param {GradingTask} task - 阅卷任务对象
  */
+import { computed } from 'vue'
+
 const props = defineProps({
   task: {
     type: Object,
@@ -106,6 +110,16 @@ const props = defineProps({
              typeof value.subjectiveQuestionCount === 'number'
     }
   }
+})
+
+const progressPercent = computed(() => {
+  if (typeof props.task.progressPercentage === 'number') {
+    return Math.max(0, Math.min(100, props.task.progressPercentage))
+  }
+  const total = Number(props.task.totalSubmissionCount || 0)
+  const pending = Number(props.task.pendingSubmissionCount || 0)
+  if (total <= 0) return pending > 0 ? 0 : 100
+  return Math.max(0, Math.min(100, Math.round(((total - pending) * 100) / total)))
 })
 </script>
 
@@ -195,6 +209,12 @@ const props = defineProps({
   background: rgba(230, 162, 60, 0.1);
   color: #E6A23C;
   border: 1px solid rgba(230, 162, 60, 0.2);
+}
+
+.status-badge.completed {
+  background: rgba(103, 194, 58, 0.1);
+  color: #67C23A;
+  border: 1px solid rgba(103, 194, 58, 0.2);
 }
 
 /* 卡片内容 */

@@ -586,3 +586,45 @@ export const getPendingFriendRequestsCount = () => {
         )
     })
 }
+
+/**
+ * 加入课程
+ * @param {string} courseId - 课程ID
+ * @returns {Promise<string>} - Promise对象，返回操作结果信息, e.g., "加入课程成功！"
+ */
+export const joinCourse = (courseId) => {
+    return new Promise((resolve, reject) => {
+        const params = new URLSearchParams()
+        params.append('courseId', courseId)
+        API_post('/student/course/enroll',
+            params,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
+ * 退出课程
+ * @param {string} courseId - 课程ID
+ * @returns {Promise<string>} - Promise对象，返回操作结果信息, e.g., "退出课程成功！"
+ */
+export const quitCourse = (courseId) => {
+    return new Promise((resolve, reject) => {
+        const params = new URLSearchParams()
+        params.append('courseId', courseId)
+        API_post('/student/course/unenroll',
+            params,
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}

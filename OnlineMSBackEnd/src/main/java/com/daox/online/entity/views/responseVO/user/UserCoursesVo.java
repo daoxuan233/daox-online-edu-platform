@@ -7,6 +7,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -63,5 +64,8 @@ public class UserCoursesVo implements Serializable {
      */
     private Date enrollmentDate;
 
-
+    /**
+     * 课程价格
+     */
+    private BigDecimal coursePrice;
 }

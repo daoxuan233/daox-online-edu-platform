@@ -113,12 +113,17 @@ public class StuCoursesController {
     /**
      * 加入课程
      *
-     * @param userId   用户ID
+     * @param request  请求
      * @param courseId 课程ID
      * @return 加入结果
      */
     @PostMapping("/enroll")
-    public RestBean<String> joinCourse(@RequestParam("userId") String userId, @RequestParam("courseId") String courseId) {
+    public RestBean<String> joinCourse(HttpServletRequest request, @RequestParam("courseId") String courseId) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) return RestBean.failure(401, "用户未认证！");
+        if (coursesService.isUserEnrolledInCourse(userId, courseId)) {
+            return RestBean.failure(409, "已加入课程");
+        }
         boolean result = coursesService.joinCourse(userId, courseId);
         if (!result) return RestBean.failure(500, "加入课程失败！");
         return RestBean.success("加入课程成功！");
@@ -127,12 +132,14 @@ public class StuCoursesController {
     /**
      * 退出课程
      *
-     * @param userId   用户ID
+     * @param request  请求
      * @param courseId 课程ID
      * @return 退出课程结果
      */
     @PostMapping("/unenroll")
-    public RestBean<String> quitCourse(@RequestParam("userId") String userId, @RequestParam("courseId") String courseId) {
+    public RestBean<String> quitCourse(HttpServletRequest request, @RequestParam("courseId") String courseId) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) return RestBean.failure(401, "用户未认证！");
         boolean result = coursesService.quitCourse(userId, courseId);
         if (!result) return RestBean.failure(500, "退出课程失败！");
         return RestBean.success("退出课程成功！");

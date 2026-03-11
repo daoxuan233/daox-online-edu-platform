@@ -1,159 +1,148 @@
 <template>
   <div class="grading-detail-container">
+    <!-- 背景装饰 -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="header-left">
-          <el-button 
-            type="text" 
-            @click="goBack" 
-            class="back-btn"
-          >
-            <i class="fas fa-arrow-left"></i>
-            返回阅卷中心
-          </el-button>
-          <div class="page-title-section">
-            <h1 class="page-title">
-              <i class="fas fa-clipboard-check"></i>
-              阅卷详情
-            </h1>
-            <p class="page-subtitle">详细批阅学生答卷</p>
-          </div>
-        </div>
-        <div class="header-actions">
-          <el-button type="primary" @click="saveGrading">
-            <i class="fas fa-save"></i>
-            保存批阅
-          </el-button>
-          <el-button @click="submitGrading">
-            <i class="fas fa-check"></i>
-            提交批阅
-          </el-button>
+    <header class="page-header glass-card">
+      <div class="header-left">
+        <el-button 
+          class="back-btn neu-btn-icon" 
+          @click="goBack" 
+          title="返回阅卷中心"
+        >
+          <i class="fas fa-arrow-left"></i>
+        </el-button>
+        <div class="page-title-section">
+          <h1 class="page-title">阅卷详情</h1>
+          <p class="page-subtitle">批阅学生的主观题答卷</p>
         </div>
       </div>
-    </div>
+      <div class="header-actions">
+        <el-button class="neu-btn" @click="saveGrading">
+          <i class="fas fa-save"></i>
+          保存进度
+        </el-button>
+        <el-button class="neu-btn-primary" @click="submitGrading">
+          <i class="fas fa-check-circle"></i>
+          提交阅卷
+        </el-button>
+      </div>
+    </header>
 
     <!-- 主要内容区域 -->
-    <div class="main-content">
+    <main class="main-content">
       <div class="content-wrapper">
-        <!-- 测评基本信息 -->
-        <div class="assessment-info-section" v-if="currentTaskDetail?.assessmentInfo">
-          <div class="section-card">
-            <div class="card-header">
-              <h3>
-                <i class="fas fa-info-circle"></i>
-                测评信息
-              </h3>
+        
+        <!-- 测评基本信息卡片 -->
+        <section class="assessment-info-section glass-card" v-if="currentTaskDetail?.assessmentInfo">
+          <div class="section-header">
+            <h3><i class="fas fa-info-circle"></i> 测评信息</h3>
+          </div>
+          <div class="info-grid">
+            <div class="info-item neu-inset">
+              <span class="info-label">测评标题</span>
+              <span class="info-value">{{ currentTaskDetail.assessmentInfo.title }}</span>
             </div>
-            <div class="card-content">
-              <div class="assessment-info-grid">
-                <div class="info-item">
-                  <span class="info-label">测评标题：</span>
-                  <span class="info-value">{{ currentTaskDetail.assessmentInfo.title }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">测评类型：</span>
-                  <span class="info-value">{{ getAssessmentTypeText(currentTaskDetail.assessmentInfo.assessmentType) }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">开始时间：</span>
-                  <span class="info-value">{{ formatDateTime(currentTaskDetail.assessmentInfo.startTime) }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">结束时间：</span>
-                  <span class="info-value">{{ formatDateTime(currentTaskDetail.assessmentInfo.endTime) }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">答题时长：</span>
-                  <span class="info-value">{{ currentTaskDetail.assessmentInfo.durationMinutes }} 分钟</span>
-                </div>
-              </div>
+            <div class="info-item neu-inset">
+              <span class="info-label">测评类型</span>
+              <span class="info-value">
+                <el-tag effect="dark" round color="#517B4D" style="border: none;">
+                  {{ getAssessmentTypeText(currentTaskDetail.assessmentInfo.assessmentType) }}
+                </el-tag>
+              </span>
+            </div>
+            <div class="info-item neu-inset">
+              <span class="info-label">答题时长</span>
+              <span class="info-value">{{ currentTaskDetail.assessmentInfo.durationMinutes }} 分钟</span>
+            </div>
+            <div class="info-item neu-inset time-range">
+              <span class="info-label">有效时间</span>
+              <span class="info-value">
+                {{ formatDateTime(currentTaskDetail.assessmentInfo.startTime) }} ~ {{ formatDateTime(currentTaskDetail.assessmentInfo.endTime) }}
+              </span>
             </div>
           </div>
-        </div>
+        </section>
 
         <!-- 主观题目列表 -->
-        <div class="questions-section">
-          <div class="section-card">
-            <div class="card-header">
-              <h3>
-                <i class="fas fa-list-alt"></i>
-                主观题批阅列表
-              </h3>
-              <div class="questions-summary" v-if="currentTaskDetail?.subjectiveQuestions">
-                <span>共 {{ currentTaskDetail.subjectiveQuestions.length }} 道主观题</span>
-              </div>
+        <section class="questions-section">
+          <div class="section-header-row">
+            <h3>
+              <i class="fas fa-list-alt"></i>
+              主观题列表
+              <span class="badge" v-if="currentTaskDetail?.subjectiveQuestions">
+                {{ currentTaskDetail.subjectiveQuestions.length }}
+              </span>
+            </h3>
+          </div>
+
+          <!-- 加载状态 -->
+          <div class="loading-state glass-card" v-if="isLoading">
+            <div class="loading-content">
+              <i class="fas fa-circle-notch fa-spin"></i>
+              <p>正在加载批阅任务...</p>
             </div>
-            <div class="card-content">
-              <!-- 加载状态 -->
-              <div class="loading-placeholder" v-if="isLoading">
-                <i class="fas fa-spinner fa-spin"></i>
-                正在加载批阅任务...
+          </div>
+          
+          <!-- 错误状态 -->
+          <div class="error-state glass-card" v-else-if="error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>{{ error }}</p>
+            <el-button class="neu-btn-primary" @click="fetchGradingTaskDetail">重新加载</el-button>
+          </div>
+          
+          <!-- 空状态 -->
+          <div class="empty-state glass-card" v-else-if="!currentTaskDetail?.subjectiveQuestions?.length">
+            <i class="fas fa-clipboard-list"></i>
+            <p>暂无主观题需要批阅</p>
+          </div>
+          
+          <!-- 题目列表 -->
+          <div class="questions-list" v-else>
+            <div 
+              v-for="(question, index) in currentTaskDetail.subjectiveQuestions" 
+              :key="question.questionId"
+              class="question-card neu-card-interactive"
+              @click="navigateToImmersiveGrading(question.questionId)"
+            >
+              <div class="q-card-left">
+                <div class="q-number">Q{{ index + 1 }}</div>
+                <div class="q-score-badge">{{ question.score }} 分</div>
               </div>
               
-              <!-- 错误状态 -->
-              <div class="error-placeholder" v-else-if="error">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>{{ error }}</p>
-                <el-button @click="fetchGradingTaskDetail" type="primary">重新加载</el-button>
-              </div>
-              
-              <!-- 空状态 -->
-              <div class="empty-placeholder" v-else-if="!currentTaskDetail?.subjectiveQuestions?.length">
-                <i class="fas fa-inbox"></i>
-                <p>暂无主观题需要批阅</p>
-              </div>
-              
-              <!-- 题目列表 -->
-              <div class="questions-list" v-else>
-                <div 
-                  v-for="(question, index) in currentTaskDetail.subjectiveQuestions" 
-                  :key="question.questionId"
-                  class="question-item"
-                  @click="navigateToImmersiveGrading(question.questionId)"
-                >
-                  <div class="question-header">
-                    <div class="question-number">第 {{ index + 1 }} 题</div>
-                    <div class="question-score">{{ question.score }} 分</div>
-                  </div>
-                  
-                  <div class="question-content">
-                    <div class="question-stem">
-                      <span class="stem-label">题干：</span>
-                      <span class="stem-text">{{ truncateText(question.stem, 100) }}</span>
-                    </div>
-                  </div>
-                  
-                  <div class="question-progress">
-                    <div class="progress-info">
-                      <span class="progress-text">
-                        已批阅：{{ question.gradedCount }} / {{ question.totalCount }}
-                      </span>
-                      <span class="progress-percentage">
-                        {{ calculateProgressPercentage(question.gradedCount, question.totalCount) }}%
-                      </span>
-                    </div>
-                    <el-progress 
-                      :percentage="calculateProgressPercentage(question.gradedCount, question.totalCount)"
-                      :stroke-width="8"
-                      :show-text="false"
-                      class="progress-bar"
-                    />
-                  </div>
-                  
-                  <div class="question-actions">
-                    <el-button type="primary" size="small">
-                      <i class="fas fa-edit"></i>
-                      开始批阅
-                    </el-button>
-                  </div>
+              <div class="q-card-main">
+                <div class="q-stem">
+                  {{ truncateText(question.stem, 120) }}
                 </div>
+                <div class="q-progress-wrapper">
+                  <div class="progress-labels">
+                    <span class="label">批阅进度</span>
+                    <span class="value">{{ question.gradedCount }} / {{ question.totalCount }}</span>
+                  </div>
+                  <el-progress 
+                    :percentage="calculateProgressPercentage(question.gradedCount, question.totalCount)"
+                    :stroke-width="8"
+                    :show-text="false"
+                    :color="getProgressColor(question.gradedCount, question.totalCount)"
+                    class="custom-progress"
+                  />
+                </div>
+              </div>
+              
+              <div class="q-card-action">
+                <button class="action-btn">
+                  <i class="fas fa-pen-fancy"></i>
+                </button>
+                <span class="action-text">批阅</span>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -184,15 +173,6 @@ const goBack = () => {
 }
 
 /**
- * 添加快速评语
- * @param {string} tag - 评语标签
- */
-const addQuickComment = (tag) => {
-  // 此功能在当前页面暂不使用，将在沉浸式批阅页面实现
-  console.log('添加快速评语:', tag)
-}
-
-/**
  * 保存批阅结果
  */
 const saveGrading = () => {
@@ -217,30 +197,32 @@ const submitGrading = () => {
 
 /**
  * 计算进度百分比
- * @param {number} gradedCount - 已批阅数量
- * @param {number} totalCount - 总数量
- * @returns {number} 进度百分比
  */
 const calculateProgressPercentage = (gradedCount, totalCount) => {
   if (totalCount === 0) return 0;
   return Math.round((gradedCount / totalCount) * 100);
 };
 
+const getProgressColor = (graded, total) => {
+  const percentage = calculateProgressPercentage(graded, total)
+  if (percentage === 100) return '#67C23A' // Success
+  if (percentage > 50) return '#002FA7' // Primary
+  return '#E6A23C' // Warning
+}
+
 /**
  * 截断文本
- * @param {string} text - 原始文本
- * @param {number} maxLength - 最大长度
- * @returns {string} 截断后的文本
  */
 const truncateText = (text, maxLength) => {
   if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  // 移除HTML标签以显示纯文本预览
+  const plainText = text.replace(/<[^>]+>/g, '');
+  if (plainText.length <= maxLength) return plainText;
+  return plainText.substring(0, maxLength) + '...';
 };
 
 /**
  * 导航到沉浸式批阅页面
- * @param {string} questionId - 题目ID
  */
 const navigateToImmersiveGrading = (questionId) => {
   router.push({
@@ -254,14 +236,11 @@ const navigateToImmersiveGrading = (questionId) => {
 
 /**
  * 格式化日期时间
- * @param {string} dateTimeStr - 日期时间字符串
- * @returns {string} - 格式化后的日期时间
  */
 const formatDateTime = (dateTimeStr) => {
   if (!dateTimeStr) return ''
   const date = new Date(dateTimeStr)
   return date.toLocaleString('zh-CN', {
-    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -271,8 +250,6 @@ const formatDateTime = (dateTimeStr) => {
 
 /**
  * 获取测评类型文本
- * @param {string} type - 测评类型
- * @returns {string} - 测评类型文本
  */
 const getAssessmentTypeText = (type) => {
   const typeMap = {
@@ -305,34 +282,165 @@ const fetchGradingTaskDetail = async () => {
   }
 }
 
-/**
- * 组件挂载时的初始化
- */
 onMounted(() => {
   fetchGradingTaskDetail()
 })
 </script>
 
 <style scoped>
+/* =========================================
+   1. 核心变量 (Design System)
+   ========================================= */
+:root {
+  --primary-color: #002FA7; /* Klein Blue */
+  --secondary-color: #517B4D; /* Green Glaze */
+  --bg-color: #F0F0F3;
+  --text-main: #303133;
+  --text-light: #606266;
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
 .grading-detail-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f0f3 0%, #e8e8eb 100%);
+  background-color: #F0F0F3;
+  color: #303133;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
+  position: relative;
+  overflow-x: hidden;
+  padding-bottom: 40px;
 }
 
-/* 页面头部 */
+/* 背景装饰 */
+.bg-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+}
+.shape-1 {
+  width: 400px;
+  height: 400px;
+  background: rgba(0, 47, 167, 0.08);
+  top: -100px;
+  right: -100px;
+}
+.shape-2 {
+  width: 300px;
+  height: 300px;
+  background: rgba(81, 123, 77, 0.08);
+  bottom: 100px;
+  left: -50px;
+}
+
+/* =========================================
+   2. 通用样式类 (Neumorphism & Glass)
+   ========================================= */
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
+
+.neu-card-interactive {
+  background: #F0F0F3;
+  box-shadow: 6px 6px 12px #d1d1d4, -6px -6px 12px #ffffff;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.neu-card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: 8px 8px 16px #d1d1d4, -8px -8px 16px #ffffff;
+  border-color: rgba(0, 47, 167, 0.1);
+}
+
+.neu-inset {
+  background: #F0F0F3;
+  box-shadow: inset 4px 4px 8px #d1d1d4, inset -4px -4px 8px #ffffff;
+  border-radius: 12px;
+}
+
+.neu-btn {
+  background: #F0F0F3;
+  border: none;
+  box-shadow: 5px 5px 10px #d1d1d4, -5px -5px 10px #ffffff;
+  color: #606266;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.neu-btn:hover {
+  transform: translateY(-2px);
+  color: #002FA7;
+}
+.neu-btn:active {
+  box-shadow: inset 3px 3px 6px #d1d1d4, inset -3px -3px 6px #ffffff;
+  transform: translateY(0);
+}
+
+.neu-btn-primary {
+  background: #002FA7;
+  color: #fff;
+  border: none;
+  box-shadow: 4px 4px 10px rgba(0, 47, 167, 0.3);
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.neu-btn-primary:hover {
+  background: #003ccf;
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 14px rgba(0, 47, 167, 0.4);
+}
+.neu-btn-primary:active {
+  transform: translateY(0);
+}
+
+.neu-btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #F0F0F3;
+  box-shadow: 5px 5px 10px #d1d1d4, -5px -5px 10px #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #606266;
+  transition: all 0.2s;
+}
+.neu-btn-icon:hover {
+  color: #002FA7;
+  transform: scale(1.05);
+}
+
+/* =========================================
+   3. 页面布局
+   ========================================= */
 .page-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 24px 30px;
-}
-
-.header-content {
+  position: sticky;
+  top: 20px;
+  margin: 20px auto;
   max-width: 1400px;
-  margin: 0 auto;
+  padding: 16px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 100;
 }
 
 .header-left {
@@ -341,375 +449,259 @@ onMounted(() => {
   gap: 20px;
 }
 
-.back-btn {
-  color: #002FA7;
-  font-size: 16px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.back-btn:hover {
-  background: rgba(0, 47, 167, 0.1);
-}
-
 .page-title-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #2c3e50;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-title i {
   color: #002FA7;
+  margin: 0;
 }
 
 .page-subtitle {
-  color: #6b7280;
-  margin: 0;
-  font-size: 16px;
+  font-size: 0.9rem;
+  color: #606266;
+  margin: 4px 0 0 0;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
-/* 主要内容 */
 .main-content {
-  padding: 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .content-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 30px;
 }
 
-/* 测评信息区域 */
+/* =========================================
+   4. 测评信息卡片
+   ========================================= */
 .assessment-info-section {
-  background: #f8f9fa;
-  border-radius: 15px;
-  box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.1),
-    -8px -8px 16px rgba(255, 255, 255, 0.8);
-}
-
-.assessment-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 8px;
-  box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.info-label {
-  font-weight: 600;
-  color: #666;
-  margin-right: 8px;
-  min-width: 80px;
-}
-
-.info-value {
-  color: #333;
-  font-weight: 500;
-}
-
-/* 主观题目列表区域 */
-.questions-section {
-  background: #f8f9fa;
-  border-radius: 15px;
-  box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.1),
-    -8px -8px 16px rgba(255, 255, 255, 0.8);
-}
-
-.questions-summary {
-  color: #666;
-  font-size: 14px;
-}
-
-.questions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.question-item {
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 12px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 
-    4px 4px 8px rgba(0, 0, 0, 0.1),
-    -4px -4px 8px rgba(255, 255, 255, 0.8);
-}
-
-.question-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    6px 6px 12px rgba(0, 0, 0, 0.15),
-    -6px -6px 12px rgba(255, 255, 255, 0.9);
-}
-
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.question-number {
-  font-size: 16px;
-  font-weight: 600;
-  color: #409eff;
-}
-
-.question-score {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e6a23c;
-  background: rgba(230, 162, 60, 0.1);
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.question-content {
-  margin-bottom: 16px;
-}
-
-.question-stem {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.stem-label {
-  font-weight: 600;
-  color: #666;
-  min-width: 40px;
-}
-
-.stem-text {
-  color: #333;
-  line-height: 1.5;
-  flex: 1;
-}
-
-.question-progress {
-  margin-bottom: 16px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.progress-text {
-  font-size: 14px;
-  color: #666;
-}
-
-.progress-percentage {
-  font-size: 14px;
-  font-weight: 600;
-  color: #409eff;
-}
-
-.progress-bar {
-  margin-bottom: 0;
-}
-
-.question-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* 错误和空状态样式 */
-.error-placeholder,
-.empty-placeholder {
-  text-align: center;
-  padding: 60px 20px;
-  color: #6b7280;
-  font-size: 16px;
-}
-
-.error-placeholder i,
-.empty-placeholder i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: #d1d5db;
-  display: block;
-}
-
-.error-placeholder p,
-.empty-placeholder p {
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  color: #6b7280;
-}
-
-/* 卡片样式 */
-.section-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.1),
-    -20px -20px 40px rgba(255, 255, 255, 0.8);
-  overflow: hidden;
-}
-
-.card-header {
   padding: 24px 30px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  background: rgba(255, 255, 255, 0.5);
 }
 
-.card-header h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
+.section-header {
+  margin-bottom: 20px;
+}
+.section-header h3 {
+  font-size: 1.1rem;
+  color: #303133;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
-.card-header h3 i {
-  color: #002FA7;
+.section-header h3 i {
+  color: #517B4D;
 }
 
-.assessment-info {
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.assessment-title {
-  font-size: 16px;
+.info-label {
+  font-size: 0.85rem;
+  color: #909399;
   font-weight: 600;
-  color: #374151;
 }
 
-.student-info {
-  font-size: 14px;
-  color: #6b7280;
+.info-value {
+  font-size: 1rem;
+  color: #303133;
+  font-weight: 500;
 }
 
-.card-content {
-  padding: 30px;
+.time-range {
+  grid-column: span 2;
+}
+@media (max-width: 768px) {
+  .time-range { grid-column: span 1; }
 }
 
-/* 试卷内容区域 */
-.loading-placeholder {
-  text-align: center;
-  padding: 60px 20px;
-  color: #6b7280;
-  font-size: 16px;
+/* =========================================
+   5. 题目列表
+   ========================================= */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+.section-header-row h3 {
+  font-size: 1.25rem;
+  color: #303133;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.badge {
+  background: #002FA7;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.loading-placeholder i {
-  font-size: 24px;
-  margin-right: 8px;
+.questions-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
+}
+
+.question-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.q-card-left {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.q-number {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #002FA7;
+  font-family: 'Arial', sans-serif;
+}
+
+.q-score-badge {
+  background: rgba(81, 123, 77, 0.1);
+  color: #517B4D;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.q-card-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.q-stem {
+  font-size: 1rem;
+  color: #606266;
+  line-height: 1.6;
+  min-height: 3.2em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.q-progress-wrapper {
+  background: rgba(255,255,255,0.5);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.progress-labels .label { color: #909399; }
+.progress-labels .value { color: #303133; font-weight: 600; }
+
+.q-card-action {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.question-card:hover .q-card-action {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #002FA7;
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 4px 4px 10px rgba(0, 47, 167, 0.3);
+}
+
+.action-text {
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #002FA7;
 }
 
-.paper-content {
-  min-height: 400px;
-}
-
-.placeholder-text {
+/* =========================================
+   6. 状态样式
+   ========================================= */
+.loading-state, .error-state, .empty-state {
+  padding: 60px;
   text-align: center;
-  color: #6b7280;
-  font-size: 16px;
-  line-height: 1.6;
-  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #909399;
 }
+.loading-state i, .error-state i, .empty-state i {
+  font-size: 3rem;
+  color: #d1d1d4;
+  margin-bottom: 10px;
+}
+.loading-state i { color: #002FA7; }
 
-
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .content-wrapper {
-    max-width: 100%;
-    padding: 0 16px;
-  }
-  
-  .main-content {
-    padding: 20px 16px;
-  }
-  
+/* 响应式调整 */
+@media (max-width: 768px) {
   .page-header {
-    padding: 20px 16px;
-  }
-  
-  .header-content {
     flex-direction: column;
     gap: 16px;
-    align-items: stretch;
-  }
-  
-  .header-left {
-    flex-direction: column;
-    gap: 12px;
     align-items: flex-start;
   }
-  
-  .assessment-info-grid {
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .questions-list {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .card-content {
-    padding: 20px;
-  }
-  
-  .card-header {
-    padding: 20px;
-  }
-  
-  .question-item {
-    padding: 16px;
-  }
-  
-  .question-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .question-stem {
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .progress-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
   }
 }
 </style>

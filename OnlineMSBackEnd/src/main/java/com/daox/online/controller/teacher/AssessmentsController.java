@@ -5,6 +5,7 @@ import com.daox.online.entity.RestBean;
 import com.daox.online.entity.dto.AssessmentCreateDTO;
 import com.daox.online.entity.dto.AssessmentTeacherDTO;
 import com.daox.online.entity.dto.PublishAssessmentRequest;
+import com.daox.online.entity.dto.teacher.assessment.AssessmentResultSummaryDTO;
 import com.daox.online.service.AssessmentService;
 import com.daox.online.uilts.UserUtils;
 import jakarta.annotation.Resource;
@@ -171,5 +172,40 @@ public class AssessmentsController {
             return RestBean.failure(404, "没有找到该测评的试卷结构");
         }
         return RestBean.success(assessmentPaperStructure);
+    }
+
+    /**
+     * 获取单个测评的结果汇总
+     * <p>
+     * 返回内容包含：实际参考人数、应参考人数、平均分、完成率。
+     * </p>
+     *
+     * @param assessmentId 测评ID
+     * @param request      HTTP请求
+     * @return 测评结果汇总
+     */
+    @GetMapping("/{assessmentId}/result-summary")
+    public RestBean<AssessmentResultSummaryDTO> getAssessmentResultSummary(
+            @PathVariable String assessmentId,
+            HttpServletRequest request
+    ) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null || userId.isBlank()) {
+            log.warn("[getAssessmentResultSummary.method] 用户未认证");
+            return RestBean.failure(401, "用户未认证");
+        }
+        try {
+            AssessmentResultSummaryDTO resultSummary = assessmentService.getAssessmentResultSummary(userId, assessmentId);
+            return RestBean.success(resultSummary);
+        } catch (SecurityException e) {
+            log.warn("[getAssessmentResultSummary.method] 权限不足: userId={}, assessmentId={}", userId, assessmentId);
+            return RestBean.failure(403, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("[getAssessmentResultSummary.method] 参数或资源异常: assessmentId={}, error={}", assessmentId, e.getMessage());
+            return RestBean.failure(404, e.getMessage());
+        } catch (Exception e) {
+            log.error("[getAssessmentResultSummary.method] 获取测评结果汇总失败: assessmentId={}", assessmentId, e);
+            return RestBean.failure(500, "获取测评结果汇总失败");
+        }
     }
 }

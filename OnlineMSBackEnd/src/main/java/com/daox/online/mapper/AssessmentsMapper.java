@@ -4,21 +4,33 @@ import com.daox.online.entity.mysql.Assessments;
 import com.daox.online.entity.views.responseVO.StudentAssessmentVO;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
 public interface AssessmentsMapper {
 
     /**
-     * 获取学生的测评列表
+     * 获取学生可见的测评列表。
+     * <p>
+     * 可见性规则说明：
+     * 1) 返回已发布（is_published = 1）与已归档（is_published = 2）的测评；
+     * 2) 已归档测评仅用于“可查看历史卡片”，不代表可继续作答；
+     * 3) 课程侧仍需满足已发布且未删除，以保证学生仅看到有效课程范围内的测评。
+     * </p>
+     *
+     * @param userId 学生用户ID
+     * @return 学生可见测评列表（包含已归档测评）
      */
     @Select("""
                 SELECT
                     a.id as assessment_id,
                     a.title,
+                    a.assessment_type as assessmentType,
                     a.start_time,
                     a.end_time,
                     a.duration_minutes,
+                    a.is_published,
                     a.course_id,
                     c.title as course_title,
                     c.cover_image_url as course_cover
@@ -26,7 +38,7 @@ public interface AssessmentsMapper {
                 INNER JOIN user_courses uc ON a.course_id = uc.course_id
                 INNER JOIN courses c ON a.course_id = c.id
                 WHERE uc.user_id = #{userId}
-                AND a.is_published = 1
+                AND a.is_published in (1, 2)
                 AND c.status = 'published'
                 AND c.is_deleted = 0
                 ORDER BY a.start_time DESC
@@ -34,15 +46,27 @@ public interface AssessmentsMapper {
     List<StudentAssessmentVO> getStudentAssessments(@Param("userId") String userId);
 
     /**
-     * 根据ID获取单个测评信息
+     * 根据测评ID获取学生可见的单个测评信息。
+     * <p>
+     * 访问策略：
+     * 1) 与列表接口保持一致，允许访问已发布与已归档测评；
+     * 2) 该查询用于详情展示与可开始判断的基础数据读取；
+     * 3) 真正“是否可操作”由业务层时间窗与状态校验决定。
+     * </p>
+     *
+     * @param assessmentId 测评ID
+     * @param userId 学生用户ID
+     * @return 单个测评视图对象，不可见时返回 null
      */
     @Select("""
                 SELECT
                     a.id as assessmentId,
                     a.title,
+                    a.assessment_type as assessmentType,
                     a.start_time as startTime,
                     a.end_time as endTime,
                     a.duration_minutes as durationMinutes,
+                    a.is_published as isPublished,
                     a.course_id as courseId,
                     c.title as courseTitle,
                     c.cover_image_url as courseCover
@@ -51,7 +75,7 @@ public interface AssessmentsMapper {
                 INNER JOIN courses c ON a.course_id = c.id
                 WHERE a.id = #{assessmentId}
                 AND uc.user_id = #{userId}
-                AND a.is_published = 1
+                AND a.is_published in (1, 2)
                 AND c.status = 'published'
                 AND c.is_deleted = 0
             """)
@@ -119,6 +143,21 @@ public interface AssessmentsMapper {
      */
     @Update("update assessments set is_published=1 where id= #{id}")
     int publishAssessment(@Param("id") String id);
+
+    /**
+     * 将已到截止时间且当前仍为发布状态的测评批量归档。
+     * <p>
+     * 归档规则：
+     * 1) 仅处理 is_published = 1 的测评，避免覆盖草稿或已归档记录；
+     * 2) end_time 小于等于当前时间即视为到期；
+     * 3) 归档动作通过将 is_published 更新为 2 实现。
+     * </p>
+     *
+     * @param now 当前时间
+     * @return 本次更新的记录数量
+     */
+    @Update("update assessments set is_published = 2 where is_published = 1 and end_time <= #{now}")
+    int archiveExpiredAssessments(@Param("now") LocalDateTime now);
 
     /**
      * 通过assessmentId查询is_published不等于2的测评

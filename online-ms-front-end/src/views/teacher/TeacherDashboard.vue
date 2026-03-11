@@ -1,59 +1,77 @@
 <template>
   <div class="teacher-dashboard">
-    <!-- 欢迎区域 -->
-    <div class="welcome-section glass-card">
-      <div class="welcome-content">
-        <div class="welcome-text">
-          <h1 class="welcome-title">
-            <font-awesome-icon :icon="['fas', 'chalkboard-teacher']" />
-            欢迎回来，{{ teacherInfo.name }}老师
-          </h1>
-          <p class="welcome-subtitle">今天是 {{ formatDate(new Date()) }}，祝您教学愉快！</p>
+    <!-- 欢迎区域 - Modern Hero -->
+    <div class="welcome-hero">
+      <div class="hero-bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+      </div>
+      
+      <div class="hero-content">
+        <div class="hero-text-group">
+          <div class="hero-greeting">
+            <h1 class="greeting-title">
+              <span class="text-light">Welcome back,</span>
+              <span class="text-highlight">{{ teacherInfo.name }}</span>
+            </h1>
+            <div class="teacher-badge" v-if="teacherInfo.title">
+              {{ teacherInfo.title }}
+            </div>
+          </div>
+          <p class="hero-subtitle">
+            <font-awesome-icon :icon="['fas', 'calendar-alt']" class="icon-mr" />
+            {{ formatDate(new Date()) }} · 准备好开始今天的教学了吗？
+          </p>
         </div>
-        <div class="welcome-actions">
-          <el-button type="primary" class="neu-button" @click="createCourse">
-            <font-awesome-icon :icon="['fas', 'plus']" />
-            创建新课程
-          </el-button>
-          <el-button class="neu-button" @click="viewSchedule">
-            <font-awesome-icon :icon="['fas', 'calendar']" />
-            查看课程表
-          </el-button>
+        
+        <div class="hero-actions">
+          <button class="action-btn primary-btn" @click="createCourse">
+            <div class="btn-icon">
+              <font-awesome-icon :icon="['fas', 'plus']" />
+            </div>
+            <span>创建课程</span>
+          </button>
+          <button class="action-btn glass-btn" @click="viewSchedule">
+            <div class="btn-icon">
+              <font-awesome-icon :icon="['fas', 'calendar-check']" />
+            </div>
+            <span>查看课表</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片 - Glass Cards -->
     <div class="stats-grid">
-      <div class="stat-card neu-card" v-for="stat in stats" :key="stat.key">
-        <div class="stat-icon" :style="{ backgroundColor: stat.color }">
+      <div class="stat-card" v-for="stat in stats" :key="stat.key">
+        <div class="stat-icon-wrapper" :style="{ '--icon-color': stat.color }">
           <font-awesome-icon :icon="stat.icon" />
         </div>
-        <div class="stat-content">
+        <div class="stat-info">
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
-          <div class="stat-change" :class="stat.trend">
-            <font-awesome-icon :icon="stat.trend === 'up' ? ['fas', 'arrow-up'] : ['fas', 'arrow-down']" />
-            <span>{{ stat.change }}</span>
-          </div>
+        </div>
+        <div class="stat-trend" :class="stat.trend">
+          <font-awesome-icon :icon="stat.trend === 'up' ? ['fas', 'arrow-trend-up'] : ['fas', 'arrow-trend-down']" />
+          <span>{{ stat.change }}</span>
         </div>
       </div>
     </div>
 
-    <div class="dashboard-content">
+    <div class="dashboard-grid">
       <!-- 左侧内容 -->
-      <div class="left-content">
+      <div class="main-column">
         <!-- 我的课程 -->
-        <div class="section-card neu-card">
-          <div class="section-header">
-            <h2 class="section-title">
-              <font-awesome-icon :icon="['fas', 'book']" />
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span class="title-decoration"></span>
               我的课程
             </h2>
-            <el-button text @click="viewAllCourses">
-              查看全部
+            <button class="text-btn" @click="viewAllCourses">
+              全部课程
               <font-awesome-icon :icon="['fas', 'arrow-right']" />
-            </el-button>
+            </button>
           </div>
           
           <div class="course-list">
@@ -63,52 +81,62 @@
               class="course-item"
               @click="editCourse(course.id)"
             >
-              <div class="course-cover">
-                <img :src="course.cover" :alt="course.title" />
-                <div class="course-status" :class="course.status">
-                  {{ getStatusText(course.status) }}
+              <div class="course-cover-wrapper">
+                <img :src="course.cover" :alt="course.title" class="course-img" />
+                <div class="course-overlay">
+                  <span class="status-badge" :class="course.status">
+                    {{ getStatusText(course.status) }}
+                  </span>
                 </div>
               </div>
-              <div class="course-info">
-                <h3 class="course-title">{{ course.title }}</h3>
-                <div class="course-meta">
-                  <span class="teacher-name" v-if="course.teacherName">
-                    <font-awesome-icon :icon="['fas', 'user']" />
-                    {{ course.teacherName }}
-                  </span>
-                  <span class="category-name" v-if="course.categoryName">
-                    <font-awesome-icon :icon="['fas', 'tag']" />
+              
+              <div class="course-details">
+                <h3 class="course-name">{{ course.title }}</h3>
+                <div class="course-tags">
+                  <span class="tag" v-if="course.categoryName">
                     {{ course.categoryName }}
                   </span>
-                  <span class="update-time">
+                  <span class="meta-item">
                     <font-awesome-icon :icon="['fas', 'clock']" />
                     {{ formatRelativeTime(course.updatedAt) }}
                   </span>
                 </div>
-                <div class="course-description" v-if="course.description">
+                <div class="course-desc" v-if="course.description">
                   {{ course.description }}
                 </div>
               </div>
+              
+              <div class="course-action">
+                <button class="icon-btn">
+                  <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
+                </button>
+              </div>
+            </div>
+            
+            <div v-if="recentCourses.length === 0" class="empty-state">
+              <font-awesome-icon :icon="['fas', 'inbox']" class="empty-icon" />
+              <p>暂无课程，快去创建吧</p>
             </div>
           </div>
         </div>
 
         <!-- 最近活动 -->
-        <div class="section-card neu-card">
-          <div class="section-header">
-            <h2 class="section-title">
-              <font-awesome-icon :icon="['fas', 'history']" />
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span class="title-decoration"></span>
               最近活动
             </h2>
           </div>
           
-          <div class="activity-list">
-            <div v-for="activity in recentActivities" :key="activity.id" class="activity-item">
-              <div class="activity-icon" :style="{ backgroundColor: activity.color }">
-                <i :class="activity.icon"></i>
+          <div class="activity-timeline">
+            <div v-for="(activity, index) in recentActivities" :key="activity.id" class="timeline-item">
+              <div class="timeline-line" v-if="index !== recentActivities.length - 1"></div>
+              <div class="timeline-dot" :style="{ backgroundColor: activity.color }">
+                <font-awesome-icon :icon="['fas', 'circle']" style="font-size: 8px; color: white;" />
               </div>
-              <div class="activity-content">
-                <div class="activity-text">{{ activity.text }}</div>
+              <div class="timeline-content">
+                <div class="activity-msg">{{ activity.text }}</div>
                 <div class="activity-time">{{ formatRelativeTime(activity.time) }}</div>
               </div>
             </div>
@@ -117,128 +145,184 @@
       </div>
 
       <!-- 右侧内容 -->
-      <div class="right-content">
+      <div class="side-column">
         <!-- 待办事项 -->
-        <div class="section-card neu-card">
-          <div class="section-header">
-            <h2 class="section-title">
-              <font-awesome-icon :icon="['fas', 'tasks']" />
+        <div class="dashboard-card highlight-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <font-awesome-icon :icon="['fas', 'check-square']" class="title-icon" />
               待办事项
             </h2>
-            <el-button text @click="addTodo">
+            <button class="add-btn" @click="openCreateTodoDialog">
               <font-awesome-icon :icon="['fas', 'plus']" />
-              添加
-            </el-button>
+            </button>
           </div>
           
-          <div class="todo-list">
-            <div v-for="todo in todoList" :key="todo.id" class="todo-item">
-              <el-checkbox 
-                v-model="todo.completed" 
-                @change="toggleTodo(todo.id)"
-                class="todo-checkbox"
-              />
-              <div class="todo-content" :class="{ completed: todo.completed }">
-                <div class="todo-text">{{ todo.text }}</div>
-                <div class="todo-meta">
-                  <span class="todo-priority" :class="todo.priority">
+          <div class="todo-list-modern">
+            <div v-for="todo in todoList" :key="todo.id" class="todo-row">
+              <label class="custom-checkbox">
+                <input 
+                  type="checkbox" 
+                  :checked="todo.completed" 
+                  @change="toggleTodo(todo.id)"
+                />
+                <span class="checkmark"></span>
+              </label>
+              <div class="todo-info" :class="{ 'is-done': todo.completed }">
+                <div class="todo-title">{{ todo.text }}</div>
+                <div class="todo-footer">
+                  <span class="priority-tag" :class="todo.priority">
                     {{ getPriorityText(todo.priority) }}
                   </span>
-                  <span class="todo-due">{{ formatDate(todo.dueDate) }}</span>
+                  <span class="due-date">{{ formatDate(todo.dueDate) }}</span>
                 </div>
               </div>
+              <div class="todo-actions">
+                <button class="todo-action-btn edit" @click.stop="openEditTodoDialog(todo)">
+                  <font-awesome-icon :icon="['fas', 'pen']" />
+                </button>
+                <button class="todo-action-btn delete" @click.stop="deleteTodo(todo.id)">
+                  <font-awesome-icon :icon="['fas', 'trash']" />
+                </button>
+              </div>
+            </div>
+            <div v-if="todoList.length === 0" class="todo-empty">暂无待办事项</div>
+          </div>
+        </div>
+
+        <!-- 快捷数据 -->
+        <div class="dashboard-card gradient-card">
+          <div class="card-header white-text">
+            <h2 class="card-title">本周概览</h2>
+          </div>
+          <div class="quick-stats-grid">
+            <div class="q-stat-item">
+              <div class="q-val">{{ weeklyStats.newStudents }}</div>
+              <div class="q-label">新增学生</div>
+            </div>
+            <div class="q-stat-item">
+              <div class="q-val">{{ weeklyStats.completedLessons }}</div>
+              <div class="q-label">课程完成</div>
+            </div>
+            <div class="q-stat-item">
+              <div class="q-val">{{ weeklyStats.submittedAssignments }}</div>
+              <div class="q-label">作业提交</div>
+            </div>
+            <div class="q-stat-item">
+              <div class="q-val">{{ weeklyStats.averageRating }}</div>
+              <div class="q-label">平均评分</div>
             </div>
           </div>
         </div>
 
         <!-- 学生反馈 -->
-        <div class="section-card neu-card">
-          <div class="section-header">
-            <h2 class="section-title">
-              <font-awesome-icon :icon="['fas', 'comments']" />
-              学生反馈
-            </h2>
-            <el-button text @click="viewAllFeedback">
-              查看全部
-              <font-awesome-icon :icon="['fas', 'arrow-right']" />
-            </el-button>
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2 class="card-title">最新反馈</h2>
           </div>
-          
-          <div class="feedback-list">
-            <div v-for="feedback in recentFeedback" :key="feedback.id" class="feedback-item">
-              <div class="feedback-header">
-                <div class="student-info">
-                  <img :src="feedback.student.avatar" :alt="feedback.student.name" class="student-avatar" />
-                  <div class="student-details">
-                    <div class="student-name">{{ feedback.student.name }}</div>
-                    <div class="course-name">{{ feedback.courseName }}</div>
-                  </div>
+          <div class="feedback-stack">
+            <div v-for="feedback in recentFeedback" :key="feedback.id" class="feedback-mini-card">
+              <div class="feedback-top">
+                <div class="f-user">
+                  <img :src="feedback.student.avatar" class="f-avatar" />
+                  <span class="f-name">{{ feedback.student.name }}</span>
                 </div>
-                <div class="feedback-rating">
-                  <el-rate v-model="feedback.rating" disabled size="small" />
-                </div>
+                <el-rate v-model="feedback.rating" disabled size="small" />
               </div>
-              <div class="feedback-content">{{ feedback.content }}</div>
-              <div class="feedback-time">{{ formatRelativeTime(feedback.time) }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 快速统计 -->
-        <div class="section-card neu-card">
-          <div class="section-header">
-            <h2 class="section-title">
-              <font-awesome-icon :icon="['fas', 'chart-pie']" />
-              本周统计
-            </h2>
-          </div>
-          
-          <div class="quick-stats">
-            <div class="quick-stat-item">
-              <div class="quick-stat-label">新增学生</div>
-              <div class="quick-stat-value">{{ weeklyStats.newStudents }}</div>
-            </div>
-            <div class="quick-stat-item">
-              <div class="quick-stat-label">课程完成</div>
-              <div class="quick-stat-value">{{ weeklyStats.completedLessons }}</div>
-            </div>
-            <div class="quick-stat-item">
-              <div class="quick-stat-label">作业提交</div>
-              <div class="quick-stat-value">{{ weeklyStats.submittedAssignments }}</div>
-            </div>
-            <div class="quick-stat-item">
-              <div class="quick-stat-label">平均评分</div>
-              <div class="quick-stat-value">{{ weeklyStats.averageRating }}</div>
+              <div class="f-content">{{ feedback.content }}</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <el-dialog
+      v-model="todoDialogVisible"
+      :show-close="false"
+      width="460px"
+      class="todo-dialog"
+      align-center
+    >
+      <template #header>
+        <div class="todo-dialog-header">
+          <div class="todo-dialog-title-wrap">
+            <span class="todo-dialog-title-icon">
+              <font-awesome-icon :icon="['fas', todoDialogMode === 'create' ? 'plus' : 'pen']" />
+            </span>
+            <h3 class="todo-dialog-title">{{ todoDialogMode === 'create' ? '新增待办事项' : '编辑待办事项' }}</h3>
+          </div>
+          <button class="todo-dialog-close" @click="todoDialogVisible = false">
+            <font-awesome-icon :icon="['fas', 'xmark']" />
+          </button>
+        </div>
+      </template>
+
+      <div class="todo-dialog-body">
+        <el-form label-position="top">
+          <el-form-item label="待办内容" required>
+            <el-input
+              v-model="todoForm.content"
+              type="textarea"
+              :rows="3"
+              maxlength="255"
+              show-word-limit
+              placeholder="例如：准备下周《React Hooks》课程内容"
+              class="todo-dialog-input"
+            />
+          </el-form-item>
+
+          <div class="todo-dialog-grid">
+            <el-form-item label="优先级">
+              <el-select v-model="todoForm.priority" class="todo-dialog-select" placeholder="请选择优先级">
+                <el-option label="高优先级" value="high" />
+                <el-option label="中优先级" value="medium" />
+                <el-option label="低优先级" value="low" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="截止时间">
+              <el-date-picker
+                v-model="todoForm.dueDate"
+                type="datetime"
+                placeholder="选择截止时间"
+                class="todo-dialog-date"
+                clearable
+              />
+            </el-form-item>
+          </div>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <div class="todo-dialog-footer">
+          <button class="todo-dialog-btn cancel" @click="todoDialogVisible = false">取消</button>
+          <button class="todo-dialog-btn confirm" :disabled="todoSubmitting" @click="submitTodoDialog">
+            {{ todoSubmitting ? '提交中...' : (todoDialogMode === 'create' ? '创建待办' : '保存修改') }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 快速操作浮动按钮 -->
-    <div class="fab-container">
-      <el-button 
-        type="primary" 
-        circle 
-        size="large" 
-        class="fab-main"
-        @click="showQuickActions = !showQuickActions"
-      >
-        <i class="fas fa-plus"></i>
-      </el-button>
-      
-      <transition-group name="fab" tag="div" class="fab-actions" v-show="showQuickActions">
-        <el-button 
+    <div class="fab-wrapper">
+      <div class="fab-menu" :class="{ 'active': showQuickActions }">
+        <button 
           v-for="action in quickActions" 
           :key="action.key"
-          :type="action.type" 
-          circle 
-          class="fab-action"
+          class="fab-item"
+          :class="action.type"
           @click="handleQuickAction(action.key)"
+          :title="action.key"
         >
           <i :class="action.icon"></i>
-        </el-button>
-      </transition-group>
+        </button>
+      </div>
+      <button 
+        class="fab-main-btn"
+        @click="showQuickActions = !showQuickActions"
+      >
+        <i class="fas" :class="showQuickActions ? 'fa-times' : 'fa-plus'"></i>
+      </button>
     </div>
   </div>
 </template>
@@ -246,9 +330,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {getIdentifier} from '@/utils/tokenAnalysis.js'
-import {getTeacherProfile, getMyCourseList} from '@/api/teacher/teacherAPI.js'
+import {
+  getTeacherProfile,
+  getMyCourseList,
+  getTeacherTodoList,
+  createTeacherTodo,
+  updateTeacherTodo,
+  deleteTeacherTodo
+} from '@/api/teacher/teacherAPI.js'
 
 const router = useRouter()
 
@@ -360,7 +451,7 @@ const stats = ref([
     change: '+2',
     trend: 'up',
     icon: 'fas fa-book',
-    color: '#409EFF'
+    color: '#4F46E5'
   },
   {
     key: 'students',
@@ -369,7 +460,7 @@ const stats = ref([
     change: '+23',
     trend: 'up',
     icon: 'fas fa-users',
-    color: '#67C23A'
+    color: '#10B981'
   },
   {
     key: 'assignments',
@@ -378,7 +469,7 @@ const stats = ref([
     change: '-5',
     trend: 'down',
     icon: 'fas fa-clipboard-check',
-    color: '#E6A23C'
+    color: '#F59E0B'
   },
   {
     key: 'rating',
@@ -387,7 +478,7 @@ const stats = ref([
     change: '+0.2',
     trend: 'up',
     icon: 'fas fa-star',
-    color: '#F56C6C'
+    color: '#EF4444'
   }
 ])
 
@@ -427,36 +518,109 @@ const recentActivities = ref([
 ])
 
 // 待办事项
-const todoList = ref([
-  {
-    id: 1,
-    text: '批改《Vue组件开发》作业',
-    completed: false,
-    priority: 'high',
-    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 2,
-    text: '准备下周的《React Hooks》课程内容',
-    completed: false,
-    priority: 'medium',
-    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 3,
-    text: '回复学生关于JavaScript闭包的问题',
-    completed: true,
-    priority: 'low',
-    dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 4,
-    text: '更新《TypeScript入门》课程大纲',
-    completed: false,
-    priority: 'medium',
-    dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+const todoList = ref([])
+const todoDialogVisible = ref(false)
+const todoDialogMode = ref('create')
+const todoSubmitting = ref(false)
+const editingTodoId = ref('')
+const todoForm = ref({
+  content: '',
+  priority: 'medium',
+  dueDate: null
+})
+
+const mapTodoFromApi = (todo) => {
+  return {
+    id: todo.id,
+    text: todo.content,
+    completed: Boolean(todo.completed),
+    priority: todo.priority || 'medium',
+    dueDate: todo.dueDate ? new Date(todo.dueDate) : null
   }
-])
+}
+
+const loadTodoData = async () => {
+  try {
+    const data = await getTeacherTodoList()
+    todoList.value = Array.isArray(data) ? data.map(mapTodoFromApi) : []
+  } catch (error) {
+    console.error('获取待办事项失败:', error)
+    ElMessage.error('获取待办事项失败，请稍后重试')
+  }
+}
+
+const normalizeTodoDate = (dateValue) => {
+  if (!dateValue) return null
+  const parsedDate = dateValue instanceof Date ? dateValue : new Date(dateValue)
+  if (Number.isNaN(parsedDate.getTime())) return null
+  return parsedDate.toISOString()
+}
+
+const resetTodoForm = () => {
+  todoForm.value = {
+    content: '',
+    priority: 'medium',
+    dueDate: null
+  }
+  editingTodoId.value = ''
+}
+
+const openCreateTodoDialog = () => {
+  todoDialogMode.value = 'create'
+  resetTodoForm()
+  todoDialogVisible.value = true
+}
+
+const openEditTodoDialog = (todo) => {
+  todoDialogMode.value = 'edit'
+  editingTodoId.value = todo.id
+  todoForm.value = {
+    content: todo.text || '',
+    priority: todo.priority || 'medium',
+    dueDate: todo.dueDate ? new Date(todo.dueDate) : null
+  }
+  todoDialogVisible.value = true
+}
+
+const submitTodoDialog = async () => {
+  const content = (todoForm.value.content || '').trim()
+  if (!content) {
+    ElMessage.warning('请输入待办事项内容')
+    return
+  }
+
+  const requestBody = {
+    content,
+    priority: todoForm.value.priority || 'medium'
+  }
+  const dueDate = normalizeTodoDate(todoForm.value.dueDate)
+  if (dueDate) {
+    requestBody.dueDate = dueDate
+  }
+
+  todoSubmitting.value = true
+  try {
+    if (todoDialogMode.value === 'create') {
+      await createTeacherTodo(requestBody)
+      ElMessage.success('待办事项新增成功')
+    } else {
+      if (!editingTodoId.value) {
+        ElMessage.error('待办事项ID无效')
+        return
+      }
+      await updateTeacherTodo(editingTodoId.value, requestBody)
+      ElMessage.success('待办事项更新成功')
+    }
+    todoDialogVisible.value = false
+    resetTodoForm()
+    await loadTodoData()
+  } catch (error) {
+    console.error('提交待办事项失败:', error)
+    ElMessage.error(error.message || '提交待办事项失败')
+  } finally {
+    todoSubmitting.value = false
+  }
+}
 
 // 学生反馈
 const recentFeedback = ref([
@@ -513,6 +677,7 @@ const quickActions = ref([
 
 // 方法
 const formatDate = (date) => {
+  if (!date) return '无截止日期'
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',
     month: 'long',
@@ -571,14 +736,36 @@ const editCourse = (courseId) => {
   router.push({ name: 'CourseEdit', params: { id: courseId } })
 }
 
-const addTodo = () => {
-  ElMessage.info('添加待办事项功能开发中')
-}
-
-const toggleTodo = (todoId) => {
+const toggleTodo = async (todoId) => {
   const todo = todoList.value.find(t => t.id === todoId)
   if (todo) {
-    ElMessage.success(todo.completed ? '任务已完成' : '任务已取消完成')
+    const targetCompleted = !todo.completed
+    try {
+      await updateTeacherTodo(todoId, { completed: targetCompleted })
+      todo.completed = targetCompleted
+      ElMessage.success(targetCompleted ? '任务已完成' : '任务已取消完成')
+    } catch (error) {
+      console.error('更新待办事项状态失败:', error)
+      ElMessage.error(error.message || '更新待办事项状态失败')
+    }
+  }
+}
+
+const deleteTodo = async (todoId) => {
+  try {
+    await ElMessageBox.confirm('确定删除该待办事项吗？', '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await deleteTeacherTodo(todoId)
+    todoList.value = todoList.value.filter(todo => todo.id !== todoId)
+    ElMessage.success('待办事项删除成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除待办事项失败:', error)
+      ElMessage.error(error.message || '删除待办事项失败')
+    }
   }
 }
 
@@ -611,536 +798,972 @@ onMounted(() => {
   // 页面加载时的初始化逻辑
   loadUserProfile()
   loadCourseData()
+  loadTodoData()
 })
 </script>
 
 <style scoped>
 .teacher-dashboard {
-  min-height: 100vh;
-  background: var(--bg-color);
-  padding: 20px;
+  /* 使用透明背景，因为 Layout 已经有了背景 */
+  background: transparent;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
-.welcome-section {
-  padding: 30px;
-  margin-bottom: 20px;
-}
-
-.welcome-content {
+/* Hero Section */
+.welcome-hero {
+  position: relative;
+  background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+  border-radius: 24px;
+  padding: 40px;
+  color: white;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.welcome-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
+.hero-bg-shapes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.shape-1 {
+  width: 200px;
+  height: 200px;
+  top: -50px;
+  right: -50px;
+}
+
+.shape-2 {
+  width: 150px;
+  height: 150px;
+  bottom: -30px;
+  left: 20%;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  width: 100%;
+}
+
+.hero-text-group {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.welcome-title i {
-  color: var(--primary-color);
+.greeting-title {
+  font-size: 36px;
+  margin: 0;
+  line-height: 1.2;
 }
 
-.welcome-subtitle {
-  color: var(--text-secondary);
+.text-light {
+  font-weight: 300;
+  opacity: 0.9;
+  margin-right: 12px;
+}
+
+.text-highlight {
+  font-weight: 700;
+}
+
+.teacher-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+.hero-subtitle {
   margin: 0;
   font-size: 16px;
-}
-
-.welcome-actions {
+  opacity: 0.9;
+  font-weight: 400;
   display: flex;
-  gap: 15px;
+  align-items: center;
 }
 
+.icon-mr {
+  margin-right: 8px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.primary-btn {
+  background: white;
+  color: #2563EB;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
 }
 
 .stat-card {
-  padding: 25px;
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
   display: flex;
-  align-items: center;
-  gap: 20px;
+  align-items: flex-start;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
 }
 
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+.stat-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
+  background: var(--icon-color);
   color: white;
-  font-size: 24px;
+  margin-right: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-.stat-content {
+.stat-info {
   flex: 1;
 }
 
 .stat-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-  margin-bottom: 5px;
+  color: #0F172A;
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.stat-change {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
+  color: #64748B;
   font-weight: 500;
 }
 
-.stat-change.up {
-  color: var(--success-color);
+.stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #F8FAFC;
 }
 
-.stat-change.down {
-  color: var(--danger-color);
+.stat-trend.up {
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.1);
 }
 
-.dashboard-content {
+.stat-trend.down {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
+  gap: 24px;
 }
 
-.left-content,
-.right-content {
+.main-column, .side-column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-.section-card {
-  padding: 25px;
+.dashboard-card {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.section-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 24px;
 }
 
-.section-title {
+.card-title {
   font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #0F172A;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.section-title i {
-  color: var(--primary-color);
+.title-decoration {
+  width: 4px;
+  height: 18px;
+  background: #2563EB;
+  border-radius: 2px;
 }
 
+.text-btn {
+  background: none;
+  border: none;
+  color: #2563EB;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.text-btn:hover {
+  background: #EFF6FF;
+}
+
+/* Course List */
 .course-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
 .course-item {
   display: flex;
-  gap: 15px;
-  padding: 15px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  cursor: pointer;
+  gap: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #F8FAFC;
   transition: all 0.3s ease;
-  background: var(--bg-color);
+  cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .course-item:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-light);
+  background: white;
+  border-color: #E2E8F0;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
   transform: translateY(-2px);
 }
 
-.course-cover {
-  position: relative;
-  width: 80px;
-  height: 60px;
-  border-radius: var(--border-radius-sm);
+.course-cover-wrapper {
+  width: 120px;
+  height: 80px;
+  border-radius: 12px;
   overflow: hidden;
+  position: relative;
 }
 
-.course-cover img {
+.course-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.course-status {
+.course-overlay {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 2px 6px;
-  border-radius: 10px;
+  top: 8px;
+  right: 8px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 10px;
+  font-weight: 600;
   color: white;
-  font-weight: 500;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
 }
 
-.course-status.published {
-  background: var(--success-color);
-}
+.status-badge.published { background: #10B981; }
+.status-badge.draft { background: #F59E0B; }
+.status-badge.archived { background: #94A3B8; }
 
-.course-status.draft {
-  background: var(--warning-color);
-}
-
-.course-status.archived {
-  background: var(--info-color);
-}
-
-.course-info {
+.course-details {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
 }
 
-.course-title {
+.course-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #0F172A;
   margin: 0;
-  line-height: 1.3;
 }
 
-.course-meta {
+.course-tags {
   display: flex;
-  gap: 15px;
-  color: var(--text-secondary);
+  gap: 12px;
   font-size: 12px;
-  flex-wrap: wrap;
+  color: #64748B;
+  align-items: center;
 }
 
-.course-meta span {
+.tag {
+  background: #E0F2FE;
+  color: #0369A1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.meta-item {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.course-description {
-  color: var(--text-secondary);
+.course-desc {
   font-size: 13px;
-  line-height: 1.4;
-  margin-top: 5px;
-  overflow: hidden;
+  color: #64748B;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.course-progress {
-  margin-top: auto;
-}
-
-.progress-info {
+.course-action {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  font-size: 12px;
-  color: var(--text-secondary);
+  align-items: center;
 }
 
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.activity-item {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.activity-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 14px;
-  flex-shrink: 0;
 }
 
-.activity-content {
+.icon-btn:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+/* Timeline */
+.activity-timeline {
+  position: relative;
+  padding-left: 12px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 24px;
+  display: flex;
+  gap: 16px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: #E2E8F0;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  z-index: 1;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 4px #F1F5F9;
+}
+
+.timeline-content {
   flex: 1;
 }
 
-.activity-text {
-  color: var(--text-primary);
+.activity-msg {
   font-size: 14px;
-  line-height: 1.4;
+  color: #334155;
   margin-bottom: 4px;
 }
 
 .activity-time {
-  color: var(--text-secondary);
   font-size: 12px;
+  color: #94A3B8;
 }
 
-.todo-list {
+/* Todo List */
+.highlight-card {
+  border: 1px solid #E2E8F0;
+}
+
+.add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #EFF6FF;
+  color: #2563EB;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-btn:hover {
+  background: #2563EB;
+  color: white;
+}
+
+.todo-list-modern {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.todo-item {
+.todo-row {
   display: flex;
-  gap: 12px;
   align-items: flex-start;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius);
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F1F5F9;
 }
 
-.todo-content {
+.todo-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.custom-checkbox {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.custom-checkbox input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  width: 20px;
+  background-color: #F1F5F9;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  transition: all 0.2s;
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background-color: #2563EB;
+  border-color: #2563EB;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 12px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.todo-info {
   flex: 1;
 }
 
-.todo-content.completed {
-  opacity: 0.6;
+.todo-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
 }
 
-.todo-content.completed .todo-text {
+.todo-action-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background: #F8FAFC;
+  color: #64748B;
+}
+
+.todo-action-btn.edit:hover {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+
+.todo-action-btn.delete:hover {
+  background: #FEF2F2;
+  color: #EF4444;
+}
+
+.todo-title {
+  font-size: 14px;
+  color: #334155;
+  margin-bottom: 4px;
+  transition: color 0.2s;
+}
+
+.is-done .todo-title {
+  color: #94A3B8;
   text-decoration: line-through;
 }
 
-.todo-text {
-  color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.4;
-  margin-bottom: 6px;
-}
-
-.todo-meta {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-}
-
-.todo-priority {
-  padding: 2px 6px;
-  border-radius: 10px;
-  color: white;
-  font-weight: 500;
-}
-
-.todo-priority.high {
-  background: var(--danger-color);
-}
-
-.todo-priority.medium {
-  background: var(--warning-color);
-}
-
-.todo-priority.low {
-  background: var(--info-color);
-}
-
-.todo-due {
-  color: var(--text-secondary);
-}
-
-.feedback-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.feedback-item {
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius);
-}
-
-.feedback-header {
+.todo-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  font-size: 11px;
 }
 
-.student-info {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.student-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.student-name {
-  font-weight: 500;
-  color: var(--text-primary);
-  font-size: 14px;
-}
-
-.course-name {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.feedback-content {
-  color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-.feedback-time {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.quick-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
-.quick-stat-item {
-  text-align: center;
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius);
-}
-
-.quick-stat-label {
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-bottom: 5px;
-}
-
-.quick-stat-value {
-  color: var(--primary-color);
-  font-size: 20px;
+.priority-tag {
+  padding: 2px 6px;
+  border-radius: 4px;
   font-weight: 600;
 }
 
-.fab-container {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  z-index: 1000;
+.priority-tag.high { background: #FEF2F2; color: #EF4444; }
+.priority-tag.medium { background: #FFFBEB; color: #F59E0B; }
+.priority-tag.low { background: #F0F9FF; color: #0EA5E9; }
+
+.due-date {
+  color: #94A3B8;
 }
 
-.fab-main {
-  width: 56px;
-  height: 56px;
-  box-shadow: var(--shadow-neu);
+.todo-empty {
+  text-align: center;
+  color: #94A3B8;
+  font-size: 13px;
+  padding: 6px 0;
 }
 
-.fab-actions {
-  position: absolute;
-  bottom: 70px;
-  right: 0;
+:deep(.todo-dialog) {
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+:deep(.todo-dialog .el-dialog) {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+:deep(.todo-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 20px 22px 0;
+}
+
+:deep(.todo-dialog .el-dialog__body) {
+  padding: 0 22px;
+}
+
+:deep(.todo-dialog .el-dialog__footer) {
+  padding: 18px 22px 22px;
+}
+
+.todo-dialog-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.todo-dialog-title-wrap {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.fab-action {
-  width: 48px;
-  height: 48px;
+.todo-dialog-title-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  color: #FFFFFF;
+  font-size: 13px;
 }
 
-.fab-enter-active,
-.fab-leave-active {
-  transition: all 0.3s ease;
+.todo-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  color: #0F172A;
+  font-weight: 700;
 }
 
-.fab-enter-from,
-.fab-leave-to {
+.todo-dialog-close {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 10px;
+  background: #F1F5F9;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.todo-dialog-close:hover {
+  background: #E2E8F0;
+  color: #334155;
+}
+
+.todo-dialog-body {
+  padding-top: 14px;
+}
+
+.todo-dialog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.todo-dialog-input :deep(.el-textarea__inner),
+.todo-dialog-select :deep(.el-select__wrapper),
+.todo-dialog-date :deep(.el-input__wrapper) {
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px #E2E8F0 inset;
+  transition: all 0.2s;
+  background: #FFFFFF;
+}
+
+.todo-dialog-input :deep(.el-textarea__inner:focus),
+.todo-dialog-select :deep(.el-select__wrapper.is-focused),
+.todo-dialog-date :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #3B82F6 inset, 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.todo-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.todo-dialog-btn {
+  min-width: 96px;
+  height: 38px;
+  border-radius: 11px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.todo-dialog-btn.cancel {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.todo-dialog-btn.cancel:hover {
+  background: #E2E8F0;
+  color: #334155;
+}
+
+.todo-dialog-btn.confirm {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  color: #FFFFFF;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.26);
+}
+
+.todo-dialog-btn.confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.32);
+}
+
+.todo-dialog-btn.confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Quick Stats Gradient Card */
+.gradient-card {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  color: white;
+}
+
+.white-text .card-title {
+  color: white;
+}
+
+.quick-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.q-stat-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.q-val {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.q-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Feedback Stack */
+.feedback-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feedback-mini-card {
+  background: #F8FAFC;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.feedback-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.f-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.f-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.f-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.f-content {
+  font-size: 12px;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+/* FAB */
+.fab-wrapper {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 100;
+}
+
+.fab-main-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: #2563EB;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fab-main-btn:hover {
+  transform: scale(1.1);
+}
+
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   opacity: 0;
   transform: translateY(20px) scale(0.8);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .dashboard-content {
+.fab-menu.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab-item {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  border: none;
+  background: white;
+  color: #64748B;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.fab-item:hover {
+  transform: translateY(-2px);
+}
+
+.fab-item.primary { color: #2563EB; }
+.fab-item.success { color: #10B981; }
+.fab-item.warning { color: #F59E0B; }
+.fab-item.info { color: #0EA5E9; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
   
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .teacher-dashboard {
-    padding: 10px;
+  .welcome-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
   }
   
-  .welcome-content {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
-  }
-  
-  .welcome-actions {
-    flex-direction: column;
+  .hero-actions {
     width: 100%;
   }
   
+  .action-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
   .stats-grid {
     grid-template-columns: 1fr;
   }
   
-  .stat-card {
-    padding: 20px;
-  }
-  
-  .course-item {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .course-cover {
-    width: 100%;
-    height: 120px;
-  }
-  
-  .quick-stats {
+  .quick-stats-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .fab-container {
-    bottom: 20px;
-    right: 20px;
   }
 }
 </style>

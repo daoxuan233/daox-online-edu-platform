@@ -1,57 +1,60 @@
 <template>
   <div class="course-outline-container">
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header glass-panel">
       <div class="header-content">
         <div class="header-left">
           <el-button
-              link
+              type="text"
               @click="$router.go(-1)"
               class="back-btn"
           >
             <font-awesome-icon :icon="['fas', 'arrow-left']"/>
-            返回课程编辑
+            <span class="back-text">返回课程编辑</span>
           </el-button>
-          <h1 class="page-title">
-            <font-awesome-icon :icon="['fas', 'list-alt']"/>
-            课程大纲编辑
-          </h1>
+          <div class="title-wrapper">
+            <h1 class="page-title">
+              <span class="icon-box header-icon"><font-awesome-icon :icon="['fas', 'sitemap']"/></span>
+              课程大纲编辑
+            </h1>
+            <span class="page-subtitle">构建清晰的课程结构，提升学习体验</span>
+          </div>
         </div>
         <div class="header-actions">
-          <el-button type="primary" class="action-btn publish-btn" @click="saveOutline">
-            <font-awesome-icon :icon="['fas', 'check']"/>
-            保存大纲
-          </el-button>
-          <!-- 上传资料/课程资料按钮 - 仅在内容已保存时显示 -->
+           <!-- 上传资料/课程资料按钮 - 仅在内容已保存时显示 -->
           <el-button 
             v-if="isSaved && !hasUnsavedChanges && !uploadMode" 
-            class="action-btn upload-btn" 
+            class="glass-btn" 
             @click="handleUploadClick"
             :disabled="!isSaved || hasUnsavedChanges"
           >
-            <font-awesome-icon :icon="['fas', 'upload']"/>
-            上传资料
+            <font-awesome-icon :icon="['fas', 'cloud-upload-alt']"/>
+            资料管理
           </el-button>
           
           <!-- 课程资料按钮 -->
           <el-button 
             v-if="uploadMode" 
-            class="action-btn course-materials-btn" 
+            class="glass-btn" 
             @click="showCourseUploadDialog"
           >
-            <font-awesome-icon :icon="['fas', 'folder']"/>
+            <font-awesome-icon :icon="['fas', 'folder-open']"/>
             课程资料
           </el-button>
           
           <!-- 小节资料按钮 -->
-          <!-- 小节资料按钮 -->
           <el-button 
             v-if="uploadMode" 
-            class="action-btn section-materials-btn" 
+            class="glass-btn" 
             @click="handleSectionMaterialsClick"
           >
             <font-awesome-icon :icon="['fas', 'file-alt']"/>
             小节资料
+          </el-button>
+
+          <el-button type="primary" class="gradient-btn" @click="saveOutline">
+            <font-awesome-icon :icon="['fas', 'save']"/>
+            保存大纲
           </el-button>
         </div>
       </div>
@@ -63,14 +66,14 @@
         <!-- 左侧编辑区域 -->
         <div class="edit-area">
           <!-- 大纲编辑器 -->
-          <div class="section-card">
+          <div class="glass-card section-card">
             <div class="section-header">
               <h3>
-                <font-awesome-icon :icon="['fas', 'sitemap']"/>
-                课程大纲结构
+                <span class="icon-box"><font-awesome-icon :icon="['fas', 'layer-group']"/></span>
+                课程结构
               </h3>
               <div class="header-actions">
-                <el-button size="small" class="add-chapter-btn" @click="addChapter">
+                <el-button size="small" class="add-chapter-btn gradient-btn-small" @click="addChapter">
                   <font-awesome-icon :icon="['fas', 'plus']"/>
                   添加章节
                 </el-button>
@@ -79,18 +82,17 @@
             <div class="section-content">
               <!-- 加载状态 -->
               <div v-if="loading" class="loading-container">
-                <el-icon class="is-loading"><Loading /></el-icon>
+                <div class="spinner"></div>
                 <span>正在加载课程大纲...</span>
               </div>
               
               <!-- 无数据提示 -->
               <div v-else-if="!hasOutlineData && chapters.length === 0" class="empty-state">
-                <el-empty description="暂无课程大纲">
-                  <template #description>
-                    <p>您还没有创建课程大纲</p>
-                    <p>点击"添加章节"开始创建您的课程内容</p>
-                  </template>
-                </el-empty>
+                <div class="empty-icon-wrapper">
+                   <font-awesome-icon :icon="['fas', 'folder-plus']"/>
+                </div>
+                <h3>暂无课程大纲</h3>
+                <p>点击上方"添加章节"开始构建您的课程内容</p>
               </div>
               
               <!-- 大纲编辑器 -->
@@ -101,46 +103,50 @@
                     group="chapters"
                     item-key="id"
                     class="chapters-list"
-                    :animation="200"
-                    ghost-class="ghost-chapter"
-                    chosen-class="chosen-chapter"
-                    drag-class="drag-chapter"
+                    :animation="300"
+                    ghost-class="ghost-card"
+                    drag-class="drag-card"
+                    handle=".drag-handle"
                     @start="onDragStart"
                     @end="onDragEnd"
                 >
                   <template #item="{ element: chapter, index: chapterIndex }">
-                    <div class="chapter-item neumorphism-raised" :key="chapter.id">
+                    <div class="chapter-item glass-panel" :key="chapter.id">
                       <!-- 章节头部 -->
                       <div class="chapter-header">
                         <div class="chapter-info">
                           <div class="drag-handle">
                             <font-awesome-icon :icon="['fas', 'grip-vertical']"/>
                           </div>
-                          <div class="chapter-number">第{{ chapterIndex + 1 }}章</div>
+                          <div class="chapter-number">第 {{ chapterIndex + 1 }} 章</div>
                           <div class="chapter-title-container">
                             <el-input
                                 v-model="chapter.title"
                                 placeholder="请输入章节标题"
-                                class="chapter-title-input"
+                                class="chapter-title-input glass-input"
                                 @blur="updateChapterTitle(chapter.id, chapter.title)"
                             />
                           </div>
                         </div>
                         <div class="chapter-actions">
-                          <el-button size="small" class="action-btn" @click="addLesson(chapter.id)">
-                            <font-awesome-icon :icon="['fas', 'plus']"/>
-                            添加课时
-                          </el-button>
-                          <el-button size="small" class="action-btn expand-btn" @click="toggleChapter(chapter.id)">
+                          <el-tooltip content="添加课时" placement="top">
+                             <button class="icon-btn action" @click="addLesson(chapter.id)">
+                                <font-awesome-icon :icon="['fas', 'plus-circle']"/>
+                             </button>
+                          </el-tooltip>
+                          <button class="icon-btn action" @click="toggleChapter(chapter.id)">
                             <font-awesome-icon :icon="chapter.expanded ? ['fas', 'chevron-up'] : ['fas', 'chevron-down']"/>
-                          </el-button>
-                          <el-button size="small" class="action-btn delete-btn" @click="deleteChapter(chapter.id)">
-                            <font-awesome-icon :icon="['fas', 'trash']"/>
-                          </el-button>
+                          </button>
+                          <el-tooltip content="删除章节" placement="top">
+                            <button class="icon-btn delete" @click="deleteChapter(chapter.id)">
+                                <font-awesome-icon :icon="['fas', 'trash-alt']"/>
+                            </button>
+                          </el-tooltip>
                         </div>
                       </div>
 
                       <!-- 课时列表 -->
+                      <transition name="expand">
                       <div v-show="chapter.expanded" class="lessons-container">
                         <draggable
                             v-model="chapter.lessons"
@@ -149,16 +155,16 @@
                             class="lessons-list"
                             :animation="200"
                             ghost-class="ghost-lesson"
-                            chosen-class="chosen-lesson"
                             drag-class="drag-lesson"
+                            handle=".drag-handle"
                         >
                           <template #item="{ element: lesson, index: lessonIndex }">
-                            <div class="lesson-item neumorphism-inset" :key="lesson.id">
+                            <div class="lesson-item" :key="lesson.id">
                               <div class="lesson-info">
-                                <div class="drag-handle">
-                                  <font-awesome-icon :icon="['fas', 'grip-vertical']"/>
+                                <div class="drag-handle small">
+                                  <font-awesome-icon :icon="['fas', 'grip-lines']"/>
                                 </div>
-                                <div class="lesson-icon">
+                                <div class="lesson-icon-wrapper">
                                   <font-awesome-icon :icon="getLessonIcon(lesson.type)"/>
                                 </div>
                                 <div class="lesson-number">{{ chapterIndex + 1 }}.{{ lessonIndex + 1 }}</div>
@@ -166,17 +172,19 @@
                                   <el-input
                                       v-model="lesson.title"
                                       placeholder="请输入课时标题"
-                                      class="lesson-title-input"
+                                      class="lesson-title-input glass-input small"
                                       @blur="updateLessonTitle(lesson.id, lesson.title)"
                                   />
                                 </div>
-
+                                <div class="lesson-duration-wrapper">
+                                    <font-awesome-icon :icon="['fas', 'clock']" class="clock-icon"/>
+                                    <span>{{ lesson.duration || '00:00' }}</span>
+                                </div>
                               </div>
                               <div class="lesson-actions">
-
-                                <el-button size="small" class="action-btn delete-btn" @click="deleteLesson(chapter.id, lesson.id)">
-                                  <font-awesome-icon :icon="['fas', 'trash']"/>
-                                </el-button>
+                                <button class="icon-btn delete small" @click="deleteLesson(chapter.id, lesson.id)">
+                                  <font-awesome-icon :icon="['fas', 'times']"/>
+                                </button>
                               </div>
                             </div>
                           </template>
@@ -184,28 +192,16 @@
                         
                         <!-- 空状态 -->
                         <div v-if="chapter.lessons.length === 0" class="empty-lessons">
-                          <div class="empty-icon">
-                            <font-awesome-icon :icon="['fas', 'plus-circle']"/>
+                          <div class="empty-dashed-box" @click="addLesson(chapter.id)">
+                            <font-awesome-icon :icon="['fas', 'plus']"/>
+                            <span>点击添加第一个课时</span>
                           </div>
-                          <p>暂无课时，点击"添加课时"开始创建</p>
                         </div>
                       </div>
+                      </transition>
                     </div>
                   </template>
                 </draggable>
-                
-                <!-- 空状态 -->
-                <div v-if="chapters.length === 0" class="empty-chapters">
-                  <div class="empty-icon">
-                    <font-awesome-icon :icon="['fas', 'book-open']"/>
-                  </div>
-                  <h3>开始创建课程大纲</h3>
-                  <p>添加章节和课时，构建完整的课程结构</p>
-                  <el-button type="primary" class="add-first-chapter-btn" @click="addChapter">
-                    <font-awesome-icon :icon="['fas', 'plus']"/>
-                    添加第一个章节
-                  </el-button>
-                </div>
               </div>
             </div>
           </div>
@@ -214,62 +210,61 @@
         <!-- 右侧预览区域 -->
         <div class="preview-area">
           <!-- 大纲预览 -->
-          <div class="preview-card">
+          <div class="glass-card preview-card">
             <div class="preview-header">
               <h3>
-                <font-awesome-icon :icon="['fas', 'eye']"/>
-                大纲预览
+                <span class="icon-box small"><font-awesome-icon :icon="['fas', 'mobile-alt']"/></span>
+                学生端预览
               </h3>
             </div>
             <div class="preview-content">
-              <div class="outline-preview">
-                <div v-for="(chapter, chapterIndex) in chapters" :key="chapter.id" class="preview-chapter">
-                  <div class="preview-chapter-title">
-                    <span class="chapter-number">第{{ chapterIndex + 1 }}章</span>
-                    <span class="chapter-title">{{ chapter.title || '未命名章节' }}</span>
-                  </div>
-                  <div class="preview-lessons">
-                    <div v-for="(lesson, lessonIndex) in chapter.lessons" :key="lesson.id" class="preview-lesson">
-                      <span class="lesson-number">{{ chapterIndex + 1 }}.{{ lessonIndex + 1 }}</span>
-                      <font-awesome-icon :icon="getLessonIcon(lesson.type)" class="lesson-icon"/>
-                      <span class="lesson-title">{{ lesson.title || '未命名课时' }}</span>
-                      <span class="lesson-duration">{{ lesson.duration || '0:00' }}</span>
+              <div class="outline-preview-container">
+                 <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="preview-list">
+                            <div v-for="(chapter, chapterIndex) in chapters" :key="chapter.id" class="preview-chapter">
+                              <div class="preview-chapter-title">
+                                <span class="p-chapter-num">第{{ chapterIndex + 1 }}章</span>
+                                <span class="p-chapter-text">{{ chapter.title || '未命名章节' }}</span>
+                              </div>
+                              <div class="preview-lessons">
+                                <div v-for="(lesson, lessonIndex) in chapter.lessons" :key="lesson.id" class="preview-lesson">
+                                  <div class="p-lesson-left">
+                                      <span class="p-lesson-num">{{ chapterIndex + 1 }}.{{ lessonIndex + 1 }}</span>
+                                      <span class="p-lesson-text">{{ lesson.title || '未命名课时' }}</span>
+                                  </div>
+                                  <font-awesome-icon :icon="['fas', 'play-circle']" class="p-play-icon"/>
+                                </div>
+                              </div>
+                            </div>
+                            <div v-if="chapters.length === 0" class="preview-empty">
+                              <p>大纲内容将显示在这里</p>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                </div>
-                
-                <div v-if="chapters.length === 0" class="preview-empty">
-                  <p>暂无内容</p>
-                </div>
+                 </div>
               </div>
             </div>
           </div>
 
           <!-- 统计信息 -->
-          <div class="stats-card">
+          <div class="glass-card stats-card">
             <div class="stats-header">
               <h3>
-                <font-awesome-icon :icon="['fas', 'chart-bar']"/>
+                <span class="icon-box small"><font-awesome-icon :icon="['fas', 'chart-pie']"/></span>
                 课程统计
               </h3>
             </div>
             <div class="stats-content">
-              <div class="stat-item">
-                <div class="stat-icon">
-                  <font-awesome-icon :icon="['fas', 'book']"/>
+              <div class="stat-row">
+                <div class="stat-item">
+                    <div class="stat-val">{{ chapters.length }}</div>
+                    <div class="stat-lbl">章节</div>
                 </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ chapters.length }}</div>
-                  <div class="stat-label">章节数</div>
-                </div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-icon">
-                  <font-awesome-icon :icon="['fas', 'play-circle']"/>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ totalLessons }}</div>
-                  <div class="stat-label">课时数</div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-val">{{ totalLessons }}</div>
+                    <div class="stat-lbl">课时</div>
                 </div>
               </div>
             </div>
@@ -283,11 +278,12 @@
       v-model="showUploadDialog"
       title="上传课程资料"
       width="500px"
+      custom-class="glass-dialog"
       :close-on-click-modal="false"
     >
       <div class="upload-dialog-content">
         <el-upload
-          class="upload-demo"
+          class="glass-upload-area"
           drag
           action="#"
           multiple
@@ -295,17 +291,14 @@
           :file-list="courseFileList"
           :on-change="handleCourseFileChange"
         >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">
-            将文件拖到此处，或<em>点击上传</em>
+          <div class="upload-icon-wrapper">
+             <font-awesome-icon :icon="['fas', 'cloud-upload-alt']"/>
           </div>
-          <template #tip>
-            <div class="el-upload__tip">
-              支持上传 PDF、DOC、PPT、视频等课程相关资料
-            </div>
-          </template>
+          <div class="el-upload__text">
+            拖拽文件到此处，或<em>点击上传</em>
+          </div>
         </el-upload>
-        <div class="upload-options">
+        <div class="upload-options glass-panel">
             <el-checkbox
               v-model="allowDownload"
               label="允许学生下载"
@@ -322,8 +315,8 @@
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showUploadDialog = false">取消</el-button>
-          <el-button type="primary" @click="submitCourseUpload">确定</el-button>
+          <el-button class="glass-btn" @click="showUploadDialog = false">取消</el-button>
+          <el-button type="primary" class="gradient-btn" @click="submitCourseUpload">确定上传</el-button>
         </span>
       </template>
     </el-dialog>
@@ -333,11 +326,12 @@
       v-model="showSectionUploadDialog"
       :title="`上传资料到【${selectedLesson?.chapterName || '未知章节'} - ${selectedLesson?.name || '未知小节'}】`"
       width="500px"
+      custom-class="glass-dialog"
       :close-on-click-modal="false"
     >
       <div class="upload-dialog-content">
         <el-upload
-          class="upload-demo"
+          class="glass-upload-area"
           drag
           action="#"
           multiple
@@ -345,78 +339,66 @@
           :file-list="courseFileList"
           :on-change="handleCourseFileChange"
         >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">
-            将文件拖到此处，或<em>点击上传</em>
+          <div class="upload-icon-wrapper">
+             <font-awesome-icon :icon="['fas', 'cloud-upload-alt']"/>
           </div>
-          <template #tip>
-            <div class="el-upload__tip">
-              支持上传 PDF、DOC、PPT、视频等课程相关资料
-            </div>
-          </template>
+          <div class="el-upload__text">
+            拖拽文件到此处，或<em>点击上传</em>
+          </div>
         </el-upload>
-        <div class="upload-options">
+        <div class="upload-options glass-panel">
             <el-checkbox
               v-model="allowDownload"
               label="允许学生下载"
               :disabled="currentIsVideo"
             />
-            <el-tooltip
-              v-if="currentIsVideo"
-              content="视频文件默认不允许下载"
-              placement="top"
-            >
-              <font-awesome-icon :icon="['fas', 'info-circle']" class="info-icon" />
-            </el-tooltip>
         </div>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showSectionUploadDialog = false">取消</el-button>
-          <el-button type="primary" @click="submitSectionUpload">确定</el-button>
+          <el-button class="glass-btn" @click="showSectionUploadDialog = false">取消</el-button>
+          <el-button type="primary" class="gradient-btn" @click="submitSectionUpload">确定上传</el-button>
         </span>
       </template>
     </el-dialog>
     
-    <!-- 小节资料上传区域 -->
-    <div v-if="showSectionUpload" class="section-upload-area">
-      <div class="section-upload-header">
-        <h3>
-          <font-awesome-icon :icon="['fas', 'file-upload']"/>
-          小节资料上传
-        </h3>
-        <el-button size="small" @click="showSectionUpload = false">
-          <font-awesome-icon :icon="['fas', 'times']"/>
-          关闭
-        </el-button>
-      </div>
-      <div class="section-upload-content">
-        <p class="upload-tip">请选择要上传资料的小节：</p>
-        <div class="section-list">
-          <div v-for="(chapter, chapterIndex) in chapters" :key="chapter.id" class="chapter-upload-item">
-            <div class="chapter-upload-title">第{{ chapterIndex + 1 }}章：{{ chapter.title || '未命名章节' }}</div>
-            <div class="lessons-upload-list">
-              <div 
-            v-for="(lesson, lessonIndex) in chapter.lessons" 
-            :key="lesson.id" 
-            class="lesson-upload-item"
-            @click="selectLessonForUpload(lesson, chapter, lessonIndex)"
-          >
-            <div class="lesson-upload-info">
-              <font-awesome-icon :icon="getLessonIcon(lesson.type)"/>
-              <span class="lesson-number">{{ chapterIndex + 1 }}.{{ lessonIndex + 1 }}</span>
-              <span class="lesson-title">{{ lesson.title || '未命名课时' }}</span>
-            </div>
-            <el-button size="small" type="primary" @click.stop="openSectionUploadDialog(lesson, chapter)">
-              <font-awesome-icon :icon="['fas', 'upload']"/>
-              上传资料
-            </el-button>
-          </div>
+    <!-- 小节资料上传区域 (抽屉式) -->
+    <teleport to="body">
+      <div class="section-upload-drawer glass-panel" :class="{ open: showSectionUpload }">
+        <div class="drawer-header">
+          <h3>
+            <font-awesome-icon :icon="['fas', 'file-upload']"/>
+            选择小节上传资料
+          </h3>
+          <button class="icon-btn close" @click="showSectionUpload = false">
+            <font-awesome-icon :icon="['fas', 'times']"/>
+          </button>
+        </div>
+        <div class="drawer-content">
+          <div class="section-list">
+            <div v-for="(chapter, chapterIndex) in chapters" :key="chapter.id" class="chapter-upload-group">
+              <div class="chapter-upload-title">第{{ chapterIndex + 1 }}章：{{ chapter.title || '未命名章节' }}</div>
+              <div class="lessons-upload-list">
+                <div 
+                  v-for="(lesson, lessonIndex) in chapter.lessons" 
+                  :key="lesson.id" 
+                  class="lesson-upload-item glass-card hover-lift"
+                  @click="openSectionUploadDialog(lesson, chapter)"
+                >
+                  <div class="lesson-upload-info">
+                    <span class="lesson-number">{{ chapterIndex + 1 }}.{{ lessonIndex + 1 }}</span>
+                    <span class="lesson-title">{{ lesson.title || '未命名课时' }}</span>
+                  </div>
+                  <div class="upload-action-icon">
+                    <font-awesome-icon :icon="['fas', 'cloud-upload-alt']"/>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </teleport>
   </div>
 </template>
 
@@ -424,7 +406,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, UploadFilled } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import { getCourseOutline, updateCourseOutline, uploadAndAssociateFile } from '@/api/teacher/teacherAPI.js'
 
@@ -497,7 +478,6 @@ const handleUploadClick = () => {
   ElMessage.success('资料管理模式已激活')
 }
 
-// 处理小节资料按钮点击
 const handleSectionMaterialsClick = () => {
   showSectionUpload.value = !showSectionUpload.value
 }
@@ -505,14 +485,6 @@ const handleSectionMaterialsClick = () => {
 // 显示课程上传对话框
 const showCourseUploadDialog = () => {
   showUploadDialog.value = true
-}
-
-// 切换小节上传区域显示
-const toggleSectionUpload = () => {
-  showSectionUpload.value = !showSectionUpload.value
-  if (showSectionUpload.value) {
-    ElMessage.info('请在下方选择要上传资料的小节')
-  }
 }
 
 // 获取视频时长
@@ -531,7 +503,7 @@ const getVideoDuration = (file) => {
 // 处理课程文件变化
 const handleCourseFileChange = async (file, fileList) => {
   courseFileList.value = fileList;
-  // 检查文件类型，如果是视频文件则默认不允许下载
+  // 检查文件类型
   const videoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
   currentIsVideo.value = fileList.some(f => videoTypes.includes(f.raw.type));
   if (currentIsVideo.value) {
@@ -549,22 +521,6 @@ const handleCourseFileChange = async (file, fileList) => {
     }
   }
 };
-
-// 关闭上传对话框
-const handleCloseUploadDialog = (done) => {
-  if (courseFileList.value.length > 0) {
-    ElMessageBox.confirm('确定要关闭吗？未保存的文件将丢失。', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }).then(() => {
-      courseFileList.value = []
-      done()
-    }).catch(() => {})
-  } else {
-    done()
-  }
-}
 
 // 上传课程文件
 const submitCourseUpload = async () => {
@@ -643,26 +599,15 @@ const submitSectionUpload = async () => {
   }
 };
 
-// 选择小节进行上传
-const selectLessonForUpload = (lesson, chapter) => {
+// 打开小节资料上传对话框
+const openSectionUploadDialog = (lesson, chapter) => {
   selectedLesson.value = {
     name: lesson.title,
     chapterName: chapter.title,
     sectionId: lesson.id,
     chapterId: chapter.id
   }
-}
-
-// 打开小节资料上传对话框
-const openSectionUploadDialog = (lesson, chapter) => {
-  selectLessonForUpload(lesson, chapter)
   showSectionUploadDialog.value = true
-}
-
-// 课程资料上传功能（保留原有功能）
-const uploadCourseMaterials = () => {
-  ElMessage.info('课程资料上传功能开发中...')
-  // TODO: 实现课程资料上传逻辑
 }
 
 // 方法
@@ -670,7 +615,7 @@ const addChapter = () => {
   const newChapter = {
     id: Date.now(),
     title: '',
-    expanded: false,
+    expanded: true,
     lessons: []
   }
   chapters.value.push(newChapter)
@@ -714,6 +659,8 @@ const addLesson = (chapterId) => {
       duration: ''
     }
     chapter.lessons.push(newLesson)
+    // 确保展开
+    chapter.expanded = true
     checkForChanges()
     ElMessage.success('课时添加成功')
   }
@@ -721,34 +668,24 @@ const addLesson = (chapterId) => {
 
 const deleteLesson = async (chapterId, lessonId) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个课时吗？', '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    
     const chapter = chapters.value.find(c => c.id === chapterId)
     if (chapter) {
       const index = chapter.lessons.findIndex(l => l.id === lessonId)
       if (index > -1) {
         chapter.lessons.splice(index, 1)
         checkForChanges()
-        ElMessage.success('课时删除成功')
       }
     }
   } catch {
-    // 用户取消删除
+    // 忽略
   }
-}
-
-const editLesson = (lesson) => {
-  ElMessage.info('课时详细编辑功能开发中...')
 }
 
 const updateChapterTitle = (chapterId, title) => {
   const chapter = chapters.value.find(c => c.id === chapterId)
   if (chapter) {
     chapter.title = title
+    checkForChanges()
   }
 }
 
@@ -757,6 +694,7 @@ const updateLessonTitle = (lessonId, title) => {
     const lesson = chapter.lessons.find(l => l.id === lessonId)
     if (lesson) {
       lesson.title = title
+      checkForChanges()
     }
   })
 }
@@ -799,7 +737,6 @@ const onDragStart = () => {
 const onDragEnd = () => {
   // 拖拽结束时的处理
   checkForChanges()
-  ElMessage.success('大纲结构已更新')
 }
 
 const saveOutline = async () => {
@@ -825,11 +762,11 @@ const saveOutline = async () => {
   // 构建符合CourseOutlineDto结构的数据
   const outlineDto = {
     outline: chapters.value.map((chapter, chapterIndex) => ({
-      id: chapter.id, // 包含章节ID
+      id: typeof chapter.id === 'string' ? chapter.id : null,
       title: chapter.title.trim(),
       orderIndex: chapterIndex, // 数值越大表示在界面中显示的位置越靠后
       sections: chapter.lessons.map((lesson, lessonIndex) => ({
-        id: lesson.id, // 包含小节ID
+        id: typeof lesson.id === 'string' ? lesson.id : null,
         title: lesson.title.trim(),
         videoUrl: lesson.videoUrl || null, // 如无数据显式设置为null
         durationSeconds: parseDurationToSeconds(lesson.duration) || 0,
@@ -849,8 +786,6 @@ const saveOutline = async () => {
     ElMessage.error('保存课程大纲失败，请重试')
   } finally {
     loading.value = false
-    // 初始化原始数据快照
-    saveOriginalData()
   }
 }
 
@@ -869,15 +804,13 @@ const loadCourseOutline = async () => {
     // 处理不同的响应格式
     let outline = null
     
-    // 检查是否是标准API响应格式 {success: true, code: 200, data: {outline: []}}
+    // 检查是否是标准API响应格式
     if (response && response.success && response.code === 200 && response.data && response.data.outline) {
       outline = response.data.outline
     }
-    // 检查是否直接返回outline数组格式 {outline: []}
     else if (response && response.outline && Array.isArray(response.outline)) {
       outline = response.outline
     }
-    // 检查是否直接返回数组格式 []
     else if (Array.isArray(response)) {
       outline = response
     }
@@ -888,18 +821,18 @@ const loadCourseOutline = async () => {
       const sortedOutline = [...outline].sort((a, b) => a.orderIndex - b.orderIndex)
       
       chapters.value = sortedOutline.map(chapter => ({
-        id: chapter.id || Date.now() + Math.random(), // 使用后端返回的章节ID，如果没有则生成
+        id: chapter.id || Date.now() + Math.random(), 
         title: chapter.title || '',
-        expanded: false,
+        expanded: true, // 默认展开
         orderIndex: chapter.orderIndex,
         lessons: chapter.sections ? 
           // 按orderIndex排序小节
           [...chapter.sections]
             .sort((a, b) => a.orderIndex - b.orderIndex)
             .map(section => ({
-              id: section.id || Date.now() + Math.random(), // 使用后端返回的小节ID，如果没有则生成
+              id: section.id || Date.now() + Math.random(), 
               title: section.title || '',
-              type: 'video', // 默认类型为视频
+              type: 'video', 
               duration: formatDuration(section.durationSeconds),
               videoUrl: section.videoUrl || '',
               orderIndex: section.orderIndex
@@ -907,18 +840,17 @@ const loadCourseOutline = async () => {
       }))
       
       hasOutlineData.value = true
+      saveOriginalData() // 保存初始状态
       ElMessage.success('课程大纲加载成功')
     } else {
-      // 没有找到outline数据或outline为空
       chapters.value = []
       hasOutlineData.value = false
-      ElMessage.info('暂无课程大纲，您可以开始创建')
+      saveOriginalData()
     }
   } catch (error) {
     console.error('加载课程大纲失败:', error)
     chapters.value = []
     hasOutlineData.value = false
-    ElMessage.warning('加载课程大纲失败，您可以创建新的大纲')
   } finally {
     loading.value = false
   }
@@ -931,56 +863,46 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 基础样式 */
+:root {
+  --primary-gradient: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+}
+
 .course-outline-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  position: relative;
-  overflow-x: hidden;
+  background-color: transparent;
+  padding: 0;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
 }
 
-.course-outline-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.course-outline-container > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* 页面头部 */
-.page-header {
-  background: rgba(255, 255, 255, 0.15);
+/* Glass Components */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 24px 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* Header */
+.page-header {
+  padding: 16px 0;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -989,47 +911,33 @@ onMounted(() => {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
 .back-btn {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 14px;
-  padding: 12px 18px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #64748b;
+  font-size: 14px;
 }
 
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 
-    0 6px 20px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+.title-wrapper {
+  display: flex;
+  flex-direction: column;
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .header-actions {
@@ -1037,327 +945,57 @@ onMounted(() => {
   gap: 12px;
 }
 
-.action-btn {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  padding: 14px 24px;
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.action-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.6s;
-}
-
-.action-btn:hover::before {
-  left: 100%;
-}
-
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.save-btn {
-  color: #67C23A;
-}
-
-.publish-btn {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-  color: white;
-  box-shadow: 8px 8px 16px rgba(0, 47, 167, 0.3), -8px -8px 16px rgba(255, 255, 255, 0.8);
-}
-
-.upload-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.upload-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.6s;
-}
-
-.upload-btn:hover::before {
-  left: 100%;
-}
-
-.upload-btn:hover {
-  background: linear-gradient(135deg, #f2a5fc 0%, #f76b7a 100%);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 
-    0 10px 30px rgba(240, 147, 251, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.upload-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.1), inset -4px -4px 8px rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 课程资料按钮样式 */
-.course-materials-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.course-materials-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.6s;
-}
-
-.course-materials-btn:hover::before {
-  left: 100%;
-}
-
-.course-materials-btn:hover {
-  background: linear-gradient(135deg, #7c8cec 0%, #8a5fb0 100%);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 
-    0 10px 30px rgba(102, 126, 234, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-/* 小节资料按钮样式 */
-.section-materials-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.section-materials-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.6s;
-}
-
-.section-materials-btn:hover::before {
-  left: 100%;
-}
-
-.section-materials-btn:hover {
-  background: linear-gradient(135deg, #f2a5fc 0%, #f76b7a 100%);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 
-    0 10px 30px rgba(240, 147, 251, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-/* 小节上传区域样式 */
-.section-upload-area {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  border-top: 1px solid #e4e7ed;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.section-upload-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #f8f9fa;
-}
-
-.section-upload-header h3 {
-  margin: 0;
-  color: #303133;
-  font-size: 16px;
-}
-
-.section-upload-content {
-  padding: 20px 24px;
-}
-
-.upload-tip {
-  margin: 0 0 16px 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.chapter-upload-item {
-  margin-bottom: 20px;
-}
-
-.chapter-upload-title {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #f0f2f5;
-  border-radius: 6px;
-}
-
-.lessons-upload-list {
-  margin-left: 20px;
-}
-
-.lesson-upload-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.lesson-upload-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
-}
-
-.lesson-upload-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.lesson-upload-info .lesson-number {
-  font-weight: 600;
-  color: #909399;
-  min-width: 40px;
-}
-
-.lesson-upload-info .lesson-title {
-  color: #303133;
-}
-
-/* 上传对话框样式 */
-.upload-dialog-content {
-  padding: 24px 0;
-  position: relative;
-}
-
-.upload-demo {
-  width: 100%;
-  margin-bottom: 24px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(102, 126, 234, 0.05);
-  border: 2px dashed rgba(102, 126, 234, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.upload-demo:hover {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.5);
-  transform: scale(1.02);
-}
-
-.upload-options {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: rgba(102, 126, 234, 0.05);
+.glass-btn {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: #475569;
+  padding: 8px 16px;
   border-radius: 12px;
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
+  font-weight: 600;
+  height: 36px;
 }
 
-.upload-options:hover {
-  background: rgba(102, 126, 234, 0.1);
+.glass-btn:hover {
+  background: white;
+  color: #2563eb;
+  border-color: #2563eb;
 }
 
-.upload-options .info-icon {
-  color: #667eea;
-  font-size: 18px;
+.gradient-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  height: 36px;
 }
 
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+.gradient-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
 }
 
-/* 主要内容 */
+.gradient-btn-small {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  border: none;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: white;
+}
+
+/* Main Content */
 .main-content {
-  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px;
 }
 
 .content-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 320px;
-  gap: 32px;
-}
-
-/* 编辑区域 */
-.edit-area {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.section-card {
-  background: #f0f0f3;
-  box-shadow: 8px 8px 16px #d1d1d4, -8px -8px 16px #ffffff;
-  border-radius: 16px;
-  overflow: hidden;
+  gap: 30px;
 }
 
 .section-header {
@@ -1369,82 +1007,35 @@ onMounted(() => {
 }
 
 .section-header h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
   margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
+
+.icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.icon-box.small { width: 28px; height: 28px; font-size: 12px; }
 
 .section-content {
   padding: 24px;
-}
-
-/* 新拟态样式 */
-.neumorphism-raised {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 
-    0 12px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.neumorphism-raised:hover {
-  background: rgba(255, 255, 255, 0.35);
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 
-    0 16px 40px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.neumorphism-inset {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    inset 0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.neumorphism-inset:hover {
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    inset 0 6px 20px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-/* 大纲编辑器 */
-.outline-editor {
   min-height: 400px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 
-    0 16px 40px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.outline-editor:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
+/* Draggable List */
 .chapters-list {
   display: flex;
   flex-direction: column;
@@ -1452,32 +1043,17 @@ onMounted(() => {
 }
 
 .chapter-item {
-  padding: 24px;
-  margin-bottom: 20px;
-  position: relative;
+  border-radius: 16px;
   overflow: hidden;
-}
-
-.chapter-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.6s;
-}
-
-.chapter-item:hover::before {
-  left: 100%;
+  transition: all 0.3s;
 }
 
 .chapter-header {
+  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .chapter-info {
@@ -1488,127 +1064,71 @@ onMounted(() => {
 }
 
 .drag-handle {
-  color: #909399;
+  color: #94a3b8;
   cursor: grab;
   padding: 4px;
 }
 
-.drag-handle:active {
-  cursor: grabbing;
-}
+.drag-handle.small { font-size: 12px; }
 
 .chapter-number {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-  color: white;
-  padding: 6px 12px;
+  font-weight: 700;
+  color: #334155;
+  width: 60px;
+}
+
+.glass-input :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 60px;
-  text-align: center;
 }
 
-.chapter-title-container {
-  flex: 1;
-}
-
-.chapter-title-input {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.chapter-title-input:focus {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-  outline: none;
+.glass-input.small :deep(.el-input__wrapper) {
+  padding: 1px 8px;
+  height: 28px;
 }
 
 .chapter-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
-.chapter-actions .btn {
-  padding: 8px 16px;
-  font-size: 13px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.9);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.chapter-actions .btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.add-chapter-btn {
-  background: #f0f0f3;
-  box-shadow: 8px 8px 16px #d1d1d4, -8px -8px 16px #ffffff;
-  border-radius: 8px;
+.icon-btn {
+  background: transparent;
   border: none;
-  padding: 8px 12px;
-  color: #002FA7;
-  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
 
-.expand-btn {
-  color: #909399;
+.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #2563eb;
 }
 
-.delete-btn {
-  color: #F56C6C;
+.icon-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
-/* 课时列表 */
 .lessons-container {
-  margin-top: 16px;
-  padding-left: 40px;
-}
-
-.lessons-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  background: rgba(248, 250, 252, 0.5);
+  padding: 8px 16px 16px;
 }
 
 .lesson-item {
-  padding: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  position: relative;
-  overflow: hidden;
-}
-
-.lesson-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  transition: left 0.5s;
-}
-
-.lesson-item:hover::before {
-  left: 100%;
-}
-
-.lesson-item:hover {
-  transform: translateX(4px);
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .lesson-info {
@@ -1616,541 +1136,246 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   flex: 1;
-  margin-right: 11px;
 }
 
-.lesson-icon {
-  color: #002FA7;
-  width: 16px;
+.lesson-icon-wrapper {
+  color: #64748b;
+  font-size: 14px;
 }
 
 .lesson-number {
-  background: rgba(0, 47, 167, 0.1);
-  color: #002FA7;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  min-width: 40px;
-  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  width: 40px;
 }
 
-.lesson-title-container {
-  flex: 1;
-}
-
-.lesson-title-input {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 15px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.lesson-title-input:focus {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
-  outline: none;
-}
-
-.type-select {
-  width: 80px;
-}
-
-.duration-input {
-  width: 80px;
-}
-
-.lesson-actions {
+.lesson-duration-wrapper {
+  margin-left: auto;
+  margin-right: 16px;
   display: flex;
-  gap: 10px;
-  position: relative;
-  z-index: 1;
-}
-
-.lesson-actions .btn {
-  padding: 6px 12px;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.85);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
+  color: #94a3b8;
 }
 
-.lesson-actions .btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  transform: translateY(-1px) scale(1.05);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+/* Empty States */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: #94a3b8;
 }
 
-.edit-btn {
-  color: #409EFF;
-}
-
-/* 拖拽样式 */
-.ghost-chapter {
-  opacity: 0.5;
-  background: rgba(0, 47, 167, 0.1);
-}
-
-.chosen-chapter {
-  transform: rotate(5deg);
-}
-
-.drag-chapter {
-  transform: rotate(5deg);
-  opacity: 0.8;
-}
-
-.ghost-lesson {
-  opacity: 0.5;
-  background: rgba(0, 47, 167, 0.1);
-}
-
-.chosen-lesson {
-  transform: rotate(2deg);
-}
-
-.drag-lesson {
-  transform: rotate(2deg);
-  opacity: 0.8;
-}
-
-/* 空状态 */
-.empty-chapters, .empty-lessons {
-  text-align: center;
-  padding: 60px 20px;
-  color: #909399;
-}
-
-.empty-icon {
+.empty-icon-wrapper {
   font-size: 48px;
-  color: #DCDFE6;
   margin-bottom: 16px;
+  opacity: 0.5;
 }
 
-.empty-chapters h3 {
-  font-size: 18px;
-  color: #606266;
-  margin: 16px 0 8px;
+.empty-dashed-box {
+  border: 2px dashed rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.empty-chapters p {
+.empty-dashed-box:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.05);
+}
+
+/* Preview Phone */
+.preview-card {
   margin-bottom: 24px;
 }
 
-.add-first-chapter-btn {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-  border: none;
-  border-radius: 12px;
-  padding: 12px 24px;
-  color: white;
-  font-weight: 600;
+.phone-mockup {
+  background: #1e293b;
+  border-radius: 30px;
+  padding: 12px;
+  max-width: 280px;
+  min-height: 568px;
+  margin: 0 auto;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
 }
 
-/* 预览区域 */
-.preview-area {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.preview-card, .stats-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 
-    0 16px 40px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.preview-card:hover, .stats-card:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-4px);
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.preview-header, .stats-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.preview-header h3, .stats-header h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.3px;
-}
-
-.preview-content, .stats-content {
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* 大纲预览 */
-.outline-preview {
-  max-height: 400px;
+.phone-screen {
+  background: white;
+  border-radius: 20px;
+  height: 568px;
   overflow-y: auto;
+  padding: 16px;
 }
 
 .preview-chapter {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .preview-chapter-title {
+  font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+  margin-bottom: 8px;
 }
 
-.preview-chapter-title .chapter-number {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-}
-
-.preview-lessons {
-  padding-left: 20px;
-}
+.p-chapter-num { color: #64748b; margin-right: 6px; }
 
 .preview-lesson {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
-  transition: all 0.2s ease;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 6px;
 }
 
-.preview-lesson:hover {
-  color: rgba(255, 255, 255, 0.95);
-  transform: translateX(4px);
-}
-
-.preview-lesson .lesson-number {
-  background: rgba(0, 47, 167, 0.1);
-  color: #002FA7;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  min-width: 30px;
-  text-align: center;
-}
-
-.preview-lesson .lesson-icon {
-  color: #002FA7;
-  width: 12px;
-}
-
-.preview-lesson .lesson-title {
-  flex: 1;
-}
-
-.preview-lesson .lesson-duration {
-  color: #ffffff;
+.p-lesson-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
 }
 
-.preview-empty {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 60px 20px;
-  font-style: italic;
+.p-lesson-num { color: #94a3b8; }
+.p-play-icon { color: #cbd5e1; font-size: 12px; }
+
+/* Stats */
+.stat-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
 }
 
-/* 统计信息 */
-.stats-content {
+.stat-item {
+  text-align: center;
+}
+
+.stat-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.stat-lbl {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(0,0,0,0.05);
+}
+
+/* Drawer */
+.section-upload-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-upload-drawer.open {
+  transform: translateY(0);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+}
+
+.drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.section-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.stat-item {
+.chapter-upload-title {
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.lessons-upload-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.lesson-upload-item {
+  padding: 12px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid transparent;
 }
 
-.stat-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.6s;
+.lesson-upload-item:hover {
+  border-color: #2563eb;
 }
 
-.stat-item:hover::before {
-  left: 100%;
-}
-
-.stat-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 18px;
-  box-shadow: 
-    0 8px 16px rgba(0, 47, 167, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-item:hover .stat-icon {
-  transform: scale(1.1) rotate(5deg);
-  box-shadow: 
-    0 12px 24px rgba(0, 47, 167, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 4px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-/* 加载状态和空状态样式 */
-.loading-container {
+.lesson-upload-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: #909399;
 }
 
-.loading-container .el-icon {
-  font-size: 24px;
-  margin-bottom: 12px;
+.lesson-upload-info .lesson-number {
+  font-size: 11px;
+  color: #94a3b8;
 }
 
-.loading-container span {
-  font-size: 14px;
+.lesson-upload-info .lesson-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
 }
 
-.empty-state {
-  padding: 40px 20px;
+.upload-action-icon {
+  color: #2563eb;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.empty-state .el-empty {
-  padding: 20px;
+.lesson-upload-item:hover .upload-action-icon {
+  opacity: 1;
 }
 
-.empty-state p {
-  margin: 8px 0;
-  color: #909399;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-/* 响应式设计 */
+/* Responsive */
 @media (max-width: 1200px) {
   .content-wrapper {
     grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  
-  .preview-section {
-    position: static;
-    order: -1;
-  }
-}
-
-@media (max-width: 768px) {
-  .course-outline {
-    padding: 16px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
-    padding: 20px 24px;
-  }
-  
-  .page-title {
-    font-size: 24px;
-  }
-  
-  .upload-buttons {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .upload-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .outline-editor {
-    padding: 20px;
-  }
-  
-  .chapter-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-  }
-  
-  .chapter-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .lesson-item {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  
-  .lesson-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .header-actions {
-    justify-content: center;
-  }
-  
-  .chapter-info {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  .lesson-info {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  .lessons-container {
-    padding-left: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .course-outline {
-    padding: 12px;
-  }
-  
-  .page-header {
-    padding: 16px 20px;
-  }
-  
-  .page-title {
-    font-size: 20px;
-  }
-  
-  .outline-editor {
-    padding: 16px;
-  }
-  
-  .chapter-item {
-    padding: 16px;
-  }
-  
-  .chapter-title {
-    font-size: 16px;
-  }
-  
-  .lesson-item {
-    padding: 12px;
-  }
-  
-  .lesson-title {
-    font-size: 14px;
-  }
-  
-  .preview-section {
-    padding: 20px;
-  }
-  
-  .stat-item {
-    padding: 16px;
-  }
-  
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-  
-  .stat-value {
-    font-size: 20px;
   }
 }
 </style>

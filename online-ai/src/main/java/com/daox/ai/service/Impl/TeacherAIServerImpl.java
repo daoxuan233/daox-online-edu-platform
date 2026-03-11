@@ -349,7 +349,7 @@ public class TeacherAIServerImpl {
 
         // --- 第二道防线：向量语义相似度 (步骤 3: 动态阈值) ---
         // 阈值设定为 0.8
-        double similarityThreshold = 0.8;
+        double similarityThreshold = 0.85;
 
         // 构建搜索请求：只找最相似的1条
         SearchRequest searchRequest = SearchRequest.builder()

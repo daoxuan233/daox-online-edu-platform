@@ -17,7 +17,13 @@ spring:
     publisher-confirm-type: correlated
     publisher-returns: true
   datasource:
-    url: jdbc:mysql://localhost:3306/online_educate?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    # 统一使用东八区，避免前端输入本地时间后在JDBC层被按UTC偏移8小时写入数据库
+    # 说明：
+    # 1) 前端传入的是本地业务时间（如 2026-03-05 00:00:00）
+    # 2) 后端当前时间模型包含 java.util.Date（瞬时时间），会经过JDBC时区换算
+    # 3) 若此处配置为 UTC，会出现“前端00:00，数据库落16:00(前一天)”的问题
+    # 因此将 serverTimezone 调整为 Asia/Shanghai，保证写入与读取都按业务时区一致
+    url: jdbc:mysql://localhost:3306/online_educate?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -60,6 +66,10 @@ spring:
       origin: "*"
       credentials: true
       methods: "*"
+
+  jackson:
+    # 统一JSON序列化时区为东八区，避免接口响应中的时间显示为 +00:00 引发前端展示歧义
+    time-zone: Asia/Shanghai
 
 app:
   file-storage:

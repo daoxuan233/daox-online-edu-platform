@@ -43,8 +43,10 @@ public class PaperController {
     public RestBean<?> findPaperByAssessmentId(@PathVariable String assessmentId) {
         PaperDTO paper = paperService.findPaperByAssessmentId(assessmentId);
         if (paper == null){
-            log.info("[findPaperByAssessmentId.method] 获取失败");
-            return RestBean.failure(500, "获取失败");
+            // 对于新建测评尚未组卷的场景，返回“未找到试卷”而不是500系统错误。
+            // 这样前端可以按业务语义展示“暂无试卷内容”，而不是把它当成系统异常。
+            log.info("[findPaperByAssessmentId.method] 未找到试卷: assessmentId={}", assessmentId);
+            return RestBean.failure(404, "未找到与该测评关联的试卷");
         }
         return RestBean.success(paper);
     }

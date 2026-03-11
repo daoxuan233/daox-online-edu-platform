@@ -1,18 +1,19 @@
 <template>
   <div class="course-detail-page">
     <!-- 课程头部信息 -->
-    <div class="course-header">
+    <div class="course-header" ref="headerRef">
+      <canvas ref="particleCanvas" class="particle-bg"></canvas>
       <div class="container">
         <div class="header-content">
           <!-- 课程基本信息 -->
           <div class="course-info">
-            <div class="breadcrumb">
+<!--            <div class="breadcrumb">
               <el-breadcrumb separator=">">
                 <el-breadcrumb-item :to="{ path: '/index' }">首页</el-breadcrumb-item>
                 <el-breadcrumb-item :to="{ path: '/index/courses' }">课程中心</el-breadcrumb-item>
                 <el-breadcrumb-item>{{ course.title }}</el-breadcrumb-item>
               </el-breadcrumb>
-            </div>
+            </div>-->
 
             <div class="course-meta">
               <div class="course-badges">
@@ -57,7 +58,7 @@
                 </div>
               </div>
 
-              <div class="instructor-info">
+<!--              <div class="instructor-info">
                 <UserAvatar
                     :src="course.instructor.avatar"
                     :name="course.instructor.name"
@@ -66,7 +67,7 @@
                     role="teacher"
                     style="width: 480px;"
                 />
-              </div>
+              </div>-->
             </div>
           </div>
 
@@ -101,21 +102,21 @@
                       class="purchase-btn neumorphism-button"
                       @click="handlePurchase"
                   >
-                    <font-awesome-icon :icon="['fas', 'shopping-cart']" class="mr-sm"/>
-                    立即购买
+                    <font-awesome-icon :icon="['fas', course.price > 0 ? 'shopping-cart' : 'plus']" class="mr-sm"/>
+                    {{ course.price > 0 ? '立即购买' : '加入课程' }}
                   </el-button>
 
-                  <el-button
+<!--                  <el-button
                       size="large"
                       class="cart-btn neumorphism-button"
                       @click="handleAddToCart"
                   >
                     <font-awesome-icon :icon="['fas', 'heart']" class="mr-sm"/>
                     加入收藏
-                  </el-button>
+                  </el-button>-->
                 </div>
 
-                <div class="guarantee-info">
+<!--                <div class="guarantee-info">
                   <div class="guarantee-item">
                     <font-awesome-icon :icon="['fas', 'shield-alt']" class="text-secondary"/>
                     <span>30天无理由退款</span>
@@ -128,7 +129,7 @@
                     <font-awesome-icon :icon="['fas', 'certificate']" class="text-secondary"/>
                     <span>完成后颁发证书</span>
                   </div>
-                </div>
+                </div>-->
               </div>
             </div>
           </div>
@@ -305,7 +306,7 @@
                         v-for="instructorCourse in course.instructor.courseList"
                         :key="instructorCourse.id"
                         class="instructor-course-item"
-                        @click="$router.push(`/index/courses/${instructorCourse.id}`)"
+                        @click="navigateToCourse(instructorCourse.id)"
                     >
                       <img
                           :src="instructorCourse.cover || COURSE_THUMBNAIL"
@@ -349,20 +350,224 @@
 </template>
 
 <script setup>
-import {ref, reactive, onMounted} from 'vue'
-import {useRoute} from 'vue-router'
+import {ref, reactive, onMounted, onUnmounted, nextTick} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import {ElMessage} from 'element-plus'
 import UserAvatar from '@/components/UserAvatar.vue'
 import {COURSE_DETAIL_PLACEHOLDER, AVATAR_MEDIUM, AVATAR_SMALL, COURSE_THUMBNAIL} from '@/utils/placeholders'
-import {getCourseDetail} from '@/api/students/stuAPI.js'
+import {getCourseDetail, joinCourse} from '@/api/students/stuAPI.js'
 import {formatDateTime} from '@/utils/dateUtils.js'
 import markdownRender from '@/components/markdownRender/NotAIShow.vue'
 
+const router = useRouter()
 const route = useRoute()
 const activeTab = ref('overview')
 const showPreview = ref(false)
 const expandedChapters = ref([0]) // 默认展开第一章
 const loading = ref(false) // 加载状态
+
+// 粒子特效相关
+const particleCanvas = ref(null)
+const headerRef = ref(null)
+let ctx = null
+let particlesArray = []
+let animationFrameId = null
+let mouse = { x: null, y: null, radius: 150 }
+
+const handleMouseMove = (event) => {
+  if (headerRef.value) {
+    const rect = headerRef.value.getBoundingClientRect()
+    mouse.x = event.clientX - rect.left
+    mouse.y = event.clientY - rect.top
+  }
+}
+
+const handleMouseLeave = () => {
+  mouse.x = null
+  mouse.y = null
+}
+
+class Particle {
+  constructor(x, y) {
+    this.x = Math.random() * particleCanvas.value.width
+    this.y = Math.random() * particleCanvas.value.height
+    this.baseX = x
+    this.baseY = y
+    this.size = 2
+    this.density = (Math.random() * 30) + 1
+  }
+
+  update() {
+    let dx = mouse.x - this.x
+    let dy = mouse.y - this.y
+    let distance = Math.sqrt(dx * dx + dy * dy)
+    let forceDirectionX = dx / distance
+    let forceDirectionY = dy / distance
+    let maxDistance = mouse.radius
+    let force = (maxDistance - distance) / maxDistance
+    let directionX = forceDirectionX * force * this.density
+    let directionY = forceDirectionY * force * this.density
+
+    if (mouse.x !== null && distance < mouse.radius) {
+      this.x -= directionX
+      this.y -= directionY
+    } else {
+      if (this.x !== this.baseX) {
+        let dx = this.x - this.baseX
+        this.x -= dx / 10
+      }
+      if (this.y !== this.baseY) {
+        let dy = this.y - this.baseY
+        this.y -= dy / 10
+      }
+    }
+    this.draw()
+  }
+
+  draw() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)' // 降低不透明度作为水印
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
+    ctx.closePath()
+    ctx.fill()
+  }
+}
+
+const getWatermarkText = (title) => {
+  if (!title) return 'Online Edu'
+  const t = title.toLowerCase()
+  
+  const map = [
+    { keys: ['vue'], text: 'Evan You' },
+    { keys: ['react'], text: 'Jordan Walke' },
+    { keys: ['angular'], text: 'Misko Hevery' },
+    { keys: ['java', 'spring'], text: 'System.out.println' },
+    { keys: ['python', 'django', 'flask'], text: 'print("Hello World")' },
+    { keys: ['c++', 'cpp'], text: '#include <iostream>' },
+    { keys: ['c#', 'csharp'], text: 'Console.WriteLine' },
+    { keys: ['javascript', 'js', 'node'], text: 'console.log' },
+    { keys: ['go', 'golang'], text: 'fmt.Println' },
+    { keys: ['rust'], text: 'fn main()' },
+    { keys: ['docker', 'k8s', 'kubernetes'], text: 'FROM scratch' },
+    { keys: ['linux', 'unix', 'ubuntu'], text: 'echo $HOME' },
+    { keys: ['git'], text: 'git init' },
+    { keys: ['sql', 'mysql', 'database'], text: 'SELECT * FROM' },
+    { keys: ['html'], text: '<!DOCTYPE html>' },
+    { keys: ['css'], text: 'display: flex' }
+  ]
+  
+  for (const item of map) {
+    if (item.keys.some(k => t.includes(k))) {
+      return item.text
+    }
+  }
+  
+  // 默认返回标题，太长则截断
+  return title.length > 10 ? title.substring(0, 10) + '...' : title
+}
+
+function initParticles() {
+  if (!headerRef.value || !particleCanvas.value) return
+  
+  const width = headerRef.value.offsetWidth
+  const height = headerRef.value.offsetHeight
+  
+  particleCanvas.value.width = width
+  particleCanvas.value.height = height
+  
+  particlesArray = []
+  
+  // 绘制文字获取坐标
+  const text = getWatermarkText(course.title)
+  // 动态调整字体大小以适应
+  let fontSize = 80
+  if (text.length > 10) fontSize = 60
+  if (text.length > 15) fontSize = 40
+  
+  ctx.font = `700 ${fontSize}px Verdana`
+  ctx.fillStyle = 'white'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, width / 2, height / 2)
+  
+  // 获取像素数据
+  const textCoordinates = ctx.getImageData(0, 0, width, height)
+  
+  // 采样步长，越小粒子越密集
+  const step = 6 
+  
+  for (let y = 0; y < textCoordinates.height; y += step) {
+    for (let x = 0; x < textCoordinates.width; x += step) {
+      // 检查alpha通道
+      if (textCoordinates.data[(y * 4 * textCoordinates.width) + (x * 4) + 3] > 128) {
+        particlesArray.push(new Particle(x, y))
+      }
+    }
+  }
+  
+  // 添加少量随机背景粒子增加氛围
+  for (let i = 0; i < 30; i++) {
+      particlesArray.push(new Particle(Math.random() * width, Math.random() * height))
+  }
+}
+
+function animateParticles() {
+  if (!particleCanvas.value) return
+  
+  ctx.clearRect(0, 0, particleCanvas.value.width, particleCanvas.value.height)
+  
+  for (let i = 0; i < particlesArray.length; i++) {
+    particlesArray[i].update()
+  }
+  
+  connectParticles()
+  animationFrameId = requestAnimationFrame(animateParticles)
+}
+
+function connectParticles() {
+  let opacityValue = 1
+  for (let a = 0; a < particlesArray.length; a++) {
+    for (let b = a; b < particlesArray.length; b++) {
+      // 只连接非常近的粒子，避免文字变模糊
+      // 使用更小的连接距离
+      let dx = particlesArray[a].x - particlesArray[b].x
+      let dy = particlesArray[a].y - particlesArray[b].y
+      let distance = dx * dx + dy * dy
+      
+      if (distance < 600) { // 减小连接距离
+        opacityValue = 1 - (distance/600)
+        ctx.strokeStyle = 'rgba(255, 255, 255,' + opacityValue * 0.15 + ')' 
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(particlesArray[a].x, particlesArray[a].y)
+        ctx.lineTo(particlesArray[b].x, particlesArray[b].y)
+        ctx.stroke()
+      }
+    }
+    
+    // 连接鼠标
+    if (mouse.x !== null) {
+        let dx = mouse.x - particlesArray[a].x
+        let dy = mouse.y - particlesArray[a].y
+        let distance = (dx * dx) + (dy * dy)
+        
+        if (distance < (mouse.radius * mouse.radius)) {
+            let opacity = 1 - (distance / (mouse.radius * mouse.radius))
+            ctx.strokeStyle = 'rgba(255, 255, 255,' + opacity * 0.4 + ')'
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(mouse.x, mouse.y)
+            ctx.lineTo(particlesArray[a].x, particlesArray[a].y)
+            ctx.stroke()
+        }
+    }
+  }
+}
+
+// 窗口大小改变处理
+const handleResize = () => {
+    initParticles()
+}
 
 // 课程数据
 const course = reactive({
@@ -512,8 +717,21 @@ const toggleChapter = (index) => {
   }
 }
 
-const handlePurchase = () => {
-  ElMessage.success('跳转到支付页面...')
+const handlePurchase = async () => {
+  if (course.price > 0) {
+    ElMessage.success('跳转到支付页面...')
+    // 这里添加跳转支付逻辑
+  } else {
+    try {
+      const res = await joinCourse(course.id)
+      ElMessage.success(res || '加入课程成功！')
+      // 可以在这里刷新课程数据或者跳转到学习页面
+      // await loadCourseData(course.id) 
+    } catch (error) {
+      console.error('加入课程失败:', error)
+      ElMessage.error(error.message || '加入课程失败，请重试')
+    }
+  }
 }
 
 const handleAddToCart = () => {
@@ -531,6 +749,15 @@ const handleLikeReview = (review) => {
 
 const handleReplyReview = (review) => {
   ElMessage.info('回复功能开发中...')
+}
+
+const navigateToCourse = async (courseId) => {
+  // 更新路由参数
+  await router.push(`/index/courses/${courseId}`)
+  // 重新加载课程数据
+  loadCourseData(courseId)
+  // 滚动到顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // 获取课程状态样式类
@@ -640,6 +867,11 @@ const loadCourseData = async (courseId) => {
       }
 
       console.log('映射后的课程数据:', JSON.parse(JSON.stringify(course)))
+      
+      // 数据加载完成后，初始化/更新粒子水印
+      nextTick(() => {
+        initParticles()
+      })
     }
   } catch (error) {
     console.error('加载课程数据失败:', error)
@@ -651,6 +883,20 @@ const loadCourseData = async (courseId) => {
 
 // 生命周期
 onMounted(() => {
+  // 粒子系统初始化
+  if (particleCanvas.value) {
+    ctx = particleCanvas.value.getContext('2d')
+    initParticles()
+    animateParticles()
+    window.addEventListener('resize', handleResize)
+    
+    // 添加鼠标事件监听
+    if (headerRef.value) {
+        headerRef.value.addEventListener('mousemove', handleMouseMove)
+        headerRef.value.addEventListener('mouseleave', handleMouseLeave)
+    }
+  }
+
   // 根据路由参数加载课程数据
   const courseId = route.params.id
   if (courseId) {
@@ -658,6 +904,15 @@ onMounted(() => {
   } else {
     console.log('使用默认课程数据')
   }
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+    if (headerRef.value) {
+        headerRef.value.removeEventListener('mousemove', handleMouseMove)
+        headerRef.value.removeEventListener('mouseleave', handleMouseLeave)
+    }
+    cancelAnimationFrame(animationFrameId)
 })
 </script>
 
@@ -739,11 +994,24 @@ onMounted(() => {
 
 /* 课程头部区域 */
 .course-header {
-  background: linear-gradient(135deg, var(--primary-color) 1%, var(--secondary-color) 60%);
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 25%),
+    radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.08) 0%, transparent 20%),
+    linear-gradient(135deg, var(--primary-color) 1%, var(--secondary-color) 60%);
   color: white;
-  padding: 2rem 0 4rem;
+  padding: 1rem 0;
   position: relative;
   overflow: hidden;
+}
+
+.particle-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .course-header::before {
@@ -753,7 +1021,11 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
   pointer-events: none;
 }
 
@@ -768,8 +1040,8 @@ onMounted(() => {
 .header-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 3rem;
-  align-items: start;
+  gap: 4rem;
+  align-items: center;
 }
 
 /* 面包屑导航 */
@@ -789,21 +1061,25 @@ onMounted(() => {
 /* 课程基本信息 */
 .course-info {
   animation: slideInLeft 0.8s ease-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .course-badges {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
 }
 
 .course-title {
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   font-weight: 700;
-  line-height: 1.3;
-  margin: 0 0 2rem;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  margin: 0 0 2.5rem;
   text-overflow: ellipsis;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .course-title-other-courses-title {
@@ -839,7 +1115,7 @@ onMounted(() => {
 .course-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
+  gap: 3rem;
   margin-bottom: 2rem;
 }
 

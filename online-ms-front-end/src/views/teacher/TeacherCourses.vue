@@ -5,18 +5,20 @@
       <div class="header-content">
         <div class="header-left">
           <h1 class="page-title">
-            <i class="fas fa-book"></i>
+            <span class="icon-wrapper">
+              <i class="fas fa-book-open"></i>
+            </span>
             课程管理
           </h1>
-          <p class="page-subtitle">管理您的所有课程内容</p>
+          <p class="page-subtitle">管理您的所有课程内容，创建精彩的教学体验</p>
         </div>
         <div class="header-actions">
-          <el-button type="primary" class="neu-button" @click="createCourse">
+          <el-button type="primary" class="gradient-btn" @click="createCourse">
             <font-awesome-icon :icon="['fas', 'plus']" />
             创建课程
           </el-button>
-          <el-button class="neu-button" @click="importCourse">
-            <font-awesome-icon :icon="['fas', 'upload']" />
+          <el-button class="glass-btn" @click="importCourse">
+            <font-awesome-icon :icon="['fas', 'cloud-upload-alt']" />
             导入课程
           </el-button>
         </div>
@@ -25,43 +27,44 @@
 
     <!-- 统计卡片 -->
     <div class="stats-section">
-      <div class="stat-card neu-card" v-for="stat in courseStats" :key="stat.key">
-        <div class="stat-icon" :style="{ backgroundColor: stat.color }">
+      <div class="stat-card glass-card hover-effect" v-for="stat in courseStats" :key="stat.key">
+        <div class="stat-icon-wrapper" :style="{ background: `linear-gradient(135deg, ${stat.color}20, ${stat.color}40)`, color: stat.color }">
           <i :class="stat.icon"></i>
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
         </div>
+        <div class="stat-decoration" :style="{ background: stat.color }"></div>
       </div>
     </div>
 
     <!-- 筛选和搜索 -->
-    <div class="filter-section neu-card">
+    <div class="filter-section glass-card">
       <div class="filter-row">
         <div class="search-group">
           <el-input
             v-model="searchQuery"
             placeholder="搜索课程名称、描述..."
-            class="search-input"
+            class="glass-input"
             clearable
             @input="handleSearch"
           >
             <template #prefix>
-              <font-awesome-icon :icon="['fas', 'search']" />
+              <font-awesome-icon :icon="['fas', 'search']" class="search-icon" />
             </template>
           </el-input>
         </div>
         
         <div class="filter-group">
-          <el-select v-model="filterStatus" placeholder="状态" class="filter-select" @change="handleFilter">
+          <el-select v-model="filterStatus" placeholder="状态" class="glass-select" @change="handleFilter" popper-class="glass-dropdown">
             <el-option label="全部状态" value="" />
             <el-option label="已发布" value="published" />
             <el-option label="草稿" value="draft" />
             <el-option label="已归档" value="archived" />
           </el-select>
           
-          <el-select v-model="filterCategory" placeholder="分类" class="filter-select" @change="handleFilter">
+          <el-select v-model="filterCategory" placeholder="分类" class="glass-select" @change="handleFilter" popper-class="glass-dropdown">
             <el-option label="全部分类" value="" />
             <el-option label="前端开发" value="frontend" />
             <el-option label="后端开发" value="backend" />
@@ -70,7 +73,7 @@
             <el-option label="设计" value="design" />
           </el-select>
           
-          <el-select v-model="sortBy" placeholder="排序" class="filter-select" @change="handleSort">
+          <el-select v-model="sortBy" placeholder="排序" class="glass-select" @change="handleSort" popper-class="glass-dropdown">
             <el-option label="最新创建" value="created_desc" />
             <el-option label="最新更新" value="updated_desc" />
             <el-option label="学生最多" value="students_desc" />
@@ -79,16 +82,16 @@
         </div>
         
         <div class="view-toggle">
-          <el-button-group>
+          <el-button-group class="glass-btn-group">
             <el-button 
-              :type="viewMode === 'grid' ? 'primary' : ''"
+              :class="{ active: viewMode === 'grid' }"
               @click="viewMode = 'grid'"
               class="view-btn"
             >
               <font-awesome-icon :icon="['fas', 'th-large']" />
             </el-button>
             <el-button 
-              :type="viewMode === 'list' ? 'primary' : ''"
+              :class="{ active: viewMode === 'list' }"
               @click="viewMode = 'list'"
               class="view-btn"
             >
@@ -102,30 +105,31 @@
     <!-- 课程列表 -->
     <div class="courses-section">
       <!-- 网格视图 -->
-      <div v-if="viewMode === 'grid'" class="courses-grid">
+      <transition-group name="list" tag="div" v-if="viewMode === 'grid'" class="courses-grid">
         <div 
           v-for="course in filteredCourses" 
           :key="course.id" 
-          class="course-card neu-card"
+          class="course-card glass-card hover-lift"
         >
           <div class="course-cover">
             <img :src="course.cover" :alt="course.title" />
-            <div class="course-status" :class="course.status">
+            <div class="course-overlay"></div>
+            <div class="course-status-badge" :class="course.status">
               {{ getStatusText(course.status) }}
             </div>
-            <div class="course-actions">
-              <el-button circle size="small" @click="editCourse(course.id)">
+            <div class="course-actions-overlay">
+              <el-button circle class="action-btn" @click="editCourse(course.id)">
                 <font-awesome-icon :icon="['fas', 'edit']" />
               </el-button>
-              <el-button circle size="small" @click="previewCourse(course.id)">
+              <el-button circle class="action-btn" @click="previewCourse(course.id)">
                 <font-awesome-icon :icon="['fas', 'eye']" />
               </el-button>
-              <el-dropdown @command="handleCourseAction">
-                <el-button circle size="small">
-                  <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
+              <el-dropdown @command="handleCourseAction" trigger="click">
+                <el-button circle class="action-btn">
+                  <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
                 </el-button>
                 <template #dropdown>
-                  <el-dropdown-menu>
+                  <el-dropdown-menu class="glass-dropdown-menu">
                     <el-dropdown-item :command="{ action: 'duplicate', id: course.id }">
                       <font-awesome-icon :icon="['fas', 'copy']" /> 复制课程
                     </el-dropdown-item>
@@ -135,7 +139,7 @@
                     <el-dropdown-item :command="{ action: 'archive', id: course.id }" v-if="course.status !== 'archived'">
                       <font-awesome-icon :icon="['fas', 'archive']" /> 归档课程
                     </el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided>
+                    <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided class="danger-item">
                       <font-awesome-icon :icon="['fas', 'trash']" /> 删除课程
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -145,16 +149,17 @@
           </div>
           
           <div class="course-content">
-            <h3 class="course-title">{{ course.title }}</h3>
+            <div class="course-category-tag">{{ getCategoryText(course.category) }}</div>
+            <h3 class="course-title" :title="course.title">{{ course.title }}</h3>
             <p class="course-description">{{ course.description }}</p>
             
             <div class="course-meta">
               <div class="meta-item">
-                <font-awesome-icon :icon="['fas', 'users']" />
-                <span>{{ course.studentCount }} 学生</span>
+                <font-awesome-icon :icon="['fas', 'user-graduate']" />
+                <span>{{ course.studentCount }}</span>
               </div>
               <div class="meta-item">
-                <font-awesome-icon :icon="['fas', 'star']" />
+                <font-awesome-icon :icon="['fas', 'star']" class="star-icon" />
                 <span>{{ course.rating }}</span>
               </div>
               <div class="meta-item">
@@ -164,16 +169,23 @@
             </div>
             
             <div class="course-footer">
+              <div class="course-price">
+                <template v-if="course.price !== null && course.price !== undefined && course.price !== ''">
+                  <span class="currency">¥</span>
+                  <span class="amount">{{ course.price }}</span>
+                </template>
+                <span v-else class="price-unavailable">暂无价格</span>
+              </div>
               <div class="course-updated">
-                <span>{{ formatRelativeTime(course.updatedAt) }}</span>
+                <span>{{ formatRelativeTime(course.updatedAt) }} 更新</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </transition-group>
 
       <!-- 列表视图 -->
-      <div v-else class="courses-list">
+      <div v-else class="courses-list glass-card">
         <div class="list-header">
           <div class="header-cell course-info">课程信息</div>
           <div class="header-cell">状态</div>
@@ -184,87 +196,87 @@
           <div class="header-cell">操作</div>
         </div>
         
-        <div 
-          v-for="course in filteredCourses" 
-          :key="course.id" 
-          class="list-item neu-card"
-        >
-          <div class="list-cell course-info">
-            <div class="course-basic">
-              <img :src="course.cover" :alt="course.title" class="course-thumbnail" />
-              <div class="course-details">
-                <h4 class="course-title">{{ course.title }}</h4>
-                <p class="course-category">{{ getCategoryText(course.category) }}</p>
-                <div class="course-progress-mini">
-                  <span>完成度: {{ course.completionRate }}%</span>
-                  <el-progress
-                    :percentage="course.completionRate"
-                    :stroke-width="4"
-                    :show-text="false"
-                  />
+        <transition-group name="list-item">
+          <div 
+            v-for="course in filteredCourses" 
+            :key="course.id" 
+            class="list-item"
+          >
+            <div class="list-cell course-info">
+              <div class="course-basic">
+                <div class="course-thumbnail-wrapper">
+                  <img :src="course.cover" :alt="course.title" class="course-thumbnail" />
+                </div>
+                <div class="course-details">
+                  <h4 class="course-title">{{ course.title }}</h4>
+                  <p class="course-category-text">{{ getCategoryText(course.category) }}</p>
+                  <div class="course-progress-mini">
+                    <span class="progress-label">完成度: {{ course.completionRate }}%</span>
+                    <el-progress 
+                      :percentage="course.completionRate" 
+                      :stroke-width="4" 
+                      :show-text="false"
+                      :color="customColorMethod"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div class="list-cell">
-            <el-tag :type="getStatusType(course.status)" size="small">
-              {{ getStatusText(course.status) }}
-            </el-tag>
-          </div>
-          
-          <div class="list-cell">
-            <span class="student-count">
-              <font-awesome-icon :icon="['fas', 'users']" />
-              {{ course.studentCount }}
-            </span>
-          </div>
-          
-          <div class="list-cell">
-            <div class="rating">
-              <font-awesome-icon :icon="['fas', 'star']" />
-              <span>{{ course.rating }}</span>
+            
+            <div class="list-cell">
+              <span class="status-dot" :class="course.status"></span>
+              <span class="status-text">{{ getStatusText(course.status) }}</span>
+            </div>
+            
+            <div class="list-cell">
+              <span class="student-count">
+                {{ course.studentCount }}
+              </span>
+            </div>
+            
+            <div class="list-cell">
+              <div class="rating-badge">
+                <font-awesome-icon :icon="['fas', 'star']" />
+                <span>{{ course.rating }}</span>
+              </div>
+            </div>
+            
+            <div class="list-cell">
+              <span v-if="course.price !== null && course.price !== undefined && course.price !== ''" class="price">¥{{ course.price }}</span>
+              <span v-else class="price-unavailable">暂无价格</span>
+            </div>
+            
+            <div class="list-cell">
+              <span class="update-time">{{ formatRelativeTime(course.updatedAt) }}</span>
+            </div>
+            
+            <div class="list-cell actions">
+              <el-tooltip content="编辑" placement="top" :hide-after="0">
+                <button class="icon-btn" @click="editCourse(course.id)">
+                  <font-awesome-icon :icon="['fas', 'edit']" />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="预览" placement="top" :hide-after="0">
+                <button class="icon-btn" @click="previewCourse(course.id)">
+                  <font-awesome-icon :icon="['fas', 'eye']" />
+                </button>
+              </el-tooltip>
+              <el-dropdown @command="handleCourseAction" trigger="click">
+                <button class="icon-btn">
+                  <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu class="glass-dropdown-menu">
+                    <el-dropdown-item :command="{ action: 'duplicate', id: course.id }">复制</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'export', id: course.id }">导出</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'archive', id: course.id }" v-if="course.status !== 'archived'">归档</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided class="danger-item">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </div>
-          
-          <div class="list-cell">
-            <span class="price">¥{{ course.price }}</span>
-          </div>
-          
-          <div class="list-cell">
-            <span class="update-time">{{ formatRelativeTime(course.updatedAt) }}</span>
-          </div>
-          
-          <div class="list-cell actions">
-            <el-button size="small" @click="editCourse(course.id)">
-              <font-awesome-icon :icon="['fas', 'edit']" />
-            </el-button>
-            <el-button size="small" @click="previewCourse(course.id)">
-              <font-awesome-icon :icon="['fas', 'eye']" />
-            </el-button>
-            <el-dropdown @command="handleCourseAction">
-              <el-button size="small">
-                <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item :command="{ action: 'duplicate', id: course.id }">
-                    <font-awesome-icon :icon="['fas', 'copy']" /> 复制
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'export', id: course.id }">
-                    <font-awesome-icon :icon="['fas', 'download']" /> 导出
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'archive', id: course.id }" v-if="course.status !== 'archived'">
-                    <font-awesome-icon :icon="['fas', 'archive']" /> 归档
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided>
-                    <font-awesome-icon :icon="['fas', 'trash']" /> 删除
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </div>
+        </transition-group>
       </div>
     </div>
 
@@ -278,19 +290,21 @@
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
+        background
+        class="glass-pagination"
       />
     </div>
 
     <!-- 空状态 -->
-    <div v-if="filteredCourses.length === 0" class="empty-state neu-card">
-      <div class="empty-icon">
-        <font-awesome-icon :icon="['fas', 'book-open']" />
+    <div v-if="filteredCourses.length === 0" class="empty-state glass-card">
+      <div class="empty-icon-wrapper">
+        <font-awesome-icon :icon="['fas', 'box-open']" />
       </div>
-      <h3 class="empty-title">暂无课程</h3>
+      <h3 class="empty-title">暂无课程数据</h3>
       <p class="empty-description">
-        {{ searchQuery || filterStatus || filterCategory ? '没有找到符合条件的课程' : '您还没有创建任何课程' }}
+        {{ searchQuery || filterStatus || filterCategory ? '没有找到符合条件的课程，请尝试调整筛选条件' : '您还没有创建任何课程，开始您的教学之旅吧' }}
       </p>
-      <el-button type="primary" @click="createCourse" v-if="!searchQuery && !filterStatus && !filterCategory">
+      <el-button type="primary" class="gradient-btn" @click="createCourse" v-if="!searchQuery && !filterStatus && !filterCategory">
         <font-awesome-icon :icon="['fas', 'plus']" />
         创建第一个课程
       </el-button>
@@ -314,85 +328,46 @@ const sortBy = ref('updated_desc')
 const viewMode = ref('grid')
 const currentPage = ref(1)
 const pageSize = ref(12)
+const loading = ref(true)
+const courses = ref([])
 
 // 课程统计
 const courseStats = ref([
   {
     key: 'total',
     label: '总课程数',
-    value: '12',
+    value: '0',
     icon: 'fas fa-book',
     color: '#409EFF'
   },
   {
     key: 'published',
     label: '已发布',
-    value: '8',
+    value: '0',
     icon: 'fas fa-check-circle',
     color: '#67C23A'
   },
   {
     key: 'draft',
     label: '草稿',
-    value: '3',
+    value: '0',
     icon: 'fas fa-edit',
     color: '#E6A23C'
   },
   {
     key: 'students',
     label: '总学生数',
-    value: '486',
+    value: '0',
     icon: 'fas fa-users',
     color: '#F56C6C'
   }
 ])
 
-// 加载课程列表
-const loadCourseList = async () => {
-  try {
-    loading.value = true
-    getMyCourseList(
-      (response) => {
-        // 成功回调：处理后端返回的数据
-        console.log('后端返回数据:', response)
-        
-        // 直接使用后端返回的数据数组
-        const courseData = Array.isArray(response) ? response : (response.data || [])
-        
-        // 映射后端数据到前端格式
-        courses.value = courseData.map(course => ({
-          id: course.courseId,
-          title: course.courseTitle || '未命名课程',
-          description: course.courseDescription || '暂无描述',
-          cover: course.courseCover || '/api/placeholder/300/200',
-          status: mapCourseStatus(course.courseStatus),
-          category: mapCourseCategory(course.categoryName),
-          // 后端暂未提供的字段，使用合理默认值
-          studentCount: course.studentCount || Math.floor(Math.random() * 200) + 10,
-          rating: course.rating || (4.0 + Math.random() * 1.0).toFixed(1),
-          price: course.price || (Math.floor(Math.random() * 500) + 99),
-          duration: course.duration || `${Math.floor(Math.random() * 20) + 5}小时`,
-          completionRate: course.completionRate || Math.floor(Math.random() * 100),
-          createdAt: course.createTime ? new Date(course.createTime) : new Date(),
-          updatedAt: course.updateTime ? new Date(course.updateTime) : new Date(course.createTime || new Date())
-        }))
-        
-        // 更新统计数据
-        updateCourseStats()
-        ElMessage.success(`成功加载 ${courses.value.length} 门课程`)
-      },
-      (error) => {
-        // 失败回调：显示错误信息
-        console.error('获取课程列表失败:', error)
-        ElMessage.error('获取课程列表失败')
-      }
-    )
-  } catch (error) {
-    console.error('加载课程列表异常:', error)
-    ElMessage.error('加载课程列表异常')
-  } finally {
-    loading.value = false
-  }
+// 进度条颜色
+const customColorMethod = (percentage) => {
+  if (percentage < 30) return '#909399';
+  if (percentage < 70) return '#e6a23c';
+  return '#67c23a';
 }
 
 // 映射课程状态
@@ -427,6 +402,20 @@ const mapCourseCategory = (categoryName) => {
     'test': 'Test'
   }
   return categoryMap[categoryName] || categoryName || '其他'
+}
+
+const getBackendCoursePrice = (course) => {
+  const priceKeys = ['price', 'coursePrice']
+  for (const key of priceKeys) {
+    if (Object.prototype.hasOwnProperty.call(course, key)) {
+      const value = course[key]
+      if (value === null || value === undefined || value === '') {
+        return null
+      }
+      return value
+    }
+  }
+  return null
 }
 
 // 更新课程统计
@@ -468,43 +457,57 @@ const updateCourseStats = () => {
   ]
 }
 
-// 课程数据
-const courses = ref([])
-const loading = ref(true)
-
-// 模拟数据（作为备用）
-const mockCourses = ref([
-  {
-    id: 'mock-1',
-    title: '示例课程 1',
-    description: '这是一个示例课程描述',
-    cover: '/api/placeholder/300/200',
-    status: 'published',
-    category: 'frontend',
-    studentCount: 120,
-    rating: 4.5,
-    price: 199,
-    duration: '10小时',
-    completionRate: 85,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-15')
-  },
-  {
-    id: 'mock-2',
-    title: '示例课程 2',
-    description: '这是另一个示例课程描述',
-    cover: '/api/placeholder/300/200',
-    status: 'draft',
-    category: 'backend',
-    studentCount: 80,
-    rating: 4.2,
-    price: 299,
-    duration: '15小时',
-    completionRate: 60,
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-20')
+// 加载课程列表
+const loadCourseList = async () => {
+  try {
+    loading.value = true
+    getMyCourseList(
+      (response) => {
+        // 成功回调：处理后端返回的数据
+        // console.log('后端返回数据:', response)
+        
+        // 直接使用后端返回的数据数组
+        const courseData = Array.isArray(response) ? response : (response.data || [])
+        
+        // 映射后端数据到前端格式
+        courses.value = courseData.map(course => ({
+          id: course.courseId,
+          title: course.courseTitle || '未命名课程',
+          description: course.courseDescription || '暂无描述',
+          cover: course.courseCover || '/api/placeholder/300/200',
+          status: mapCourseStatus(course.courseStatus),
+          category: mapCourseCategory(course.categoryName),
+          // 后端暂未提供的字段，使用合理默认值
+          studentCount: course.studentCount || Math.floor(Math.random() * 200) + 10,
+          rating: course.rating || (4.0 + Math.random() * 1.0).toFixed(1),
+          price: getBackendCoursePrice(course),
+          duration: course.duration || `${Math.floor(Math.random() * 20) + 5}小时`,
+          completionRate: course.completionRate || Math.floor(Math.random() * 100),
+          createdAt: course.createTime ? new Date(course.createTime) : new Date(),
+          updatedAt: course.updateTime ? new Date(course.updateTime) : new Date(course.createTime || new Date())
+        }))
+        
+        // 更新统计数据
+        updateCourseStats()
+        ElMessage.success(`成功加载 ${courses.value.length} 门课程`)
+      },
+      (error) => {
+        // 失败回调：显示错误信息
+        console.error('获取课程列表失败:', error)
+        ElMessage.error('获取课程列表失败')
+        courses.value = []
+        updateCourseStats()
+      }
+    )
+  } catch (error) {
+    console.error('加载课程列表异常:', error)
+    ElMessage.error('加载课程列表异常')
+    courses.value = []
+    updateCourseStats()
+  } finally {
+    loading.value = false
   }
-])
+}
 
 // 计算属性
 const filteredCourses = computed(() => {
@@ -578,15 +581,6 @@ const getStatusText = (status) => {
   return statusMap[status] || status
 }
 
-const getStatusType = (status) => {
-  const typeMap = {
-    published: 'success',
-    draft: 'warning',
-    archived: 'info'
-  }
-  return typeMap[status] || ''
-}
-
 const getCategoryText = (category) => {
   const categoryMap = {
     frontend: '前端开发',
@@ -599,7 +593,7 @@ const getCategoryText = (category) => {
 }
 
 const createCourse = () => {
-  router.push({ name: 'CourseEdit', params: { id: 'new' } })
+  router.push({ name: 'NewCourse' })
 }
 
 const importCourse = () => {
@@ -612,8 +606,9 @@ const editCourse = (courseId) => {
 
 const previewCourse = (courseId) => {
   // 在新窗口打开课程预览
-  const routeData = router.resolve({ name: 'CourseDetail', params: { id: courseId } })
-  window.open(routeData.href, '_blank')
+  // const routeData = router.resolve({ name: 'CourseDetail', params: { id: courseId } })
+  // window.open(routeData.href, '_blank')
+  ElMessage.success('预览功能开发中')
 }
 
 const handleCourseAction = async ({ action, id }) => {
@@ -639,6 +634,7 @@ const handleCourseAction = async ({ action, id }) => {
           }
         )
         course.status = 'archived'
+        updateCourseStats()
         ElMessage.success('课程已归档')
       } catch {
         // 用户取消
@@ -658,6 +654,7 @@ const handleCourseAction = async ({ action, id }) => {
         const index = courses.value.findIndex(c => c.id === id)
         if (index > -1) {
           courses.value.splice(index, 1)
+          updateCourseStats()
           ElMessage.success('课程已删除')
         }
       } catch {
@@ -695,206 +692,363 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.teacher-courses {
-  min-height: 100vh;
-  background: var(--bg-color);
-  padding: 20px;
+:root {
+  --primary-gradient: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --text-primary: #2c3e50;
+  --text-secondary: #606266;
 }
 
+.teacher-courses {
+  min-height: 100vh;
+  padding: 24px;
+  background-color: transparent;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
+}
+
+/* Glass Card Global */
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.glass-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Header */
 .page-header {
-  padding: 30px;
-  margin-bottom: 20px;
+  padding: 24px 32px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .page-title {
   font-size: 28px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #2c3e50;
   margin: 0 0 8px 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  letter-spacing: -0.5px;
 }
 
-.page-title i {
-  color: var(--primary-color);
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  margin: 0;
-  font-size: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 15px;
-}
-
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-.stat-card {
-  padding: 25px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.stat-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+.icon-wrapper {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #0284c7;
   font-size: 20px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+}
+
+.page-subtitle {
+  color: #606266;
+  margin: 0;
+  font-size: 15px;
+  margin-left: 64px;
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  border: none;
+  padding: 10px 24px;
+  height: 44px;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  transition: all 0.3s ease;
+}
+
+.gradient-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #2c3e50;
+  padding: 10px 20px;
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+/* Stats */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
 }
 
 .stat-content {
-  flex: 1;
+  z-index: 1;
 }
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-  margin-bottom: 5px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #2c3e50;
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  color: var(--text-secondary);
+  color: #606266;
   font-size: 14px;
+  font-weight: 500;
 }
 
+.stat-decoration {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  opacity: 0.1;
+  filter: blur(20px);
+}
+
+/* Filter Section */
 .filter-section {
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
 }
 
 .filter-row {
   display: flex;
   gap: 20px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-group {
   flex: 1;
-  max-width: 400px;
+  min-width: 300px;
 }
 
-.search-input {
-  width: 100%;
+.glass-input :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 4px 8px;
+  transition: all 0.3s;
+}
+
+.glass-input :deep(.el-input__wrapper.is-focus) {
+  background: white;
+  box-shadow: 0 0 0 1px #2563eb;
+  border-color: #2563eb;
 }
 
 .filter-group {
   display: flex;
-  gap: 15px;
+  gap: 12px;
 }
 
-.filter-select {
-  width: 120px;
+.glass-select :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
 }
 
-.view-toggle .view-btn {
-  padding: 8px 12px;
+.view-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 16px;
+  color: #94a3b8;
+  transition: all 0.2s;
 }
 
-.courses-section {
-  margin-bottom: 30px;
+.view-btn.active {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
 }
 
+.glass-btn-group {
+  background: rgba(255, 255, 255, 0.5);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Grid View */
 .courses-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 28px;
 }
 
 .course-card {
   overflow: hidden;
-  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
 }
 
-.course-card:hover {
-  transform: translateY(-5px);
+.hover-lift:hover {
+  transform: translateY(-8px);
 }
 
 .course-cover {
   position: relative;
-  height: 200px;
+  height: 180px;
   overflow: hidden;
+  border-radius: 16px 16px 0 0;
 }
 
 .course-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s ease;
 }
 
 .course-card:hover .course-cover img {
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
-.course-status {
+.course-overlay {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 4px 8px;
-  border-radius: 12px;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
+  opacity: 0.6;
+}
+
+.course-status-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
   font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
   color: white;
-  font-weight: 500;
 }
 
-.course-status.published {
-  background: var(--success-color);
+.course-status-badge.published {
+  background: rgba(103, 194, 58, 0.8);
 }
 
-.course-status.draft {
-  background: var(--warning-color);
+.course-status-badge.draft {
+  background: rgba(230, 162, 60, 0.8);
 }
 
-.course-status.archived {
-  background: var(--info-color);
+.course-status-badge.archived {
+  background: rgba(144, 147, 153, 0.8);
 }
 
-.course-actions {
+.course-actions-overlay {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
 }
 
-.course-card:hover .course-actions {
-  opacity: 1;
+.course-card:hover .course-actions-overlay {
+  transform: translateY(0);
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: #2c3e50;
+  width: 36px;
+  height: 36px;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: white;
+  color: #2563eb;
+  transform: scale(1.1);
 }
 
 .course-content {
   padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.course-category-tag {
+  font-size: 12px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  align-self: flex-start;
+  margin-bottom: 12px;
+  font-weight: 500;
 }
 
 .course-title {
   font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 10px 0;
-  line-height: 1.3;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -902,103 +1056,107 @@ onMounted(() => {
 }
 
 .course-description {
-  color: var(--text-secondary);
   font-size: 14px;
+  color: #606266;
+  margin: 0 0 16px 0;
   line-height: 1.5;
-  margin: 0 0 15px 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  height: 42px;
 }
 
 .course-meta {
   display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #909399;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
-  font-size: 12px;
+  gap: 6px;
 }
 
-.meta-item i {
-  color: var(--primary-color);
-}
-
-.course-progress {
-  margin-bottom: 15px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  font-size: 12px;
-  color: var(--text-secondary);
+.star-icon {
+  color: #f59e0b;
 }
 
 .course-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .course-price {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  color: #f56c6c;
+  font-weight: 700;
 }
 
-.price-label {
-  color: var(--text-secondary);
-  font-size: 12px;
+.currency {
+  font-size: 14px;
+  margin-right: 2px;
 }
 
-.price-value {
-  color: var(--primary-color);
-  font-size: 16px;
-  font-weight: 600;
+.amount {
+  font-size: 20px;
+}
+
+.price {
+  color: #f56c6c;
+  font-weight: 700;
+}
+
+.price-unavailable {
+  color: #909399;
+  font-weight: 500;
 }
 
 .course-updated {
-  color: var(--text-secondary);
   font-size: 12px;
+  color: #909399;
 }
 
+/* List View */
 .courses-list {
-  background: var(--bg-color);
-  border-radius: var(--border-radius);
+  padding: 0;
   overflow: hidden;
 }
 
 .list-header {
-  display: grid;
-  grid-template-columns: 2fr 100px 100px 80px 80px 120px 120px;
-  gap: 15px;
-  padding: 15px 20px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  padding: 16px 24px;
+  background: rgba(245, 247, 250, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   font-weight: 600;
-  color: var(--text-primary);
+  color: #606266;
   font-size: 14px;
 }
 
+.header-cell {
+  flex: 1;
+}
+
+.header-cell.course-info {
+  flex: 3;
+}
+
 .list-item {
-  display: grid;
-  grid-template-columns: 2fr 100px 100px 80px 80px 120px 120px;
-  gap: 15px;
-  padding: 20px;
-  border-bottom: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  display: flex;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  align-items: center;
+  transition: background 0.2s;
 }
 
 .list-item:hover {
-  background: var(--primary-light);
+  background: rgba(37, 99, 235, 0.02);
 }
 
 .list-item:last-child {
@@ -1006,172 +1164,185 @@ onMounted(() => {
 }
 
 .list-cell {
-  display: flex;
-  align-items: center;
+  flex: 1;
+  font-size: 14px;
+  color: #606266;
+}
+
+.list-cell.course-info {
+  flex: 3;
 }
 
 .course-basic {
   display: flex;
-  gap: 15px;
+  gap: 16px;
   align-items: center;
 }
 
+.course-thumbnail-wrapper {
+  width: 80px;
+  height: 50px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
 .course-thumbnail {
-  width: 60px;
-  height: 45px;
-  border-radius: var(--border-radius-sm);
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .course-details {
   flex: 1;
+  min-width: 0;
 }
 
-.course-details .course-title {
-  font-size: 16px;
-  margin-bottom: 5px;
+.course-title {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.course-category {
-  color: var(--text-secondary);
+.course-category-text {
   font-size: 12px;
-  margin: 0 0 8px 0;
+  color: #909399;
+  margin: 0 0 4px 0;
 }
 
 .course-progress-mini {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.course-progress-mini span {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.student-count {
-  display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
-}
-
-.student-count i {
-  color: var(--primary-color);
-}
-
-.rating {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
-}
-
-.rating i {
-  color: #f39c12;
-}
-
-.price {
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-.update-time {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.actions {
   gap: 8px;
 }
 
+.progress-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-dot.published { background: #67c23a; }
+.status-dot.draft { background: #e6a23c; }
+.status-dot.archived { background: #909399; }
+
+.rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff8e6;
+  color: #b45309;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.list-cell.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #909399;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+/* Pagination */
 .pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 30px;
+  margin-top: 32px;
 }
 
+.glass-pagination :deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: #2563eb;
+}
+
+.glass-pagination :deep(.el-pagination.is-background .el-pager li) {
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Empty State */
 .empty-state {
+  padding: 64px;
   text-align: center;
-  padding: 60px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.empty-icon {
-  font-size: 64px;
-  color: var(--text-disabled);
-  margin-bottom: 20px;
+.empty-icon-wrapper {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: #38bdf8;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px rgba(56, 189, 248, 0.15);
 }
 
 .empty-title {
   font-size: 20px;
-  color: var(--text-primary);
-  margin: 0 0 10px 0;
+  color: #2c3e50;
+  margin-bottom: 12px;
 }
 
 .empty-description {
-  color: var(--text-secondary);
-  margin: 0 0 30px 0;
-  line-height: 1.5;
+  color: #909399;
+  margin-bottom: 32px;
+  max-width: 400px;
+  line-height: 1.6;
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .courses-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-  
-  .list-header,
-  .list-item {
-    grid-template-columns: 2fr 80px 80px 60px 60px 100px 100px;
-    gap: 10px;
-  }
+/* Transitions */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
 }
 
-@media (max-width: 768px) {
-  .teacher-courses {
-    padding: 10px;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
-  }
-  
-  .header-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .stats-section {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  
-  .filter-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .filter-group {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .filter-select {
-    flex: 1;
-  }
-  
-  .courses-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .courses-list {
-    overflow-x: auto;
-  }
-  
-  .list-header,
-  .list-item {
-    min-width: 800px;
-  }
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.list-item-enter-active,
+.list-item-leave-active {
+  transition: all 0.3s ease;
+}
+
+.list-item-enter-from,
+.list-item-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 </style>

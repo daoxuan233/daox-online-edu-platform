@@ -21,10 +21,10 @@
 
     <div class="profile-content">
       <!-- 侧边导航 -->
-      <ProfileSidebar 
+<!--      <ProfileSidebar
         :active-tab="activeTab" 
         @tab-change="activeTab = $event" 
-      />
+      />-->
 
       <!-- 主要内容区域 -->
       <div class="profile-main">

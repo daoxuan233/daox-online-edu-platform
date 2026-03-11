@@ -4,7 +4,7 @@
     <header class="top-header">
       <div class="header-container">
         <div class="logo-section">
-          <img src="/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="logo-icon" style="height: 40px; width: auto; margin-right: 10px;" />
+          <img src="../assets/DaoX_C7-Center_Logo.svg" alt="DaoX Logo" class="logo-icon" style="height: 40px; width: auto; margin-right: 10px;" />
           <span class="logo-text">DaoX- EduPlatform</span>
         </div>
         <div class="header-actions">
@@ -107,28 +107,39 @@
               </div>
             </div>
             
-            <!-- 中央3D图形 -->
+            <!-- 中央3D图形 - 替换为学生卡片 -->
             <div class="central-3d">
-              <div class="cube-container">
-                <div class="cube">
-                  <div class="face front">
-                    <font-awesome-icon :icon="['fas', 'laptop-code']" class="central-icon"/>
+              <div class="student-card-visual glass-card-effect">
+                <div class="card-header-visual">
+                  <div class="avatar-circle-visual">
+                    <font-awesome-icon :icon="['fas', 'user-graduate']" />
                   </div>
-                  <div class="face back">
-                    <font-awesome-icon :icon="['fas', 'code']" class="central-icon"/>
+                  <div class="card-info-visual">
+                    <div class="info-name-visual">Alex Chen</div>
+                    <div class="info-status-visual">正在学习: Java 高级编程</div>
                   </div>
-                  <div class="face right">
-                    <font-awesome-icon :icon="['fas', 'database']" class="central-icon"/>
+                </div>
+                <div class="card-body-visual">
+                  <div class="course-preview-visual">
+                    <div class="play-icon-wrapper">
+                      <font-awesome-icon :icon="['fas', 'play']" class="play-icon-visual" />
+                    </div>
+                    <div class="wave-visual"></div>
                   </div>
-                  <div class="face left">
-                    <font-awesome-icon :icon="['fas', 'mobile-alt']" class="central-icon"/>
+                  <div class="progress-container-visual">
+                    <div class="progress-label-visual">
+                      <span>学习进度</span>
+                      <span>78%</span>
+                    </div>
+                    <div class="progress-bar-bg-visual">
+                      <div class="progress-bar-fill-visual"></div>
+                    </div>
                   </div>
-                  <div class="face top">
-                    <font-awesome-icon :icon="['fas', 'cloud']" class="central-icon"/>
-                  </div>
-                  <div class="face bottom">
-                    <font-awesome-icon :icon="['fas', 'server']" class="central-icon"/>
-                  </div>
+                </div>
+                <!-- 浮动徽章 -->
+                <div class="floating-badge badge-1">
+                  <font-awesome-icon :icon="['fas', 'check-circle']" />
+                  <span>已打卡</span>
                 </div>
               </div>
             </div>
@@ -358,7 +369,7 @@ const getParticleStyle = (index) => {
 .logo-text {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
+  background: #F0F9FF;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -459,7 +470,7 @@ const getParticleStyle = (index) => {
 /* 英雄区域 */
 .hero-section {
   padding: calc(80px + var(--spacing-xl)) 0 var(--spacing-xl) 0;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 50%, #F0F0F3 100%);
+  background: linear-gradient(135deg, #001f3f 0%, #003366 50%, #004080 100%); /* 更深邃的科技蓝背景 */
   position: relative;
   overflow: hidden;
   min-height: 100vh;
@@ -478,7 +489,7 @@ const getParticleStyle = (index) => {
 
 .particle {
   position: absolute;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 50%;
   animation: float infinite ease-in-out;
 }
@@ -486,11 +497,11 @@ const getParticleStyle = (index) => {
 @keyframes float {
   0%, 100% {
     transform: translateY(0px) rotate(0deg);
-    opacity: 0.7;
+    opacity: 0.3;
   }
   50% {
     transform: translateY(-20px) rotate(180deg);
-    opacity: 1;
+    opacity: 0.8;
   }
 }
 
@@ -513,19 +524,20 @@ const getParticleStyle = (index) => {
 
 .hero-title {
   font-size: 3.5rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #FFFFFF;
   margin-bottom: var(--spacing-lg);
   line-height: 1.2;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 0 30px rgba(0, 255, 255, 0.3); /* 发光效果 */
 }
 
 .highlight-text {
-  background: linear-gradient(135deg, #67C23A 0%, #E6A23C 100%);
+  background: linear-gradient(135deg, #00FFFF 0%, #FFFFFF 100%); /* 亮青色到白色渐变 */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   position: relative;
+  filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5));
 }
 
 .highlight-text::after {
@@ -534,16 +546,18 @@ const getParticleStyle = (index) => {
   bottom: -4px;
   left: 0;
   width: 100%;
-  height: 3px;
-  background: linear-gradient(135deg, #67C23A 0%, #E6A23C 100%);
+  height: 4px;
+  background: linear-gradient(90deg, #00FFFF, transparent);
   border-radius: 2px;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
 }
 
 .hero-description {
   font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
   margin-bottom: var(--spacing-xl);
   line-height: 1.6;
+  font-weight: 300;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -555,10 +569,10 @@ const getParticleStyle = (index) => {
 /* 现代化按钮样式 */
 .modern-button {
   position: relative;
-  padding: 16px 32px;
-  font-size: 1rem;
+  padding: 16px 36px;
+  font-size: 1.1rem;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 50px; /* 圆角更大，更现代 */
   border: none;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -574,7 +588,7 @@ const getParticleStyle = (index) => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transition: left 0.5s;
 }
 
@@ -583,38 +597,30 @@ const getParticleStyle = (index) => {
 }
 
 .cta-button {
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
+  background: linear-gradient(135deg, #0066FF 0%, #00CCFF 100%); /* 高饱和度科技蓝 */
   color: #FFFFFF;
-  box-shadow: 
-    8px 8px 16px rgba(0, 47, 167, 0.3),
-    -8px -8px 16px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 204, 255, 0.6); /* 强发光 */
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .cta-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 
-    12px 12px 24px rgba(0, 47, 167, 0.4),
-    -12px -12px 24px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 204, 255, 0.8);
 }
 
 .secondary-button {
-  background: rgba(240, 240, 243, 0.25);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.1),
-    -8px -8px 16px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .secondary-button:hover {
   transform: translateY(-3px);
-  background: rgba(240, 240, 243, 0.35);
-  box-shadow: 
-    12px 12px 24px rgba(0, 0, 0, 0.15),
-    -12px -12px 24px rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #FFFFFF;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .hero-visual {
@@ -637,50 +643,48 @@ const getParticleStyle = (index) => {
   transform-style: preserve-3d;
 }
 
-/* 3D旋转环 */
+/* 3D旋转环 - 更细更轻盈 */
 .rotating-rings {
   position: absolute;
-  width: 400px;
-  height: 400px;
+  width: 460px;
+  height: 460px;
   transform-style: preserve-3d;
-  animation: rotate3d 20s infinite linear;
+  animation: rotate3d 30s infinite linear;
 }
 
 .ring {
   position: absolute;
-  border: 3px solid;
+  border: 1px solid; /* 变细 */
   border-radius: 50%;
-  opacity: 0.7;
+  opacity: 0.4; /* 降低不透明度 */
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
 }
 
 .ring-1 {
-  width: 300px;
-  height: 300px;
-  border-color: #67C23A;
+  width: 360px;
+  height: 360px;
+  border-color: rgba(0, 255, 255, 0.5);
   top: 50px;
   left: 50px;
   transform: rotateX(0deg) rotateY(0deg);
-  animation: ringPulse 4s infinite ease-in-out;
 }
 
 .ring-2 {
-  width: 250px;
-  height: 250px;
-  border-color: #E6A23C;
-  top: 75px;
-  left: 75px;
+  width: 280px;
+  height: 280px;
+  border-color: rgba(255, 255, 255, 0.4);
+  top: 90px;
+  left: 90px;
   transform: rotateX(60deg) rotateY(60deg);
-  animation: ringPulse 4s infinite ease-in-out 1s;
 }
 
 .ring-3 {
   width: 200px;
   height: 200px;
-  border-color: #002FA7;
-  top: 100px;
-  left: 100px;
+  border-color: rgba(0, 102, 255, 0.5);
+  top: 130px;
+  left: 130px;
   transform: rotateX(120deg) rotateY(120deg);
-  animation: ringPulse 4s infinite ease-in-out 2s;
 }
 
 @keyframes rotate3d {
@@ -703,209 +707,211 @@ const getParticleStyle = (index) => {
   }
 }
 
-/* 浮动图标群 */
+/* 浮动图标群 - 调整为更科技感 */
 .floating-icons {
   position: absolute;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 .icon-orbit {
   position: absolute;
-  width: 60px;
-  height: 60px;
-  animation: floatIcon 6s infinite ease-in-out;
+  width: 50px;
+  height: 50px;
+  animation: floatIcon 8s infinite ease-in-out;
 }
 
 .icon-wrapper {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  border-radius: 50%; /* 圆形图标 */
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
 }
 
 .floating-icon {
-  font-size: 24px;
-  color: #FFFFFF;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.orbit-1 {
-  top: 10%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.orbit-2 {
-  top: 20%;
-  right: 15%;
-  animation-delay: 1s;
-}
-
-.orbit-3 {
-  bottom: 30%;
-  left: 5%;
-  animation-delay: 2s;
-}
-
-.orbit-4 {
-  bottom: 10%;
-  right: 10%;
-  animation-delay: 3s;
-}
-
-.orbit-5 {
-  top: 50%;
-  left: 0%;
-  animation-delay: 4s;
-}
-
-.orbit-6 {
-  top: 50%;
-  right: 0%;
-  animation-delay: 5s;
-}
+.orbit-1 { top: 15%; left: 15%; animation-delay: 0s; }
+.orbit-2 { top: 25%; right: 20%; animation-delay: 1.5s; }
+.orbit-3 { bottom: 25%; left: 10%; animation-delay: 3s; }
+.orbit-4 { bottom: 15%; right: 15%; animation-delay: 4.5s; }
+.orbit-5 { top: 60%; left: 5%; animation-delay: 2s; }
+.orbit-6 { top: 40%; right: 5%; animation-delay: 5s; }
 
 @keyframes floatIcon {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-15px) rotate(5deg);
-  }
-  50% {
-    transform: translateY(-30px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(-15px) rotate(-5deg);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
 }
 
-/* 中央3D图形 */
+/* 中央学生卡片视觉 */
 .central-3d {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 10;
+  width: 340px;
 }
 
-.cube-container {
-  width: 120px;
-  height: 120px;
-  perspective: 600px;
-}
-
-.cube {
+.student-card-visual {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 24px;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  animation: rotateCube 12s infinite linear;
+  transform: rotateY(-5deg) rotateX(5deg);
+  transition: transform 0.5s ease;
+  animation: cardFloat 6s ease-in-out infinite;
 }
 
-.face {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.8) 0%, rgba(81, 123, 77, 0.8) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+@keyframes cardFloat {
+  0%, 100% { transform: rotateY(-5deg) rotateX(5deg) translateY(0); }
+  50% { transform: rotateY(-5deg) rotateX(5deg) translateY(-15px); }
+}
+
+.card-header-visual {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.avatar-circle-visual {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00C6FF, #0072FF);
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-.central-icon {
-  font-size: 32px;
-  color: #FFFFFF;
+.info-name-visual {
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
 }
 
-.front {
-  transform: rotateY(0deg) translateZ(60px);
+.info-status-visual {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
 }
 
-.back {
-  transform: rotateY(180deg) translateZ(60px);
+.card-body-visual {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 0;
 }
 
-.right {
-  transform: rotateY(90deg) translateZ(60px);
+.course-preview-visual {
+  height: 100px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  border-radius: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.left {
-  transform: rotateY(-90deg) translateZ(60px);
-}
-
-.top {
-  transform: rotateX(90deg) translateZ(60px);
-}
-
-.bottom {
-  transform: rotateX(-90deg) translateZ(60px);
-}
-
-@keyframes rotateCube {
-  0% {
-    transform: rotateX(0deg) rotateY(0deg);
-  }
-  100% {
-    transform: rotateX(360deg) rotateY(360deg);
-  }
-}
-
-/* 能量波纹 */
-.energy-waves {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  top: 0;
-  left: 0;
-}
-
-.wave {
-  position: absolute;
-  border: 2px solid;
+.play-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
-  opacity: 0;
-  animation: waveExpand 4s infinite ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+  cursor: pointer;
+  transition: transform 0.3s;
 }
 
-.wave-1 {
-  border-color: rgba(103, 194, 58, 0.6);
-  animation-delay: 0s;
+.play-icon-wrapper:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.wave-2 {
-  border-color: rgba(230, 162, 60, 0.6);
-  animation-delay: 1s;
+.play-icon-visual {
+  color: white;
+  font-size: 14px;
+  margin-left: 2px;
 }
 
-.wave-3 {
-  border-color: rgba(0, 47, 167, 0.6);
-  animation-delay: 2s;
+.progress-container-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-@keyframes waveExpand {
-  0% {
-    width: 0;
-    height: 0;
-    top: 50%;
-    left: 50%;
-    opacity: 1;
-  }
-  100% {
-    width: 600px;
-    height: 600px;
-    top: calc(50% - 300px);
-    left: calc(50% - 300px);
-    opacity: 0;
-  }
+.progress-label-visual {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+}
+
+.progress-bar-bg-visual {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill-visual {
+  height: 100%;
+  width: 78%;
+  background: linear-gradient(90deg, #00C6FF, #0072FF);
+  border-radius: 3px;
+}
+
+.floating-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: rgba(46, 204, 113, 0.9); /* Success Green */
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  animation: badgeFloat 3s ease-in-out infinite;
+}
+
+@keyframes badgeFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* 能量波纹 - 移除或简化 */
+.energy-waves {
+  display: none;
 }
 
 .floating-elements {
@@ -976,7 +982,7 @@ const getParticleStyle = (index) => {
 /* 统计数据 */
 .stats-section {
   padding: var(--spacing-xl) 0;
-  background: linear-gradient(135deg, #F0F0F3 0%, rgba(240, 240, 243, 0.8) 100%);
+  background: #FFFFFF; /* 纯白背景 */
   position: relative;
   overflow: hidden;
 }
@@ -988,8 +994,8 @@ const getParticleStyle = (index) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%23002FA7" stroke-width="0.5" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-  opacity: 0.3;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%23000000" stroke-width="0.5" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  opacity: 1; /* 图案内置了低透明度 */
 }
 
 .stats-grid {
@@ -1003,40 +1009,23 @@ const getParticleStyle = (index) => {
 .stat-item {
   padding: var(--spacing-xl);
   text-align: center;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
+  background: #FFFFFF;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 
-    8px 8px 16px rgba(0, 47, 167, 0.1),
-    -8px -8px 16px rgba(255, 255, 255, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 极简阴影 - 悬浮感 */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04); 
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
 .stat-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 47, 167, 0.1), transparent);
-  transition: left 0.5s;
-}
-
-.stat-item:hover::before {
-  left: 100%;
+  display: none; /* 移除原来的高光扫过效果，保持简洁 */
 }
 
 .stat-item:hover {
   transform: translateY(-8px);
-  box-shadow: 
-    12px 12px 24px rgba(0, 47, 167, 0.15),
-    -12px -12px 24px rgba(255, 255, 255, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
 }
 
 .stat-icon {
@@ -1045,7 +1034,7 @@ const getParticleStyle = (index) => {
 
 .stat-icon i {
   font-size: 2.5rem;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
+  background: linear-gradient(135deg, #0066FF 0%, #00CCFF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1054,18 +1043,16 @@ const getParticleStyle = (index) => {
 .stat-number {
   font-size: 3rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #333;
+  -webkit-text-fill-color: #333; /* 移除渐变文字，更清晰 */
   margin-bottom: var(--spacing-xs);
   position: relative;
 }
 
 .stat-label {
-  color: #002FA7;
-  font-size: 1.1rem;
-  font-weight: 600;
+  color: #666;
+  font-size: 1rem;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -1208,19 +1195,12 @@ const getParticleStyle = (index) => {
 /* 功能特色 */
 .features-section {
   padding: var(--spacing-xl) 0;
-  background: linear-gradient(135deg, #FFFFFF 0%, #F0F0F3 100%);
+  background: #FAFAFA; /* 极简灰白背景 */
   position: relative;
 }
 
 .features-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 80%, rgba(0, 47, 167, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(81, 123, 77, 0.05) 0%, transparent 50%);
+  display: none; /* 移除复杂的背景渐变 */
 }
 
 .features-grid {
@@ -1234,49 +1214,29 @@ const getParticleStyle = (index) => {
 .feature-card {
   padding: var(--spacing-xl);
   text-align: center;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(15px);
+  background: #FFFFFF;
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    12px 12px 24px rgba(0, 47, 167, 0.08),
-    -12px -12px 24px rgba(255, 255, 255, 0.8),
-    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03); /* 极轻阴影 */
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
 
 .feature-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 47, 167, 0.05), transparent);
-  transition: left 0.6s;
-}
-
-.feature-card:hover::before {
-  left: 100%;
+  display: none;
 }
 
 .feature-card:hover {
-  transform: translateY(-12px) scale(1.02);
-  box-shadow: 
-    16px 16px 32px rgba(0, 47, 167, 0.12),
-    -16px -16px 32px rgba(255, 255, 255, 0.9),
-    inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
 }
 
 .feature-icon {
   width: 80px;
   height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.1) 0%, rgba(81, 123, 77, 0.1) 100%);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px; /* 方圆形 */
+  background: rgba(0, 102, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1284,27 +1244,21 @@ const getParticleStyle = (index) => {
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
+  border: none;
 }
 
 .feature-icon::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.2) 0%, rgba(81, 123, 77, 0.2) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  display: none;
 }
 
-.feature-card:hover .feature-icon::before {
-  opacity: 1;
+.feature-card:hover .feature-icon {
+  background: rgba(0, 102, 255, 0.1);
+  transform: scale(1.1);
 }
 
 .feature-icon i {
   font-size: 2rem;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
+  background: linear-gradient(135deg, #0066FF 0%, #00CCFF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1315,28 +1269,20 @@ const getParticleStyle = (index) => {
 .feature-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #002FA7;
+  color: #333;
   margin-bottom: var(--spacing-md);
   position: relative;
 }
 
 .feature-title::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 3px;
-  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
-  border-radius: 2px;
+  display: none; /* 移除下划线 */
 }
 
 .feature-description {
-  color: #517B4D;
+  color: #666;
   line-height: 1.6;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* 最新动态 */

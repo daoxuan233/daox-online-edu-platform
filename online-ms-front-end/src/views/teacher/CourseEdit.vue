@@ -2201,7 +2201,6 @@ onMounted(() => {
 }
 
 </style>
-
 <style>
 /* 课程分类下拉框全局样式 - 不使用scoped以确保能覆盖Element Plus样式 */
 .el-select-dropdown {

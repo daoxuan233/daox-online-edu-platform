@@ -8,7 +8,7 @@
     ></div>
 
     <!-- 底部功能区：复制与导出 -->
-    <div class="copy-actions">
+    <div v-if="!props.hideActions" class="copy-actions">
       <!-- 导出笔记按钮 -->
       <button @click="handleExportNote" class="copy-btn export-btn" :disabled="isExporting">
         <span class="icon-wrapper">
@@ -134,7 +134,8 @@ import markdownItKatex from "@iktakahiro/markdown-it-katex";
 
 const props = defineProps({
   content: { type: String, default: "" },
-  recordId: { type: String, default: null }
+  recordId: { type: String, default: null },
+  hideActions: { type: Boolean, default: false }
 });
 
 const markdownRef = ref(null);

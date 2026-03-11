@@ -5,6 +5,8 @@ import com.daox.online.uilts.SecondaryHybridIdGenerator;
 import com.daox.online.uilts.UserIdUtil;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 class OnlineMsBackEndApplicationTests {
     @Test
     void contextLoads() {
@@ -23,31 +25,13 @@ class OnlineMsBackEndApplicationTests {
         orderedUserIds.userTwoId();
     }
 
-    /*@Test
+    @Test
     void contextUUID() {
         // id？
         System.out.println("UUID  :\n"+ UUID.randomUUID());
-        System.out.println("UUID 1:\n"+ UUID.randomUUID());
-        System.out.println("UUID 2:\n"+ UUID.randomUUID());
-        System.out.println("UUID 3:\n"+ UUID.randomUUID());
-        System.out.println("UUID 4:\n"+ UUID.randomUUID());
-        System.out.println("UUID 5:\n"+ UUID.randomUUID());
-        System.out.println("UUID 6:\n"+ UUID.randomUUID());
-        System.out.println("UUID 7:\n"+ UUID.randomUUID());
-        System.out.println("UUID 8:\n"+ UUID.randomUUID());
-        System.out.println("UUID 9:\n"+ UUID.randomUUID());
-        System.out.println("UUID A:\n"+ UUID.randomUUID());
-        System.out.println("UUID B:\n"+ UUID.randomUUID());
-        System.out.println("UUID C:\n"+ UUID.randomUUID());
-        System.out.println("UUID D:\n"+ UUID.randomUUID());
-        System.out.println("UUID E:\n"+ UUID.randomUUID());
-        System.out.println("UUID F:\n"+ UUID.randomUUID());
-        System.out.println("UUID G:\n"+ UUID.randomUUID());
-        System.out.println("UUID H:\n"+ UUID.randomUUID());
-        System.out.println("UUID I:\n"+ UUID.randomUUID());
     }
 
-    @Test
+    /*@Test
     void PWD(){
         // 密码
         System.out.println("admin:\n"+new BCryptPasswordEncoder().encode("admin"));

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
  * @param identifier   学号
  * @param gradingStatus 批阅状态
  * @param response     学生的回答
+ * @param maxScore     当前题目的满分（来自试卷配置）
  * @param currentScore 当前得分
  * @param comment      当前评语
  */
@@ -22,6 +23,7 @@ public record StudentAnswerSnippetDTO(
         String identifier, // 学号
         String gradingStatus, // 批阅状态
         Object response, // 学生对该题的回答
+        BigDecimal maxScore, // 当前题目的满分（来自试卷）
         BigDecimal currentScore, // 当前得分
         String comment // 当前评语
 ) {

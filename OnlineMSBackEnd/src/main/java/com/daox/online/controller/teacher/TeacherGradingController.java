@@ -55,6 +55,13 @@ public class TeacherGradingController {
         return RestBean.success(detail);
     }
 
+    @GetMapping("/tasks/{assessmentId}/status")
+    @RequireCourseCreator
+    public RestBean<GradingTaskStatusDTO> getGradingTaskStatus(@PathVariable String assessmentId) {
+        GradingTaskStatusDTO status = teacherGradingService.getGradingTaskStatus(assessmentId);
+        return RestBean.success(status);
+    }
+
     /**
      * 分页获取单个主观题的所有学生答案
      *
