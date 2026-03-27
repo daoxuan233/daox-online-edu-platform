@@ -1,5 +1,6 @@
 package com.daox.online.service;
 
+import com.daox.online.entity.views.requestVO.admin.AdminUserUpsertVO;
 import com.daox.online.entity.views.responseVO.user.ProfileInfoVo;
 import com.daox.online.entity.views.responseVO.user.ProfileVo;
 
@@ -69,12 +70,37 @@ public interface UsersService {
     ProfileInfoVo deleteUser(String userId);
 
     /**
+     * 恢复被逻辑删除的用户。
+     *
+     * @param userId 用户ID
+     * @return 恢复后的用户信息
+     */
+    ProfileInfoVo restoreUser(String userId);
+
+    /**
      * 重置用户密码 - admin重置
      *
      * @param userId 用户ID
      * @return 新密码
      */
     String resetUserPassword(String userId);
+
+    /**
+     * 管理员创建用户。
+     *
+     * @param userUpsertVO 用户维护请求体
+     * @return 创建后的用户详情
+     */
+    ProfileInfoVo createUserByAdmin(AdminUserUpsertVO userUpsertVO);
+
+    /**
+     * 管理员更新用户信息。
+     *
+     * @param userId       用户ID
+     * @param userUpsertVO 用户维护请求体
+     * @return 更新后的用户详情
+     */
+    ProfileInfoVo updateUserByAdmin(String userId, AdminUserUpsertVO userUpsertVO);
 
     /**
      * 获取用户总数

@@ -3,6 +3,7 @@ package com.daox.online.controller.admin;
 import com.daox.online.entity.mongodb.Question;
 import com.daox.online.listener.QuestionProduceService;
 import com.daox.online.repository.mongodb.QuestionRepository;
+import com.daox.online.service.AuditLogService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,13 +31,32 @@ public class SyncController {
     @Resource
     private QuestionProduceService questionProduceService;
 
+    @Resource
+    private AuditLogService auditLogService;
+
     /**
      * 触发全量数据同步到 AI 向量库
      * 建议加权限控制，防止误触
      */
     @PostMapping("/start-all")
     public String startFullSync() {
-        // 异步执行，直接返回“开始”信号
+        String taskId = UUID.randomUUID().toString();
+        long totalQuestions = questionRepository.count();
+        Map<String, Object> beforeSnapshot = new LinkedHashMap<>();
+        beforeSnapshot.put("questionCount", totalQuestions);
+        beforeSnapshot.put("syncScope", "ALL_QUESTIONS");
+        Map<String, Object> afterSnapshot = new LinkedHashMap<>();
+        afterSnapshot.put("taskId", taskId);
+        afterSnapshot.put("dispatchMode", "ASYNC");
+        afterSnapshot.put("status", "STARTED");
+        auditLogService.recordSensitiveOperation(
+                "QUESTION_VECTOR_SYNC_TRIGGER",
+                "question_vector_sync",
+                taskId,
+                beforeSnapshot,
+                afterSnapshot,
+                "STARTED",
+                "管理员触发题目全量同步");
         CompletableFuture.runAsync(this::doFullSync);
         return "后台同步任务已启动，请查看日志关注进度...";
     }

@@ -14,6 +14,7 @@ import com.daox.online.entity.views.responseVO.course.CourseVo;
 import com.daox.online.entity.views.responseVO.course.TeacherCourseDetailVo;
 import com.daox.online.entity.views.responseVO.user.UserCoursesVo;
 import com.daox.online.mapper.*;
+import com.daox.online.service.AuditLogService;
 import com.daox.online.service.CoursesService;
 import com.daox.online.service.SysUserService;
 import com.daox.online.service.UsersService;
@@ -74,6 +75,8 @@ public class CoursesServiceImpl implements CoursesService {
     private RedisTemplate<String, Object> redisTemplate;
     @Resource
     private ObjectMapper objectMapper;
+    @Resource
+    private AuditLogService auditLogService;
 
     /**
      * 公开课程列表 - 分页查询
@@ -945,12 +948,14 @@ public class CoursesServiceImpl implements CoursesService {
             return false;
         }
 
-        boolean success = true;
-
-        // 删除小节
         List<Chapters> chapters = chaptersANDSectionsMapper.getChaptersByCourseId(courseId);
+        Map<String, Object> beforeSnapshot = buildCourseAuditBeforeSnapshot(courseById, chapters);
+        boolean success = true;
+        int totalDeletedSections = 0;
+
         for (Chapters chapter : chapters) {
             int deletedSections = coursesMapper.deleteSections(chapter.getId());
+            totalDeletedSections += Math.max(deletedSections, 0);
             log.info("[deleteCourse] 删除章节下的小节: chapterId={}, 删除数量={}", chapter.getId(), deletedSections);
             if (deletedSections == 0) {
                 log.warn("[deleteCourse] 删除章节下的小节失败或无小节: chapterId={}", chapter.getId());
@@ -996,6 +1001,14 @@ public class CoursesServiceImpl implements CoursesService {
             log.warn("[deleteCourse] 课程或部分相关数据删除失败: userId={}, courseId={}", userId, courseId);
         }
 
+        auditLogService.recordSensitiveOperation(
+                "COURSE_DELETE",
+                "course",
+                courseId,
+                beforeSnapshot,
+                buildCourseAuditAfterSnapshot(success, totalDeletedSections, deletedChapters, deletedMaterials, deletedUserCourses, deletedCourse),
+                success ? "SUCCESS" : "FAILED",
+                success ? "教师删除课程成功" : "教师删除课程存在部分失败");
         return success;
     }
 
@@ -1098,17 +1111,18 @@ public class CoursesServiceImpl implements CoursesService {
      */
     @Override
     public boolean deleteCourse(String courseId) {
-        // 检查课程是否存在
         Courses courseById = coursesMapper.getCourseById(courseId);
         if (courseById == null) {
             log.warn("[deleteCourse.method - admin] 课程不存在: courseId={}", courseId);
             return false;
         }
-        boolean success = true;
-        // 删除小节
         List<Chapters> chapters = chaptersANDSectionsMapper.getChaptersByCourseId(courseId);
+        Map<String, Object> beforeSnapshot = buildCourseAuditBeforeSnapshot(courseById, chapters);
+        boolean success = true;
+        int totalDeletedSections = 0;
         for (Chapters chapter : chapters) {
             int deletedSections = coursesMapper.deleteSections(chapter.getId());
+            totalDeletedSections += Math.max(deletedSections, 0);
             log.info("[deleteCourse.method - admin] 删除章节下的小节: chapterId={}, 删除数量={}", chapter.getId(), deletedSections);
             if (deletedSections == 0) {
                 log.warn("[deleteCourse.method - admin] 删除章节下的小节失败或无小节: chapterId={}", chapter.getId());
@@ -1152,7 +1166,39 @@ public class CoursesServiceImpl implements CoursesService {
         } else {
             log.warn("[deleteCourse.method - admin] 课程或部分相关数据删除失败: courseId={}", courseId);
         }
+        auditLogService.recordSensitiveOperation(
+                "COURSE_DELETE",
+                "course",
+                courseId,
+                beforeSnapshot,
+                buildCourseAuditAfterSnapshot(success, totalDeletedSections, deletedChapters, deletedMaterials, deletedUserCourses, deletedCourse),
+                success ? "SUCCESS" : "FAILED",
+                success ? "管理员删除课程成功" : "管理员删除课程存在部分失败");
         return success;
+    }
+
+    private Map<String, Object> buildCourseAuditBeforeSnapshot(Courses course, List<Chapters> chapters) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("course", course);
+        snapshot.put("chapterIds", chapters == null ? Collections.emptyList() : chapters.stream().map(Chapters::getId).toList());
+        snapshot.put("chapterCount", chapters == null ? 0 : chapters.size());
+        return snapshot;
+    }
+
+    private Map<String, Object> buildCourseAuditAfterSnapshot(boolean success,
+                                                              int totalDeletedSections,
+                                                              int deletedChapters,
+                                                              int deletedMaterials,
+                                                              int deletedUserCourses,
+                                                              int deletedCourse) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("success", success);
+        snapshot.put("deletedSections", totalDeletedSections);
+        snapshot.put("deletedChapters", deletedChapters);
+        snapshot.put("deletedMaterials", deletedMaterials);
+        snapshot.put("deletedUserCourses", deletedUserCourses);
+        snapshot.put("deletedCourse", deletedCourse > 0);
+        return snapshot;
     }
 
     /**
@@ -1205,10 +1251,11 @@ public class CoursesServiceImpl implements CoursesService {
      *
      * @param name     分类名称
      * @param parentId 父级分类id
+     * @param orderIndex 排序权重
      * @return 创建结果 true：成功，false：失败
      */
     @Override
-    public boolean createCourseCategory(String name, String parentId) {
+    public boolean createCourseCategory(String name, String parentId, Integer orderIndex) {
         if (name == null || name.isEmpty()) {
             log.warn("[createCourseCategory.method] 参数错误: name 不能为空");
             return false;
@@ -1217,7 +1264,11 @@ public class CoursesServiceImpl implements CoursesService {
             parentId = "0";
         }
         String id = hybridIdGenerator.generateId();
-        return coursesMapper.createCategory(new CourseCategories().setId(id).setName(name).setParentId(parentId)) > 0;
+        return coursesMapper.createCategory(new CourseCategories()
+                .setId(id)
+                .setName(name)
+                .setParentId(parentId)
+                .setOrderIndex(orderIndex == null ? 0 : orderIndex)) > 0;
     }
 
     /**
@@ -1226,10 +1277,11 @@ public class CoursesServiceImpl implements CoursesService {
      * @param id       分类id
      * @param name     分类名称
      * @param parentId 父级分类id
+     * @param orderIndex 排序权重
      * @return 更新结果 true：成功，false：失败
      */
     @Override
-    public boolean updateCourseCategory(String id, String name, String parentId) {
+    public boolean updateCourseCategory(String id, String name, String parentId, Integer orderIndex) {
         if (id == null || id.isEmpty()) {
             log.warn("[updateCourseCategory.method]参数错误：id不能为空");
             return false;
@@ -1242,7 +1294,11 @@ public class CoursesServiceImpl implements CoursesService {
         if (parentId == null || parentId.isEmpty()) {
             parentId = "0";
         }
-        return coursesMapper.updateCategory(new CourseCategories().setId(id).setName(name).setParentId(parentId)) > 0;
+        return coursesMapper.updateCategory(new CourseCategories()
+                .setId(id)
+                .setName(name)
+                .setParentId(parentId)
+                .setOrderIndex(orderIndex == null ? 0 : orderIndex)) > 0;
     }
 
     /**
@@ -1253,7 +1309,24 @@ public class CoursesServiceImpl implements CoursesService {
      */
     @Override
     public boolean deleteCourseCategory(String id) {
-        return false;
+        if (id == null || id.isEmpty()) {
+            log.warn("[deleteCourseCategory.method]参数错误：id不能为空");
+            return false;
+        }
+        CourseCategories courseCategoryById = coursesMapper.getCourseCategoryById(id);
+        if (courseCategoryById == null) {
+            log.warn("[deleteCourseCategory.method]分类不存在：id={}", id);
+            return false;
+        }
+        if (coursesMapper.countSubCategories(id) > 0) {
+            log.warn("[deleteCourseCategory.method]存在子分类，不能删除：id={}", id);
+            return false;
+        }
+        if (coursesMapper.countCoursesByCategoryId(id) > 0) {
+            log.warn("[deleteCourseCategory.method]存在关联课程，不能删除：id={}", id);
+            return false;
+        }
+        return coursesMapper.deleteCategory(id) > 0;
     }
 
     /**
@@ -1406,7 +1479,12 @@ public class CoursesServiceImpl implements CoursesService {
      * @return CourseCategoriesVo 对象
      */
     private CourseCategoriesVo convertToVo(CourseCategories category) {
-        return new CourseCategoriesVo().setId(category.getId()).setName(category.getName()).setParentId(category.getParentId().equals("0") ? null : category.getParentId()).setChildren(new ArrayList<>());
+        return new CourseCategoriesVo()
+                .setId(category.getId())
+                .setName(category.getName())
+                .setParentId(category.getParentId().equals("0") ? null : category.getParentId())
+                .setOrderIndex(category.getOrderIndex())
+                .setChildren(new ArrayList<>());
     }
 
     /**

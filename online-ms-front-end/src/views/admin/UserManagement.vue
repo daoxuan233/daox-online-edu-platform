@@ -1,25 +1,27 @@
 <template>
   <div class="user-management-container">
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header glass-card" ref="headerRef">
       <div class="header-content">
         <div class="header-left">
           <h1 class="page-title">
-            <font-awesome-icon :icon="['fas', 'users']" />
+            <div class="icon-wrapper">
+              <font-awesome-icon :icon="['fas', 'users']" />
+            </div>
             用户管理
           </h1>
           <p class="page-subtitle">管理系统中的所有用户账户</p>
         </div>
         <div class="header-actions">
-          <el-button class="action-btn import-btn">
+          <el-button class="action-btn glass-btn">
             <font-awesome-icon :icon="['fas', 'upload']" />
             批量导入
           </el-button>
-          <el-button class="action-btn export-btn">
+          <el-button class="action-btn glass-btn" @click="exportCurrentView">
             <font-awesome-icon :icon="['fas', 'download']" />
             导出数据
           </el-button>
-          <el-button type="primary" class="action-btn create-btn" @click="showCreateDialog = true">
+          <el-button type="primary" class="action-btn tech-btn" @click="openCreateDialog">
             <font-awesome-icon :icon="['fas', 'plus']" />
             添加用户
           </el-button>
@@ -29,13 +31,13 @@
 
     <!-- 统计卡片 -->
     <div class="stats-section">
-      <div class="stats-grid">
-        <div class="stat-card total">
-          <div class="stat-icon">
+      <div class="stats-grid" ref="statsRef">
+        <div class="stat-card glass-card hover-float total">
+          <div class="stat-icon gradient-blue">
             <font-awesome-icon :icon="['fas', 'users']" />
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ stats.total }}</div>
+            <div class="stat-number text-gradient-blue">{{ stats.total }}</div>
             <div class="stat-label">总用户数</div>
             <div class="stat-change positive">
               <font-awesome-icon :icon="['fas', 'arrow-up']" />
@@ -44,12 +46,12 @@
           </div>
         </div>
         
-        <div class="stat-card students">
-          <div class="stat-icon">
+        <div class="stat-card glass-card hover-float students">
+          <div class="stat-icon gradient-green">
             <font-awesome-icon :icon="['fas', 'graduation-cap']" />
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ stats.students }}</div>
+            <div class="stat-number text-gradient-green">{{ stats.students }}</div>
             <div class="stat-label">学生用户</div>
             <div class="stat-change positive">
               <font-awesome-icon :icon="['fas', 'arrow-up']" />
@@ -58,12 +60,12 @@
           </div>
         </div>
         
-        <div class="stat-card teachers">
-          <div class="stat-icon">
+        <div class="stat-card glass-card hover-float teachers">
+          <div class="stat-icon gradient-orange">
             <font-awesome-icon :icon="['fas', 'chalkboard-teacher']" />
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ stats.teachers }}</div>
+            <div class="stat-number text-gradient-orange">{{ stats.teachers }}</div>
             <div class="stat-label">教师用户</div>
             <div class="stat-change positive">
               <font-awesome-icon :icon="['fas', 'arrow-up']" />
@@ -72,12 +74,12 @@
           </div>
         </div>
         
-        <div class="stat-card active">
-          <div class="stat-icon">
+        <div class="stat-card glass-card hover-float active">
+          <div class="stat-icon gradient-purple">
             <font-awesome-icon :icon="['fas', 'user-check']" />
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ stats.active }}</div>
+            <div class="stat-number text-gradient-purple">{{ stats.active }}</div>
             <div class="stat-label">活跃用户</div>
             <div class="stat-change positive">
               <font-awesome-icon :icon="['fas', 'arrow-up']" />
@@ -90,11 +92,11 @@
 
     <!-- 筛选和搜索 -->
     <div class="filter-section">
-      <div class="filter-content">
+      <div class="filter-content glass-card" ref="filterRef">
         <div class="filter-left">
           <div class="filter-group">
             <label class="filter-label">用户角色</label>
-            <el-select v-model="filters.role" placeholder="全部角色" clearable>
+            <el-select v-model="filters.role" placeholder="全部角色" clearable class="tech-select">
               <el-option label="全部角色" value=""></el-option>
               <el-option label="学生" value="student"></el-option>
               <el-option label="教师" value="teacher"></el-option>
@@ -104,11 +106,10 @@
           
           <div class="filter-group">
             <label class="filter-label">账户状态</label>
-            <el-select v-model="filters.status" placeholder="全部状态" clearable>
+            <el-select v-model="filters.status" placeholder="全部状态" clearable class="tech-select">
               <el-option label="全部状态" value=""></el-option>
               <el-option label="正常" value="active"></el-option>
               <el-option label="禁用" value="disabled"></el-option>
-              <el-option label="待激活" value="pending"></el-option>
             </el-select>
           </div>
           
@@ -122,12 +123,13 @@
               end-placeholder="结束日期"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
+              class="tech-date-picker"
             />
           </div>
           
           <div class="filter-group">
             <label class="filter-label">排序方式</label>
-            <el-select v-model="filters.sortBy" placeholder="排序方式">
+            <el-select v-model="filters.sortBy" placeholder="排序方式" class="tech-select">
               <el-option label="注册时间" value="created_at"></el-option>
               <el-option label="最后登录" value="last_login"></el-option>
               <el-option label="用户名" value="username"></el-option>
@@ -141,7 +143,7 @@
             <el-input
               v-model="filters.search"
               placeholder="搜索用户名、邮箱或手机号"
-              class="search-input"
+              class="search-input tech-input"
             >
               <template #prefix>
                 <font-awesome-icon :icon="['fas', 'search']" />
@@ -150,11 +152,11 @@
           </div>
           
           <div class="filter-actions">
-            <el-button @click="resetFilters">
+            <el-button class="glass-btn" @click="resetFilters">
               <font-awesome-icon :icon="['fas', 'undo']" />
               重置
             </el-button>
-            <el-button type="primary" @click="applyFilters">
+            <el-button type="primary" class="tech-btn" @click="applyFilters">
               <font-awesome-icon :icon="['fas', 'filter']" />
               筛选
             </el-button>
@@ -165,15 +167,16 @@
 
     <!-- 用户列表 -->
     <div class="users-section">
-      <div class="section-header">
+      <div class="section-header" ref="listHeaderRef">
         <div class="section-title">
+          <div class="title-icon"><font-awesome-icon :icon="['fas', 'list']" /></div>
           <h3>用户列表</h3>
-          <span class="user-count">共 {{ filteredUsers.length }} 个用户</span>
+          <span class="user-count pulse-badge">共 {{ filteredUsers.length }} 个用户</span>
         </div>
         
         <div class="section-actions">
           <div class="view-toggle">
-            <el-radio-group v-model="viewMode" size="small">
+            <el-radio-group v-model="viewMode" size="small" class="tech-radio">
               <el-radio-button label="table">
                 <font-awesome-icon :icon="['fas', 'list']" />
                 列表
@@ -186,15 +189,15 @@
           </div>
           
           <div class="batch-actions" v-if="selectedUsers.length > 0">
-            <el-button size="small" @click="batchEnable">
+            <el-button size="small" class="tech-small-btn success" @click="batchEnable">
               <font-awesome-icon :icon="['fas', 'check']" />
               批量启用
             </el-button>
-            <el-button size="small" @click="batchDisable">
+            <el-button size="small" class="tech-small-btn warning" @click="batchDisable">
               <font-awesome-icon :icon="['fas', 'ban']" />
               批量禁用
             </el-button>
-            <el-button size="small" type="danger" @click="batchDelete">
+            <el-button size="small" class="tech-small-btn danger" @click="batchDelete">
               <font-awesome-icon :icon="['fas', 'trash']" />
               批量删除
             </el-button>
@@ -202,19 +205,108 @@
         </div>
       </div>
       
+      <!-- 卡片视图 (全局默认使用) -->
+      <div v-if="viewMode === 'grid'" class="grid-view" ref="listGridRef">
+        <div class="users-grid">
+          <div 
+            v-for="user in paginatedUsers" 
+            :key="user.id"
+            class="user-card glass-card hover-float"
+            :class="{ selected: selectedUsers.includes(user.id) }"
+            @click="toggleUserSelection(user.id)"
+          >
+            <div class="card-header">
+              <div class="user-avatar tech-avatar">
+                <img :src="user.avatar" :alt="user.username" />
+              </div>
+              <div class="user-basic">
+                <div class="user-name">{{ user.username }}</div>
+                <div class="user-email">{{ user.email }}</div>
+              </div>
+              <div class="card-actions">
+                <el-dropdown trigger="click" @click.stop>
+                  <el-button size="small" circle class="glass-btn">
+                    <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu class="tech-dropdown">
+                      <el-dropdown-item @click="viewUser(user)">
+                        <font-awesome-icon :icon="['fas', 'eye']" /> 查看详情
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="editUser(user)">
+                        <font-awesome-icon :icon="['fas', 'edit']" /> 编辑
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="resetPassword(user)">
+                        <font-awesome-icon :icon="['fas', 'key']" /> 重置密码
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="toggleStatus(user)" divided>
+                        <font-awesome-icon :icon="['fas', user.status === 'active' ? 'ban' : 'check']" />
+                        {{ user.status === 'active' ? '禁用' : '启用' }}
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="deleteUser(user)">
+                        <font-awesome-icon :icon="['fas', 'trash']" class="text-danger" /> 删除
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </div>
+            
+            <div class="card-content">
+              <div class="user-meta">
+                <div class="meta-item">
+                  <span class="meta-label">角色</span>
+                  <span :class="['tech-tag', getRoleTagType(user.role)]">
+                    {{ getRoleName(user.role) }}
+                  </span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">状态</span>
+                  <span :class="['tech-tag', getStatusTagType(user.status)]">
+                    {{ getStatusName(user.status) }}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="user-stats">
+                <div class="stat-item-small">
+                  <span class="stat-value text-gradient-blue">{{ user.coursesCount || 0 }}</span>
+                  <span class="stat-label">课程数</span>
+                </div>
+                <div class="stat-item-small">
+                  <span class="stat-value text-gradient-green">{{ user.loginCount || 0 }}</span>
+                  <span class="stat-label">登录次数</span>
+                </div>
+              </div>
+              
+              <div class="user-dates">
+                <div class="date-item">
+                  <font-awesome-icon :icon="['fas', 'calendar-plus']" />
+                  <span>注册：{{ formatDate(user.createdAt) }}</span>
+                </div>
+                <div class="date-item">
+                  <font-awesome-icon :icon="['fas', 'clock']" />
+                  <span>登录：{{ formatDate(user.lastLogin) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- 表格视图 -->
-      <div v-if="viewMode === 'table'" class="table-view">
+      <div v-else class="table-view glass-card" ref="listTableRef">
         <el-table
           :data="paginatedUsers"
           @selection-change="handleSelectionChange"
-          class="users-table"
+          class="users-table tech-table"
         >
           <el-table-column type="selection" width="55"></el-table-column>
           
-          <el-table-column label="用户信息" min-width="200">
+          <el-table-column label="用户信息" min-width="220">
             <template #default="{ row }">
               <div class="user-info">
-                <div class="user-avatar">
+                <div class="user-avatar tech-avatar small">
                   <img :src="row.avatar" :alt="row.username" />
                 </div>
                 <div class="user-details">
@@ -227,60 +319,56 @@
           
           <el-table-column label="角色" width="100">
             <template #default="{ row }">
-              <el-tag :type="getRoleTagType(row.role)" size="small">
+              <span :class="['tech-tag', getRoleTagType(row.role)]">
                 {{ getRoleName(row.role) }}
-              </el-tag>
+              </span>
             </template>
           </el-table-column>
           
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="getStatusTagType(row.status)" size="small">
+              <span :class="['tech-tag', getStatusTagType(row.status)]">
                 {{ getStatusName(row.status) }}
-              </el-tag>
+              </span>
             </template>
           </el-table-column>
           
           <el-table-column label="注册时间" width="120">
             <template #default="{ row }">
-              {{ formatDate(row.createdAt) }}
+              <span class="text-muted">{{ formatDate(row.createdAt) }}</span>
             </template>
           </el-table-column>
           
           <el-table-column label="最后登录" width="120">
             <template #default="{ row }">
-              {{ formatDate(row.lastLogin) }}
+              <span class="text-muted">{{ formatDate(row.lastLogin) }}</span>
             </template>
           </el-table-column>
           
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
-                <el-button size="small" text @click="viewUser(row)">
+                <el-button size="small" text class="tech-text-btn" @click="viewUser(row)">
                   <font-awesome-icon :icon="['fas', 'eye']" />
-                  查看
                 </el-button>
-                <el-button size="small" text @click="editUser(row)">
+                <el-button size="small" text class="tech-text-btn" @click="editUser(row)">
                   <font-awesome-icon :icon="['fas', 'edit']" />
-                  编辑
                 </el-button>
                 <el-dropdown trigger="click">
-                  <el-button size="small" text>
+                  <el-button size="small" text class="tech-text-btn">
                     <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
                   </el-button>
                   <template #dropdown>
-                    <el-dropdown-menu>
+                    <el-dropdown-menu class="tech-dropdown">
                       <el-dropdown-item @click="resetPassword(row)">
-                        <font-awesome-icon :icon="['fas', 'key']" />
-                        重置密码
+                        <font-awesome-icon :icon="['fas', 'key']" /> 重置密码
                       </el-dropdown-item>
                       <el-dropdown-item @click="toggleStatus(row)">
                         <font-awesome-icon :icon="['fas', row.status === 'active' ? 'ban' : 'check']" />
                         {{ row.status === 'active' ? '禁用' : '启用' }}
                       </el-dropdown-item>
                       <el-dropdown-item @click="deleteUser(row)" divided>
-                        <font-awesome-icon :icon="['fas', 'trash']" />
-                        删除
+                        <font-awesome-icon :icon="['fas', 'trash']" class="text-danger" /> 删除
                       </el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
@@ -291,101 +379,8 @@
         </el-table>
       </div>
       
-      <!-- 卡片视图 -->
-      <div v-else class="grid-view">
-        <div class="users-grid">
-          <div 
-            v-for="user in paginatedUsers" 
-            :key="user.id"
-            class="user-card"
-            :class="{ selected: selectedUsers.includes(user.id) }"
-            @click="toggleUserSelection(user.id)"
-          >
-            <div class="card-header">
-              <div class="user-avatar">
-                <img :src="user.avatar" :alt="user.username" />
-              </div>
-              <div class="user-basic">
-                <div class="user-name">{{ user.username }}</div>
-                <div class="user-email">{{ user.email }}</div>
-              </div>
-              <div class="card-actions">
-                <el-dropdown trigger="click" @click.stop>
-                  <el-button size="small" circle>
-                    <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="viewUser(user)">
-                        <font-awesome-icon :icon="['fas', 'eye']" />
-                        查看详情
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="editUser(user)">
-                        <font-awesome-icon :icon="['fas', 'edit']" />
-                        编辑
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="resetPassword(user)">
-                        <font-awesome-icon :icon="['fas', 'key']" />
-                        重置密码
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="toggleStatus(user)" divided>
-                        <font-awesome-icon :icon="['fas', user.status === 'active' ? 'ban' : 'check']" />
-                        {{ user.status === 'active' ? '禁用' : '启用' }}
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="deleteUser(user)">
-                        <font-awesome-icon :icon="['fas', 'trash']" />
-                        删除
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </div>
-            
-            <div class="card-content">
-              <div class="user-meta">
-                <div class="meta-item">
-                  <span class="meta-label">角色</span>
-                  <el-tag :type="getRoleTagType(user.role)" size="small">
-                    {{ getRoleName(user.role) }}
-                  </el-tag>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">状态</span>
-                  <el-tag :type="getStatusTagType(user.status)" size="small">
-                    {{ getStatusName(user.status) }}
-                  </el-tag>
-                </div>
-              </div>
-              
-              <div class="user-stats">
-                <div class="stat-item">
-                  <span class="stat-value">{{ user.coursesCount || 0 }}</span>
-                  <span class="stat-label">课程数</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-value">{{ user.loginCount || 0 }}</span>
-                  <span class="stat-label">登录次数</span>
-                </div>
-              </div>
-              
-              <div class="user-dates">
-                <div class="date-item">
-                  <font-awesome-icon :icon="['fas', 'calendar-plus']" />
-                  <span>注册：{{ formatDate(user.createdAt) }}</span>
-                </div>
-                <div class="date-item">
-                  <font-awesome-icon :icon="['fas', 'clock']" />
-                  <span>最后登录：{{ formatDate(user.lastLogin) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       <!-- 分页 -->
-      <div class="pagination-section">
+      <div class="pagination-section glass-card">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
@@ -394,6 +389,7 @@
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
+          class="tech-pagination"
         />
       </div>
     </div>
@@ -401,70 +397,144 @@
     <!-- 创建用户对话框 -->
     <el-dialog
       v-model="showCreateDialog"
-      title="添加用户"
       width="600px"
-      class="create-dialog"
+      class="tech-dialog glass-dialog"
+      :show-close="false"
+      append-to-body
+      @open="onDialogOpen"
     >
-      <el-form :model="newUser" label-width="100px" class="create-form">
+      <template #header="{ close }">
+        <div class="dialog-header">
+          <div class="title-icon"><font-awesome-icon :icon="['fas', editingUserId ? 'user-pen' : 'user-plus']" /></div>
+          <span>{{ editingUserId ? '编辑用户' : '添加用户' }}</span>
+          <button class="close-btn" @click="close">
+            <font-awesome-icon :icon="['fas', 'times']" />
+          </button>
+        </div>
+      </template>
+
+      <el-form :model="userForm" label-width="100px" class="create-form">
+        <el-form-item label="学号/工号">
+          <el-input v-model="userForm.identifier" placeholder="请输入学号或工号" class="tech-input" />
+        </el-form-item>
+
         <el-form-item label="用户名">
-          <el-input v-model="newUser.username" placeholder="请输入用户名" />
+          <el-input v-model="userForm.username" placeholder="请输入用户名" class="tech-input" />
         </el-form-item>
         
         <el-form-item label="邮箱">
-          <el-input v-model="newUser.email" placeholder="请输入邮箱地址" />
+          <el-input v-model="userForm.email" placeholder="请输入邮箱地址" class="tech-input" />
         </el-form-item>
         
         <el-form-item label="手机号">
-          <el-input v-model="newUser.phone" placeholder="请输入手机号" />
+          <el-input v-model="userForm.phone" placeholder="请输入手机号" class="tech-input" />
         </el-form-item>
         
         <el-form-item label="角色">
-          <el-select v-model="newUser.role" placeholder="请选择角色">
+          <el-select v-model="userForm.role" placeholder="请选择角色" class="tech-select w-full">
             <el-option label="学生" value="student"></el-option>
             <el-option label="教师" value="teacher"></el-option>
             <el-option label="管理员" value="admin"></el-option>
           </el-select>
         </el-form-item>
         
-        <el-form-item label="初始密码">
-          <el-input v-model="newUser.password" type="password" placeholder="请输入初始密码" />
+        <el-form-item v-if="!editingUserId" label="初始密码">
+          <el-input v-model="userForm.password" type="password" placeholder="请输入初始密码" class="tech-input" />
         </el-form-item>
         
         <el-form-item label="状态">
-          <el-radio-group v-model="newUser.status">
+          <el-radio-group v-model="userForm.status" class="tech-radio">
             <el-radio label="active">正常</el-radio>
-            <el-radio label="pending">待激活</el-radio>
+            <el-radio label="disabled">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showCreateDialog = false">取消</el-button>
-          <el-button type="primary" @click="createUser">确定</el-button>
+          <el-button class="glass-btn" @click="closeUserDialog">取消</el-button>
+          <el-button type="primary" class="tech-btn" @click="submitUserForm">
+            {{ editingUserId ? '保存修改' : '确定创建' }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
+
+    <el-drawer
+      v-model="showDetailDrawer"
+      size="420px"
+      :with-header="false"
+      destroy-on-close
+      append-to-body
+      class="glass-drawer"
+      @open="onDrawerOpen"
+    >
+      <div v-if="detailUser" class="user-detail-drawer">
+        <div class="dialog-header">
+          <div class="title-icon"><font-awesome-icon :icon="['fas', 'address-card']" /></div>
+          <span>用户详情</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">用户名称</span>
+            <strong>{{ detailUser.nickname || '-' }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">学号/工号</span>
+            <strong>{{ detailUser.identifier || '-' }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">邮箱</span>
+            <strong>{{ detailUser.email || '-' }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">手机号</span>
+            <strong>{{ detailUser.phone || '-' }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">角色</span>
+            <strong>{{ getRoleName(detailUser.role) }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">状态</span>
+            <strong>{{ getStatusName(detailUser.status) }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">创建时间</span>
+            <strong>{{ formatDate(detailUser.createdAt) }}</strong>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">更新时间</span>
+            <strong>{{ formatDate(detailUser.lastLogin) }}</strong>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { gsap } from 'gsap'
+import {
+  createAdminUser,
+  disableAdminUser,
+  getAdminUserDetail,
+  getAdminUsers,
+  resetAdminUserPassword,
+  restoreAdminUser,
+  updateAdminUser
+} from '@/api/admin/adminManagement'
 
-// 统计数据
-const stats = ref({
-  total: 1248,
-  totalGrowth: 12.5,
-  students: 1089,
-  studentsGrowth: 15.2,
-  teachers: 159,
-  teachersGrowth: 8.7,
-  active: 1156,
-  activeGrowth: 10.3
-})
+const headerRef = ref(null)
+const statsRef = ref(null)
+const filterRef = ref(null)
+const listHeaderRef = ref(null)
+const listGridRef = ref(null)
+const listTableRef = ref(null)
+let tl = null
 
-// 筛选条件
 const filters = ref({
   role: '',
   status: '',
@@ -472,22 +542,22 @@ const filters = ref({
   sortBy: 'created_at',
   search: ''
 })
-
-// 视图模式
-const viewMode = ref('table')
-
-// 分页
+const viewMode = ref('grid')
 const currentPage = ref(1)
-const pageSize = ref(20)
-
-// 选中的用户
+const pageSize = ref(12)
 const selectedUsers = ref([])
-
-// 对话框
 const showCreateDialog = ref(false)
+const showDetailDrawer = ref(false)
+const editingUserId = ref('')
+const detailUser = ref(null)
+const users = ref([])
 
-// 新用户表单
-const newUser = ref({
+/**
+ * 统一的用户维护表单。
+ * 通过 editingUserId 判断当前是新增还是编辑。
+ */
+const userForm = ref({
+  identifier: '',
   username: '',
   email: '',
   phone: '',
@@ -496,368 +566,132 @@ const newUser = ref({
   status: 'active'
 })
 
-// 模拟用户数据
-const users = ref([
-  {
-    id: 1,
-    username: '张三',
-    email: 'zhangsan@example.com',
-    phone: '13800138001',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    role: 'student',
-    status: 'active',
-    createdAt: '2024-01-15',
-    lastLogin: '2024-03-15',
-    coursesCount: 5,
-    loginCount: 128
-  },
-  {
-    id: 2,
-    username: '李老师',
-    email: 'liteacher@example.com',
-    phone: '13800138002',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    role: 'teacher',
-    status: 'active',
-    createdAt: '2024-01-10',
-    lastLogin: '2024-03-14',
-    coursesCount: 12,
-    loginCount: 256
-  },
-  {
-    id: 3,
-    username: '王五',
-    email: 'wangwu@example.com',
-    phone: '13800138003',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    role: 'student',
-    status: 'disabled',
-    createdAt: '2024-02-01',
-    lastLogin: '2024-03-10',
-    coursesCount: 2,
-    loginCount: 45
-  },
-  {
-    id: 4,
-    username: '赵管理员',
-    email: 'admin@example.com',
-    phone: '13800138004',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    role: 'admin',
-    status: 'active',
-    createdAt: '2024-01-01',
-    lastLogin: '2024-03-15',
-    coursesCount: 0,
-    loginCount: 512
-  },
-  {
-    id: 5,
-    username: '孙学生',
-    email: 'sunstudent@example.com',
-    phone: '13800138005',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    role: 'student',
-    status: 'pending',
-    createdAt: '2024-03-01',
-    lastLogin: null,
-    coursesCount: 0,
-    loginCount: 0
-  }
-])
+/**
+ * 将后端用户结构转换为前端视图结构。
+ *
+ * @param {Record<string, any>} user 后端用户对象
+ * @returns {Record<string, any>} 前端展示对象
+ */
+const normalizeUser = (user = {}) => ({
+  id: user.id,
+  identifier: user.identifier || '',
+  username: user.nickname || '',
+  email: user.email || '',
+  phone: user.phone || '',
+  avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nickname || 'U')}&background=002FA7&color=fff`,
+  role: user.role || 'student',
+  status: user.isDeleted === 1 ? 'disabled' : 'active',
+  createdAt: user.createdAt || '',
+  lastLogin: user.updatedAt || '',
+  coursesCount: user.coursesCount || 0,
+  loginCount: user.loginCount || 0
+})
 
-// 筛选后的用户
+/**
+ * 刷新管理员用户列表。
+ */
+const loadUsers = async () => {
+  try {
+    const response = await getAdminUsers()
+    users.value = (Array.isArray(response) ? response : []).map(normalizeUser)
+    await nextTick()
+    animateList()
+  } catch (error) {
+    console.error('管理员用户列表加载失败:', error)
+    ElMessage.error('用户列表加载失败，请稍后重试')
+  }
+}
+
+const stats = computed(() => {
+  const total = users.value.length
+  const students = users.value.filter(user => user.role === 'student').length
+  const teachers = users.value.filter(user => user.role === 'teacher').length
+  const active = users.value.filter(user => user.status === 'active').length
+  const ratio = (value) => (total ? Number(((value / total) * 100).toFixed(1)) : 0)
+  return {
+    total,
+    totalGrowth: ratio(active),
+    students,
+    studentsGrowth: ratio(students),
+    teachers,
+    teachersGrowth: ratio(teachers),
+    active,
+    activeGrowth: ratio(active)
+  }
+})
+
 const filteredUsers = computed(() => {
   let result = [...users.value]
-  
-  // 角色筛选
-  if (filters.value.role) {
-    result = result.filter(user => user.role === filters.value.role)
-  }
-  
-  // 状态筛选
-  if (filters.value.status) {
-    result = result.filter(user => user.status === filters.value.status)
-  }
-  
-  // 搜索筛选
+  if (filters.value.role) result = result.filter(user => user.role === filters.value.role)
+  if (filters.value.status) result = result.filter(user => user.status === filters.value.status)
   if (filters.value.search) {
     const search = filters.value.search.toLowerCase()
-    result = result.filter(user => 
+    result = result.filter(user =>
       user.username.toLowerCase().includes(search) ||
       user.email.toLowerCase().includes(search) ||
+      user.identifier.toLowerCase().includes(search) ||
       (user.phone && user.phone.includes(search))
     )
   }
-  
-  // 排序
   result.sort((a, b) => {
     const field = filters.value.sortBy
     if (field === 'created_at') {
-      return new Date(b.createdAt) - new Date(a.createdAt)
-    } else if (field === 'last_login') {
-      const aDate = a.lastLogin ? new Date(a.lastLogin) : new Date(0)
-      const bDate = b.lastLogin ? new Date(b.lastLogin) : new Date(0)
-      return bDate - aDate
-    } else {
-      return a[field].localeCompare(b[field])
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     }
+    if (field === 'last_login') {
+      return new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0)
+    }
+    return (a[field] || '').localeCompare(b[field] || '')
   })
-  
   return result
 })
 
-// 分页后的用户
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
   return filteredUsers.value.slice(start, end)
 })
 
-// 获取角色标签类型
-const getRoleTagType = (role) => {
-  const types = {
-    student: '',
-    teacher: 'success',
-    admin: 'danger'
-  }
-  return types[role] || ''
-}
+const getRoleTagType = (role) => ({ student: 'info', teacher: 'success', admin: 'danger' }[role] || 'info')
+const getRoleName = (role) => ({ student: '学生', teacher: '教师', admin: '管理员' }[role] || '未知')
+const getStatusTagType = (status) => ({ active: 'success', disabled: 'danger' }[status] || 'info')
+const getStatusName = (status) => ({ active: '正常', disabled: '禁用' }[status] || '未知')
+const formatDate = (date) => (!date ? '从未' : new Date(date).toLocaleString('zh-CN'))
 
-// 获取角色名称
-const getRoleName = (role) => {
-  const names = {
-    student: '学生',
-    teacher: '教师',
-    admin: '管理员'
-  }
-  return names[role] || '未知'
-}
-
-// 获取状态标签类型
-const getStatusTagType = (status) => {
-  const types = {
-    active: 'success',
-    disabled: 'danger',
-    pending: 'warning'
-  }
-  return types[status] || ''
-}
-
-// 获取状态名称
-const getStatusName = (status) => {
-  const names = {
-    active: '正常',
-    disabled: '禁用',
-    pending: '待激活'
-  }
-  return names[status] || '未知'
-}
-
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return '从未'
-  return new Date(date).toLocaleDateString('zh-CN')
-}
-
-// 重置筛选
 const resetFilters = () => {
-  filters.value = {
-    role: '',
-    status: '',
-    dateRange: null,
-    sortBy: 'created_at',
-    search: ''
-  }
+  filters.value = { role: '', status: '', dateRange: null, sortBy: 'created_at', search: '' }
+  currentPage.value = 1
 }
 
-// 应用筛选
 const applyFilters = () => {
   currentPage.value = 1
-  ElMessage.success('筛选条件已应用')
+  animateList()
 }
 
-// 处理选择变化
 const handleSelectionChange = (selection) => {
   selectedUsers.value = selection.map(user => user.id)
 }
 
-// 切换用户选择
 const toggleUserSelection = (userId) => {
   const index = selectedUsers.value.indexOf(userId)
-  if (index > -1) {
-    selectedUsers.value.splice(index, 1)
-  } else {
-    selectedUsers.value.push(userId)
-  }
+  if (index > -1) selectedUsers.value.splice(index, 1)
+  else selectedUsers.value.push(userId)
 }
 
-// 分页处理
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
+  animateList()
 }
 
 const handleCurrentChange = (page) => {
   currentPage.value = page
+  animateList()
 }
 
-// 查看用户
-const viewUser = (user) => {
-  console.log('查看用户:', user)
-  ElMessage.info(`查看用户：${user.username}`)
-}
-
-// 编辑用户
-const editUser = (user) => {
-  console.log('编辑用户:', user)
-  ElMessage.info(`编辑用户：${user.username}`)
-}
-
-// 重置密码
-const resetPassword = (user) => {
-  ElMessageBox.confirm(
-    `确定要重置用户 ${user.username} 的密码吗？`,
-    '重置密码',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    ElMessage.success('密码重置成功')
-  }).catch(() => {
-    ElMessage.info('已取消重置')
-  })
-}
-
-// 切换状态
-const toggleStatus = (user) => {
-  const action = user.status === 'active' ? '禁用' : '启用'
-  ElMessageBox.confirm(
-    `确定要${action}用户 ${user.username} 吗？`,
-    `${action}用户`,
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    user.status = user.status === 'active' ? 'disabled' : 'active'
-    ElMessage.success(`用户${action}成功`)
-  }).catch(() => {
-    ElMessage.info(`已取消${action}`)
-  })
-}
-
-// 删除用户
-const deleteUser = (user) => {
-  ElMessageBox.confirm(
-    `确定要删除用户 ${user.username} 吗？此操作不可恢复。`,
-    '删除用户',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    }
-  ).then(() => {
-    const index = users.value.findIndex(u => u.id === user.id)
-    if (index > -1) {
-      users.value.splice(index, 1)
-      ElMessage.success('用户删除成功')
-    }
-  }).catch(() => {
-    ElMessage.info('已取消删除')
-  })
-}
-
-// 批量启用
-const batchEnable = () => {
-  ElMessageBox.confirm(
-    `确定要启用选中的 ${selectedUsers.value.length} 个用户吗？`,
-    '批量启用',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    users.value.forEach(user => {
-      if (selectedUsers.value.includes(user.id)) {
-        user.status = 'active'
-      }
-    })
-    selectedUsers.value = []
-    ElMessage.success('批量启用成功')
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
-}
-
-// 批量禁用
-const batchDisable = () => {
-  ElMessageBox.confirm(
-    `确定要禁用选中的 ${selectedUsers.value.length} 个用户吗？`,
-    '批量禁用',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    users.value.forEach(user => {
-      if (selectedUsers.value.includes(user.id)) {
-        user.status = 'disabled'
-      }
-    })
-    selectedUsers.value = []
-    ElMessage.success('批量禁用成功')
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
-}
-
-// 批量删除
-const batchDelete = () => {
-  ElMessageBox.confirm(
-    `确定要删除选中的 ${selectedUsers.value.length} 个用户吗？此操作不可恢复。`,
-    '批量删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    }
-  ).then(() => {
-    users.value = users.value.filter(user => !selectedUsers.value.includes(user.id))
-    selectedUsers.value = []
-    ElMessage.success('批量删除成功')
-  }).catch(() => {
-    ElMessage.info('已取消删除')
-  })
-}
-
-// 创建用户
-const createUser = () => {
-  // 简单验证
-  if (!newUser.value.username || !newUser.value.email || !newUser.value.role) {
-    ElMessage.error('请填写必要信息')
-    return
-  }
-  
-  const user = {
-    id: Date.now(),
-    ...newUser.value,
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    createdAt: new Date().toISOString().split('T')[0],
-    lastLogin: null,
-    coursesCount: 0,
-    loginCount: 0
-  }
-  
-  users.value.unshift(user)
-  showCreateDialog.value = false
-  
-  // 重置表单
-  newUser.value = {
+const resetUserForm = () => {
+  userForm.value = {
+    identifier: '',
     username: '',
     email: '',
     phone: '',
@@ -865,199 +699,440 @@ const createUser = () => {
     password: '',
     status: 'active'
   }
-  
-  ElMessage.success('用户创建成功')
+  editingUserId.value = ''
 }
 
-onMounted(() => {
-  // 组件挂载时的初始化逻辑
+const openCreateDialog = () => {
+  resetUserForm()
+  showCreateDialog.value = true
+}
+
+const onDialogOpen = () => {
+  nextTick(() => {
+    gsap.fromTo('.glass-dialog', 
+      { opacity: 0, scale: 0.95, y: 20 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'back.out(1.2)' }
+    )
+  })
+}
+
+const onDrawerOpen = () => {
+  nextTick(() => {
+    gsap.fromTo('.glass-drawer', 
+      { opacity: 0, x: 50 },
+      { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' }
+    )
+    gsap.fromTo('.detail-card',
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.4, stagger: 0.1, delay: 0.2, ease: 'back.out(1.2)' }
+    )
+  })
+}
+
+const closeUserDialog = () => {
+  showCreateDialog.value = false
+  resetUserForm()
+}
+
+/**
+ * 构建后端需要的用户保存请求体。
+ */
+const buildUserPayload = () => ({
+  identifier: userForm.value.identifier.trim(),
+  nickname: userForm.value.username.trim(),
+  email: userForm.value.email.trim(),
+  phone: userForm.value.phone.trim(),
+  role: userForm.value.role,
+  password: userForm.value.password,
+  enabled: userForm.value.status === 'active'
+})
+
+const submitUserForm = async () => {
+  if (!userForm.value.identifier || !userForm.value.username || !userForm.value.email) {
+    ElMessage.error('请填写必要信息')
+    return
+  }
+  if (!editingUserId.value && !userForm.value.password) {
+    ElMessage.error('新增用户时必须填写初始密码')
+    return
+  }
+  try {
+    if (editingUserId.value) {
+      await updateAdminUser(editingUserId.value, buildUserPayload())
+      ElMessage.success('用户更新成功')
+    } else {
+      await createAdminUser(buildUserPayload())
+      ElMessage.success('用户创建成功')
+    }
+    closeUserDialog()
+    await loadUsers()
+  } catch (error) {
+    console.error('用户保存失败:', error)
+    ElMessage.error(error?.message || '用户保存失败')
+  }
+}
+
+const viewUser = async (user) => {
+  try {
+    const response = await getAdminUserDetail(user.id)
+    detailUser.value = normalizeUser(response)
+    showDetailDrawer.value = true
+  } catch (error) {
+    console.error('用户详情加载失败:', error)
+    ElMessage.error('用户详情加载失败')
+  }
+}
+
+const editUser = async (user) => {
+  try {
+    const response = await getAdminUserDetail(user.id)
+    const detail = normalizeUser(response)
+    editingUserId.value = detail.id
+    userForm.value = {
+      identifier: detail.identifier,
+      username: detail.username,
+      email: detail.email,
+      phone: detail.phone,
+      role: detail.role,
+      password: '',
+      status: detail.status
+    }
+    showCreateDialog.value = true
+  } catch (error) {
+    console.error('编辑用户前获取详情失败:', error)
+    ElMessage.error('用户详情加载失败')
+  }
+}
+
+const resetPassword = async (user) => {
+  try {
+    await ElMessageBox.confirm(`确定要重置用户 ${user.username} 的密码吗？`, '重置密码', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    const newPassword = await resetAdminUserPassword(user.id)
+    ElMessage.success(`密码重置成功，新密码：${newPassword}`)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('密码重置失败:', error)
+      ElMessage.error('密码重置失败')
+    }
+  }
+}
+
+const toggleStatus = async (user) => {
+  const action = user.status === 'active' ? '禁用' : '启用'
+  try {
+    await ElMessageBox.confirm(`确定要${action}用户 ${user.username} 吗？`, `${action}用户`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    if (user.status === 'active') {
+      await disableAdminUser(user.id)
+    } else {
+      await restoreAdminUser(user.id)
+    }
+    ElMessage.success(`用户${action}成功`)
+    await loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('用户状态变更失败:', error)
+      ElMessage.error('用户状态变更失败')
+    }
+  }
+}
+
+const deleteUser = async (user) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除用户 ${user.username} 吗？此操作会将用户置为禁用状态。`, '删除用户', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'error'
+    })
+    await disableAdminUser(user.id)
+    ElMessage.success('用户删除成功')
+    await loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('用户删除失败:', error)
+      ElMessage.error('用户删除失败')
+    }
+  }
+}
+
+const batchEnable = async () => {
+  try {
+    await Promise.all(selectedUsers.value.map(userId => restoreAdminUser(userId)))
+    selectedUsers.value = []
+    ElMessage.success('批量启用成功')
+    await loadUsers()
+  } catch (error) {
+    console.error('批量启用失败:', error)
+    ElMessage.error('批量启用失败')
+  }
+}
+
+const batchDisable = async () => {
+  try {
+    await Promise.all(selectedUsers.value.map(userId => disableAdminUser(userId)))
+    selectedUsers.value = []
+    ElMessage.success('批量禁用成功')
+    await loadUsers()
+  } catch (error) {
+    console.error('批量禁用失败:', error)
+    ElMessage.error('批量禁用失败')
+  }
+}
+
+const batchDelete = async () => {
+  try {
+    await Promise.all(selectedUsers.value.map(userId => disableAdminUser(userId)))
+    selectedUsers.value = []
+    ElMessage.success('批量删除成功')
+    await loadUsers()
+  } catch (error) {
+    console.error('批量删除失败:', error)
+    ElMessage.error('批量删除失败')
+  }
+}
+
+const exportCurrentView = () => {
+  const blob = new Blob([JSON.stringify(filteredUsers.value, null, 2)], { type: 'application/json;charset=utf-8' })
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = `admin-users-${Date.now()}.json`
+  anchor.click()
+  URL.revokeObjectURL(objectUrl)
+  ElMessage.success('当前用户视图已导出')
+}
+
+const animateList = () => {
+  nextTick(() => {
+    if (viewMode.value === 'grid' && listGridRef.value) {
+      gsap.fromTo(listGridRef.value.querySelectorAll('.user-card'),
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out', overwrite: true }
+      )
+    } else if (viewMode.value === 'table' && listTableRef.value) {
+      const body = listTableRef.value.querySelector('.el-table__body-wrapper')
+      if (body) {
+        gsap.fromTo(body, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out', overwrite: true })
+      }
+    }
+  })
+}
+
+watch(viewMode, () => {
+  animateList()
+})
+
+onMounted(async () => {
+  await loadUsers()
+  tl = gsap.timeline()
+  tl.from(headerRef.value, { y: -20, opacity: 0, duration: 0.5, ease: 'power2.out' })
+  if (statsRef.value) {
+    tl.from(statsRef.value.children, {
+      y: 20, opacity: 0, duration: 0.4, stagger: 0.1, ease: 'back.out(1.2)'
+    }, '-=0.2')
+  }
+  if (filterRef.value) {
+    tl.from(filterRef.value, { y: 20, opacity: 0, duration: 0.4, ease: 'power2.out' }, '-=0.2')
+  }
+  if (listHeaderRef.value) {
+    tl.from(listHeaderRef.value, { y: 20, opacity: 0, duration: 0.4, ease: 'power2.out' }, '-=0.2')
+  }
+  animateList()
+})
+
+onUnmounted(() => {
+  if (tl) tl.kill()
 })
 </script>
 
 <style scoped>
 .user-management-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f0f0f3 0%, #e8e8eb 100%);
   padding: 0;
+  color: #334155;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
 }
+
+/* 全局 Glassmorphism 卡片样式 */
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.hover-float {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-float:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 97, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* 渐变色定义 */
+.text-gradient-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.text-gradient-green { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.text-gradient-orange { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.text-gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+.gradient-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
+.gradient-green { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+.gradient-orange { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+.gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
 
 /* 页面头部 */
 .page-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 24px 30px;
+  margin-bottom: 24px;
 }
 
 .header-content {
-  max-width: 1400px;
-  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #1e293b;
   margin: 0 0 8px 0;
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.page-title i {
-  color: #002FA7;
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(0, 97, 255, 0.1);
+  color: #0061ff;
 }
 
 .page-subtitle {
-  color: #6b7280;
+  color: #64748b;
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
 .action-btn {
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 12px;
   font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.import-btn,
-.export-btn {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  color: #6c757d;
-}
-
-.create-btn {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: none;
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #475569;
+  transition: all 0.3s ease;
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #0061ff;
+}
+
+.tech-btn {
+  background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
   color: white;
+  box-shadow: 0 4px 15px rgba(0, 97, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.tech-btn:hover {
+  box-shadow: 0 6px 20px rgba(0, 97, 255, 0.4);
+  transform: translateY(-2px);
 }
 
 /* 统计卡片 */
-.stats-section {
-  padding: 30px;
-  padding-bottom: 0;
-}
-
+.stats-section { margin-bottom: 24px; }
 .stats-grid {
-  max-width: 1400px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.15),
-    -20px -20px 40px rgba(255, 255, 255, 0.9);
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 15px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.stat-card.total .stat-icon {
-  background: linear-gradient(135deg, #002FA7, #517B4D);
-}
-
-.stat-card.students .stat-icon {
-  background: linear-gradient(135deg, #28a745, #20c997);
-}
-
-.stat-card.teachers .stat-icon {
-  background: linear-gradient(135deg, #ffc107, #fd7e14);
-}
-
-.stat-card.active .stat-icon {
-  background: linear-gradient(135deg, #6f42c1, #e83e8c);
-}
-
-.stat-content {
-  flex: 1;
-}
+.stat-content { flex: 1; }
 
 .stat-number {
   font-size: 32px;
   font-weight: 700;
-  color: #2c3e50;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .stat-label {
-  color: #6b7280;
+  color: #64748b;
   font-size: 14px;
+  font-weight: 500;
   margin-bottom: 8px;
 }
 
 .stat-change {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  width: fit-content;
 }
 
-.stat-change.positive {
-  color: #28a745;
-}
-
-.stat-change.negative {
-  color: #dc3545;
-}
+.stat-change.positive { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 
 /* 筛选区域 */
-.filter-section {
-  padding: 30px;
-  padding-bottom: 0;
-}
-
+.filter-section { margin-bottom: 24px; }
 .filter-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
   padding: 24px;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: space-between;
+  align-items: flex-end;
   gap: 24px;
+  flex-wrap: wrap;
 }
 
 .filter-left {
@@ -1070,46 +1145,31 @@ onMounted(() => {
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-width: 160px;
+  gap: 12px;
 }
 
 .filter-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
 }
 
 .filter-right {
   display: flex;
   gap: 16px;
-  align-items: flex-end;
+  align-items: center;
 }
 
-.search-box {
-  min-width: 280px;
-}
+.search-box { width: 280px; }
 
-.search-input {
-  border-radius: 12px;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* 用户列表 */
-.users-section {
-  padding: 30px;
-}
+/* 用户列表头部 */
+.users-section { margin-bottom: 24px; }
 
 .section-header {
-  max-width: 1400px;
-  margin: 0 auto 24px auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 24px;
 }
 
 .section-title {
@@ -1119,15 +1179,20 @@ onMounted(() => {
 }
 
 .section-title h3 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  color: #2c3e50;
+  color: #1e293b;
   margin: 0;
 }
 
-.user-count {
-  color: #6b7280;
-  font-size: 14px;
+.pulse-badge {
+  background: linear-gradient(135deg, #0061ff, #60efff);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(0, 97, 255, 0.4);
 }
 
 .section-actions {
@@ -1136,107 +1201,40 @@ onMounted(() => {
   align-items: center;
 }
 
-.view-toggle {
-  display: flex;
-}
-
 .batch-actions {
   display: flex;
   gap: 8px;
 }
 
-/* 表格视图 */
-.table-view {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
+.tech-small-btn {
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
-
-.users-table {
-  width: 100%;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.user-name {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.user-email {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.table-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+.tech-small-btn.success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.tech-small-btn.success:hover { background: #10b981; color: white; }
+.tech-small-btn.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.tech-small-btn.warning:hover { background: #f59e0b; color: white; }
+.tech-small-btn.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.tech-small-btn.danger:hover { background: #ef4444; color: white; }
 
 /* 卡片视图 */
-.grid-view {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
 .users-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
 }
 
 .user-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
   padding: 24px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 
-    15px 15px 30px rgba(0, 0, 0, 0.1),
-    -15px -15px 30px rgba(255, 255, 255, 0.8);
-}
-
-.user-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    20px 20px 40px rgba(0, 0, 0, 0.15),
-    -20px -20px 40px rgba(255, 255, 255, 0.9);
 }
 
 .user-card.selected {
-  border: 2px solid #002FA7;
-  background: rgba(0, 47, 167, 0.05);
+  border: 2px solid #0061ff;
+  background: rgba(0, 97, 255, 0.05);
+  box-shadow: 0 8px 24px rgba(0, 97, 255, 0.15);
 }
 
 .card-header {
@@ -1246,14 +1244,29 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.user-basic {
-  flex: 1;
+.tech-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  border: 2px solid white;
 }
 
-.card-actions {
-  display: flex;
-  align-items: center;
+.tech-avatar.small {
+  width: 40px;
+  height: 40px;
 }
+
+.tech-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-basic { flex: 1; }
+.user-name { font-weight: 600; color: #1e293b; font-size: 16px; }
+.user-email { color: #64748b; font-size: 13px; margin-top: 2px; }
 
 .card-content {
   display: flex;
@@ -1264,48 +1277,55 @@ onMounted(() => {
 .user-meta {
   display: flex;
   gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed rgba(0,0,0,0.1);
 }
 
 .meta-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex: 1;
+  gap: 8px;
 }
 
-.meta-label {
+.meta-label { font-size: 12px; color: #64748b; }
+
+.tech-tag {
+  padding: 4px 10px;
+  border-radius: 8px;
   font-size: 12px;
-  color: #6b7280;
+  font-weight: 600;
+  width: fit-content;
 }
+.tech-tag.info { background: rgba(0, 97, 255, 0.1); color: #0061ff; }
+.tech-tag.success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.tech-tag.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.tech-tag.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 
 .user-stats {
   display: flex;
-  gap: 20px;
+  gap: 16px;
 }
 
-.stat-item {
+.stat-item-small {
+  flex: 1;
+  background: rgba(255,255,255,0.4);
+  padding: 12px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  flex: 1;
 }
 
-.stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  color: #002FA7;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #6b7280;
-}
+.stat-item-small .stat-value { font-size: 20px; font-weight: 700; }
+.stat-item-small .stat-label { font-size: 12px; color: #64748b; }
 
 .user-dates {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .date-item {
@@ -1313,119 +1333,189 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
 }
 
-.date-item i {
-  color: #002FA7;
+.date-item i, .date-item svg { color: #0061ff; opacity: 0.7; }
+
+/* 表格视图 */
+.table-view {
+  padding: 24px;
 }
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-muted { color: #64748b; }
+.text-danger { color: #ef4444; }
+
+.tech-text-btn {
+  color: #64748b;
+  transition: all 0.3s ease;
+}
+.tech-text-btn:hover { color: #0061ff; background: rgba(0, 97, 255, 0.1); }
 
 /* 分页 */
 .pagination-section {
-  max-width: 1400px;
-  margin: 24px auto 0 auto;
+  margin-top: 24px;
+  padding: 16px 24px;
   display: flex;
   justify-content: center;
 }
 
-/* 对话框 */
-.create-dialog {
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-.create-form {
-  padding: 20px 0;
-}
-
-.dialog-footer {
+/* 弹窗样式调整 */
+.dialog-header {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.close-btn:hover { color: #ef4444; }
+
+.create-form { padding: 20px 0; }
+.w-full { width: 100%; }
+
+.user-detail-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 4px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.detail-item {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 13px;
 }
 
 /* 响应式设计 */
-@media (max-width: 1200px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .filter-content {
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  .filter-left {
-    justify-content: space-between;
-  }
-  
-  .filter-right {
-    justify-content: space-between;
-  }
+@media (max-width: 1024px) {
+  .filter-content { flex-direction: column; align-items: stretch; }
+  .filter-right { justify-content: space-between; }
+  .search-box { flex: 1; }
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    padding: 20px 16px;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .stats-section,
-  .filter-section,
-  .users-section {
-    padding: 20px 16px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .filter-left {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .filter-group {
-    min-width: auto;
-  }
-  
-  .filter-right {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-box {
-    min-width: auto;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .section-actions {
-    justify-content: space-between;
-  }
-  
-  .users-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .user-meta {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .meta-item {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
+  .page-header { padding: 20px; }
+  .header-content { flex-direction: column; gap: 16px; align-items: stretch; }
+  .section-header { flex-direction: column; gap: 16px; align-items: stretch; }
+  .section-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .batch-actions { justify-content: space-between; }
 }
+</style>
+
+<style>
+/* 全局弹窗样式，解决 append-to-body 后的样式丢失问题 */
+.glass-dialog {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden;
+}
+
+.glass-drawer {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.close-btn:hover { color: #ef4444; }
+
+.create-form { padding: 20px 0; }
+.w-full { width: 100%; }
+
+.drawer-content {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.drawer-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.header-main { display: flex; gap: 16px; align-items: center; }
+.header-text { display: flex; flex-direction: column; gap: 4px; }
+.title-row { display: flex; align-items: center; gap: 12px; }
+.title-row h2 { margin: 0; font-size: 20px; font-weight: 700; color: #1e293b; }
+.meta-info { margin: 0; font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 8px; }
+.divider { color: #cbd5e1; }
+
+.detail-grid { display: flex; flex-direction: column; gap: 20px; }
+.detail-card { padding: 20px; border-radius: 16px; background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.6); }
+.detail-card h3 { margin: 0 0 16px 0; font-size: 15px; font-weight: 600; color: #1e293b; display: flex; align-items: center; }
+
+.tech-dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.tech-dl div { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px dashed rgba(0, 0, 0, 0.05); }
+.tech-dl div:last-child { border-bottom: none; padding-bottom: 0; }
+.tech-dl dt { color: #64748b; font-size: 13px; }
+.tech-dl dd { margin: 0; font-weight: 500; color: #334155; font-size: 14px; }
 </style>

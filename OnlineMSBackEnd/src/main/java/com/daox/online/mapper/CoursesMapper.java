@@ -405,7 +405,7 @@ public interface CoursesMapper {
      * @param courseCategories 分类
      * @return 创建结果
      */
-    @Insert("INSERT INTO course_categories (id,name, parent_id) VALUES (#{id},#{name}, #{parentId})")
+    @Insert("INSERT INTO course_categories (id,name, parent_id, order_index) VALUES (#{id},#{name}, #{parentId}, #{orderIndex})")
     int createCategory(CourseCategories courseCategories);
 
     /**
@@ -427,11 +427,29 @@ public interface CoursesMapper {
     int deleteCategory(String id);
 
     /**
+     * 统计指定分类下的直接子分类数量。
+     *
+     * @param parentId 父分类ID
+     * @return 子分类数量
+     */
+    @Select("SELECT COUNT(*) FROM course_categories WHERE parent_id = #{parentId}")
+    int countSubCategories(String parentId);
+
+    /**
+     * 统计指定分类下关联的课程数量。
+     *
+     * @param categoryId 分类ID
+     * @return 课程数量
+     */
+    @Select("SELECT COUNT(*) FROM courses WHERE category_id = #{categoryId} AND COALESCE(is_deleted, 0) = 0")
+    int countCoursesByCategoryId(String categoryId);
+
+    /**
      * 获取课程统计 - 有效数量
      *
      * @return 课程统计数量
      */
-    @Select("SELECT COUNT(*) FROM courses where is_deleted=0")
+    @Select("SELECT COUNT(*) FROM courses WHERE COALESCE(is_deleted, 0) = 0")
     int getCourseCount();
 
     /**
@@ -439,7 +457,7 @@ public interface CoursesMapper {
      *
      * @return 已发布课程数量
      */
-    @Select("SELECT COUNT(*) FROM courses WHERE status = 'published' AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM courses WHERE status = 'published' AND COALESCE(is_deleted, 0) = 0")
     int getPublishedCourseCount();
 
     /**
@@ -447,7 +465,7 @@ public interface CoursesMapper {
      *
      * @return 草稿课程数量
      */
-    @Select("SELECT COUNT(*) FROM courses WHERE status = 'draft' AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM courses WHERE status = 'draft' AND COALESCE(is_deleted, 0) = 0")
     int getDraftCourseCount();
 
     /**
@@ -455,7 +473,7 @@ public interface CoursesMapper {
      *
      * @return 已归档课程数量
      */
-    @Select("SELECT COUNT(*) FROM courses WHERE status = 'archived' AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM courses WHERE status = 'archived' AND COALESCE(is_deleted, 0) = 0")
     int getArchivedCourseCount();
 
     /**
@@ -463,7 +481,7 @@ public interface CoursesMapper {
      *
      * @return 公开课程数量
      */
-    @Select("SELECT COUNT(*) FROM courses WHERE is_private = 0 AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM courses WHERE is_private = 0 AND COALESCE(is_deleted, 0) = 0")
     int getPublicCourseCount();
 
     /**
@@ -471,7 +489,7 @@ public interface CoursesMapper {
      *
      * @return 私有课程数量
      */
-    @Select("SELECT COUNT(*) FROM courses WHERE is_private = 1 AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM courses WHERE is_private = 1 AND COALESCE(is_deleted, 0) = 0")
     int getPrivateCourseCount();
 
     /**
@@ -479,7 +497,7 @@ public interface CoursesMapper {
      *
      * @return 总学习人数
      */
-    @Select("SELECT COALESCE(SUM(enrollment_count), 0) FROM courses WHERE is_deleted = 0")
+    @Select("SELECT COALESCE(SUM(enrollment_count), 0) FROM courses WHERE COALESCE(is_deleted, 0) = 0")
     int getTotalEnrollments();
 
     /**
@@ -490,7 +508,7 @@ public interface CoursesMapper {
     @Select("SELECT cc.id as categoryId, cc.name as categoryName, " +
             "COUNT(c.id) as courseCount, COALESCE(SUM(c.enrollment_count), 0) as totalEnrollments " +
             "FROM course_categories cc " +
-            "LEFT JOIN courses c ON cc.id = c.category_id AND c.is_deleted = 0 " +
+            "LEFT JOIN courses c ON cc.id = c.category_id AND COALESCE(c.is_deleted, 0) = 0 " +
             "GROUP BY cc.id, cc.name " +
             "ORDER BY courseCount DESC")
     @Results({
@@ -508,7 +526,7 @@ public interface CoursesMapper {
      */
     @Select("SELECT status, COUNT(*) as courseCount " +
             "FROM courses " +
-            "WHERE is_deleted = 0 " +
+            "WHERE COALESCE(is_deleted, 0) = 0 " +
             "GROUP BY status " +
             "ORDER BY courseCount DESC")
     @Results({
@@ -527,7 +545,7 @@ public interface CoursesMapper {
             "FROM courses c " +
             "LEFT JOIN users u ON c.teacher_id = u.id " +
             "LEFT JOIN course_categories cc ON c.category_id = cc.id " +
-            "WHERE c.is_deleted = 0 " +
+            "WHERE COALESCE(c.is_deleted, 0) = 0 " +
             "ORDER BY c.enrollment_count DESC " +
             "LIMIT 10")
     @Results({

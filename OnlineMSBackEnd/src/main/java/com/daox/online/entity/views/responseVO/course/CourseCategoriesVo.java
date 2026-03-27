@@ -20,5 +20,6 @@ public class CourseCategoriesVo {
     private String id;
     private String name;
     private String parentId;  // 父分类ID，null或空字符串表示根节点
+    private Integer orderIndex;
     private List<CourseCategoriesVo> children; // 子分类列表
 }

@@ -179,6 +179,11 @@ const router = createRouter({
           path: 'categories',
           name: 'CategoryManagement',
           component: () => import('../views/admin/CategoryManagement.vue')
+        },
+        {
+          path: 'audit-logs',
+          name: 'AuditLogs',
+          component: () => import('../views/admin/AuditLogs.vue')
         }
       ]
     }

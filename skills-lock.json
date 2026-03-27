@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "gsap": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "b7d401d70a6f6f2bd29bb36ee803564cb071cc43bf5701e32a5dedbf88cc1466"
+    }
+  }
+}

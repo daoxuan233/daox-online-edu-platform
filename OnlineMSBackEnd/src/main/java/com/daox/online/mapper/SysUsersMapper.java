@@ -111,6 +111,15 @@ public interface SysUsersMapper {
     List<Users> getUserListNotAdmin();
 
     /**
+     * 获取全量用户列表。
+     *
+     * @return 用户列表
+     */
+    @Select("SELECT * FROM users")
+    @Results({@Result(property = "id", column = "id"), @Result(property = "identifier", column = "identifier"), @Result(property = "password", column = "password"), @Result(property = "nickname", column = "nickname"), @Result(property = "email", column = "email"), @Result(property = "role", column = "role"), @Result(property = "avatarUrl", column = "avatar_url"), @Result(property = "createdAt", column = "created_at"), @Result(property = "updatedAt", column = "updated_at"), @Result(property = "isDeleted", column = "is_deleted"),})
+    List<Users> getUserListAll();
+
+    /**
      * 删除用户 - 逻辑删除
      *
      * @param userId 用户ID
@@ -118,6 +127,15 @@ public interface SysUsersMapper {
      */
     @Update("UPDATE users SET is_deleted = 1 WHERE id = #{userId}")
     int deleteUser(@Param("userId") String userId);
+
+    /**
+     * 恢复用户 - 取消逻辑删除。
+     *
+     * @param userId 用户ID
+     * @return 更新结果
+     */
+    @Update("UPDATE users SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = #{userId}")
+    int restoreUser(@Param("userId") String userId);
 
     /**
      * 重置用户密码 - admin重置
@@ -216,7 +234,7 @@ public interface SysUsersMapper {
      * @param user user
      * @return 影响行数
      */
-    @Update("UPDATE users SET nickname = #{nickname}, email = #{email}, avatar_url = #{avatarUrl}, updated_at = #{updatedAt} WHERE id = #{id}")
+    @Update("UPDATE users SET identifier = #{identifier}, nickname = #{nickname}, email = #{email}, role = #{role}, avatar_url = #{avatarUrl}, is_deleted = #{isDeleted}, updated_at = #{updatedAt} WHERE id = #{id}")
     int updateUser(Users user);
 
     /**

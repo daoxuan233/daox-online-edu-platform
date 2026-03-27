@@ -2,9 +2,11 @@ package com.daox.online.service.Impl;
 
 import com.daox.online.entity.mysql.UserDescribe;
 import com.daox.online.entity.mysql.Users;
+import com.daox.online.entity.views.requestVO.admin.AdminUserUpsertVO;
 import com.daox.online.entity.views.responseVO.user.ProfileInfoVo;
 import com.daox.online.entity.views.responseVO.user.ProfileVo;
 import com.daox.online.mapper.SysUsersMapper;
+import com.daox.online.service.AuditLogService;
 import com.daox.online.service.SysUserService;
 import com.daox.online.service.UsersService;
 import com.daox.online.uilts.constant.Const;
@@ -15,11 +17,12 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +40,12 @@ public class UsersServiceImpl implements UsersService {
 
     @Resource
     private HybridIdGenerator hybridIdGenerator;
+
+    @Resource
+    private PasswordEncoder passwordEncoder;
+
+    @Resource
+    private AuditLogService auditLogService;
 
     /**
      * 获取个人信息
@@ -302,6 +311,31 @@ public class UsersServiceImpl implements UsersService {
     }
 
     /**
+     * 恢复被禁用的用户。
+     *
+     * @param userId 用户ID
+     * @return 恢复后的用户信息
+     */
+    @Override
+    public ProfileInfoVo restoreUser(String userId) {
+        if (StringUtils.isBlank(userId)) {
+            log.warn("[restoreUser.method]参数错误: userId为空");
+            return null;
+        }
+        Users currentUser = sysUsersMapper.findUserById(userId);
+        if (currentUser == null) {
+            log.warn("[restoreUser.method]用户不存在: userId={}", userId);
+            return null;
+        }
+        int affectedRows = sysUsersMapper.restoreUser(userId);
+        if (affectedRows <= 0) {
+            log.warn("[restoreUser.method]恢复用户失败: userId={}", userId);
+            return null;
+        }
+        return getUserDetail(userId);
+    }
+
+    /**
      * 重置用户密码 - admin重置
      *
      * @param userId 用户ID
@@ -318,13 +352,173 @@ public class UsersServiceImpl implements UsersService {
             log.warn("[resetUserPassword.method]用户不存在{}", userId);
             return null;
         }
+        Map<String, Object> beforeSnapshot = buildPasswordResetSnapshot(userById);
         String newPassword = initialPassword.getInitialPassword2();
-        int i = sysUsersMapper.updatePassword(userId, newPassword);
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        int i = sysUsersMapper.resetUserPassword(userId, encodedPassword);
+        Map<String, Object> afterSnapshot = buildPasswordResetSnapshot(userById);
+        afterSnapshot.put("passwordReset", i > 0);
+        afterSnapshot.put("updatedAt", LocalDateTime.now());
+        auditLogService.recordSensitiveOperation(
+                "USER_PASSWORD_RESET",
+                "user",
+                userId,
+                beforeSnapshot,
+                afterSnapshot,
+                i > 0 ? "SUCCESS" : "FAILED",
+                i > 0 ? "管理员重置用户密码成功" : "管理员重置用户密码失败");
         if (i <= 0) {
             log.warn("[resetUserPassword.method]更新用户密码失败{}", userId);
             return null;
         }
         return newPassword;
+    }
+
+    /**
+     * 管理员创建用户。
+     *
+     * @param userUpsertVO 用户维护请求体
+     * @return 创建后的用户详情
+     */
+    @Override
+    @Transactional
+    public ProfileInfoVo createUserByAdmin(AdminUserUpsertVO userUpsertVO) {
+        if (!validateAdminUserPayload(userUpsertVO, true)) {
+            return null;
+        }
+        if (sysUsersMapper.findUserByIdentifier(userUpsertVO.getIdentifier()) != null
+                || sysUsersMapper.findUserByEmail(userUpsertVO.getEmail()) != null
+                || sysUsersMapper.findUserByNickname(userUpsertVO.getNickname()) != null) {
+            log.warn("[createUserByAdmin.method]用户标识、邮箱或昵称已存在: identifier={}, email={}",
+                    userUpsertVO.getIdentifier(), userUpsertVO.getEmail());
+            return null;
+        }
+        String userId = hybridIdGenerator.generateId();
+        Date currentTime = DateUtils.convertToDate(LocalDateTime.now());
+        Users newUser = new Users()
+                .setId(userId)
+                .setIdentifier(userUpsertVO.getIdentifier().trim())
+                .setNickname(userUpsertVO.getNickname().trim())
+                .setEmail(userUpsertVO.getEmail().trim())
+                .setRole(userUpsertVO.getRole())
+                .setPassword(passwordEncoder.encode(userUpsertVO.getPassword().trim()))
+                .setAvatarUrl("")
+                .setCreatedAt(currentTime)
+                .setUpdatedAt(currentTime)
+                .setIsDeleted(Boolean.FALSE.equals(userUpsertVO.getEnabled()) ? 1 : 0);
+        int insertedUsers = sysUsersMapper.registerUser(newUser);
+        if (insertedUsers <= 0) {
+            log.warn("[createUserByAdmin.method]创建用户失败: identifier={}", userUpsertVO.getIdentifier());
+            return null;
+        }
+        if (StringUtils.isNotBlank(userUpsertVO.getPhone())) {
+            sysUsersMapper.insertUserDescribe(new UserDescribe()
+                    .setId(hybridIdGenerator.generateId())
+                    .setUserId(userId)
+                    .setPhone(userUpsertVO.getPhone().trim()));
+        }
+        return getUserDetail(userId);
+    }
+
+    /**
+     * 管理员更新用户基础信息。
+     *
+     * @param userId       用户ID
+     * @param userUpsertVO 用户维护请求体
+     * @return 更新后的用户详情
+     */
+    @Override
+    @Transactional
+    public ProfileInfoVo updateUserByAdmin(String userId, AdminUserUpsertVO userUpsertVO) {
+        if (StringUtils.isBlank(userId) || !validateAdminUserPayload(userUpsertVO, false)) {
+            return null;
+        }
+        Users currentUser = sysUsersMapper.findUserById(userId);
+        if (currentUser == null) {
+            log.warn("[updateUserByAdmin.method]用户不存在: userId={}", userId);
+            return null;
+        }
+        Users identifierUser = sysUsersMapper.findUserByIdentifier(userUpsertVO.getIdentifier());
+        if (identifierUser != null && !userId.equals(identifierUser.getId())) {
+            log.warn("[updateUserByAdmin.method]学号或工号冲突: identifier={}", userUpsertVO.getIdentifier());
+            return null;
+        }
+        Users emailUser = sysUsersMapper.findUserByEmail(userUpsertVO.getEmail());
+        if (emailUser != null && !userId.equals(emailUser.getId())) {
+            log.warn("[updateUserByAdmin.method]邮箱冲突: email={}", userUpsertVO.getEmail());
+            return null;
+        }
+        Users nicknameUser = sysUsersMapper.findUserByNickname(userUpsertVO.getNickname());
+        if (nicknameUser != null && !userId.equals(nicknameUser.getId())) {
+            log.warn("[updateUserByAdmin.method]昵称冲突: nickname={}", userUpsertVO.getNickname());
+            return null;
+        }
+        int updatedUsers = sysUsersMapper.updateUser(new Users()
+                .setId(userId)
+                .setIdentifier(userUpsertVO.getIdentifier().trim())
+                .setNickname(userUpsertVO.getNickname().trim())
+                .setEmail(userUpsertVO.getEmail().trim())
+                .setRole(userUpsertVO.getRole())
+                .setAvatarUrl(currentUser.getAvatarUrl())
+                .setIsDeleted(Boolean.FALSE.equals(userUpsertVO.getEnabled()) ? 1 : 0)
+                .setUpdatedAt(DateUtils.convertToDate(LocalDateTime.now())));
+        if (updatedUsers <= 0) {
+            log.warn("[updateUserByAdmin.method]更新用户失败: userId={}", userId);
+            return null;
+        }
+        UserDescribe userDescribe = sysUsersMapper.getUserDescribeById(userId);
+        if (userDescribe == null && StringUtils.isNotBlank(userUpsertVO.getPhone())) {
+            sysUsersMapper.insertUserDescribe(new UserDescribe()
+                    .setId(hybridIdGenerator.generateId())
+                    .setUserId(userId)
+                    .setPhone(userUpsertVO.getPhone().trim()));
+        } else if (userDescribe != null) {
+            sysUsersMapper.updateUserDescribe(new UserDescribe()
+                    .setUserId(userId)
+                    .setPhone(StringUtils.trimToEmpty(userUpsertVO.getPhone()))
+                    .setGender(userDescribe.getGender())
+                    .setBirthday(userDescribe.getBirthday())
+                    .setBiography(userDescribe.getBiography()));
+        }
+        return getUserDetail(userId);
+    }
+
+    private Map<String, Object> buildPasswordResetSnapshot(Users user) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", user.getId());
+        snapshot.put("identifier", user.getIdentifier());
+        snapshot.put("nickname", user.getNickname());
+        snapshot.put("email", user.getEmail());
+        snapshot.put("role", user.getRole());
+        snapshot.put("passwordSet", user.getPassword() != null && !user.getPassword().isBlank());
+        snapshot.put("isDeleted", user.getIsDeleted());
+        return snapshot;
+    }
+
+    /**
+     * 校验管理员维护用户时提交的基础字段。
+     *
+     * @param userUpsertVO 请求体
+     * @param checkPassword 是否强制校验密码
+     * @return true 表示参数合法
+     */
+    private boolean validateAdminUserPayload(AdminUserUpsertVO userUpsertVO, boolean checkPassword) {
+        if (userUpsertVO == null) {
+            log.warn("[validateAdminUserPayload.method]参数为空");
+            return false;
+        }
+        if (StringUtils.isBlank(userUpsertVO.getIdentifier())
+                || StringUtils.isBlank(userUpsertVO.getNickname())
+                || StringUtils.isBlank(userUpsertVO.getEmail())
+                || StringUtils.isBlank(userUpsertVO.getRole())) {
+            log.warn("[validateAdminUserPayload.method]必要参数缺失");
+            return false;
+        }
+        if (checkPassword && StringUtils.isBlank(userUpsertVO.getPassword())) {
+            log.warn("[validateAdminUserPayload.method]创建用户时密码不能为空");
+            return false;
+        }
+        return true;
     }
 
     /**

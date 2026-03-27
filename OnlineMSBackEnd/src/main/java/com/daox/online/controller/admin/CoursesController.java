@@ -2,6 +2,7 @@ package com.daox.online.controller.admin;
 
 import com.daox.online.entity.mysql.Courses;
 import com.daox.online.entity.RestBean;
+import com.daox.online.entity.views.requestVO.admin.AdminCategorySaveVO;
 import com.daox.online.entity.views.responseVO.course.CourseCategoriesVo;
 import com.daox.online.service.CoursesService;
 import jakarta.annotation.Resource;
@@ -81,13 +82,15 @@ public class CoursesController {
     /**
      * 创建分类
      *
-     * @param name     分类名称
-     * @param parentId 父级分类ID [非必要 - null-> 顶级分类]
+     * @param categorySaveVO 分类维护请求体
      * @return 创建结果
      */
     @PostMapping("/categories/create")
-    public RestBean<String> createCourseCategory(@RequestBody String name, @RequestParam String parentId) {
-        boolean result = coursesService.createCourseCategory(name, parentId);
+    public RestBean<String> createCourseCategory(@RequestBody AdminCategorySaveVO categorySaveVO) {
+        boolean result = coursesService.createCourseCategory(
+                categorySaveVO.getName(),
+                categorySaveVO.getParentId(),
+                categorySaveVO.getOrderIndex());
         if (!result) return RestBean.failure(500, "创建课程分类失败!");
         return RestBean.success("创建课程分类成功!");
     }
@@ -96,15 +99,32 @@ public class CoursesController {
      * 更新分类
      *
      * @param id       分类id
-     * @param name     分类名称
-     * @param parentId 父分类id
+     * @param categorySaveVO 分类维护请求体
      * @return 更新结果
      */
     @PostMapping("/categories/update")
-    public RestBean<String> updateCourseCategory(@RequestParam String id, @RequestBody String name, @RequestParam String parentId) {
-        boolean result = coursesService.updateCourseCategory(id, name, parentId);
+    public RestBean<String> updateCourseCategory(@RequestParam String id,
+                                                 @RequestBody AdminCategorySaveVO categorySaveVO) {
+        boolean result = coursesService.updateCourseCategory(
+                id,
+                categorySaveVO.getName(),
+                categorySaveVO.getParentId(),
+                categorySaveVO.getOrderIndex());
         if (!result) return RestBean.failure(500, "更新课程分类失败!");
         return RestBean.success("更新课程分类成功!");
+    }
+
+    /**
+     * 删除分类。
+     *
+     * @param id 分类ID
+     * @return 删除结果
+     */
+    @PostMapping("/categories/delete")
+    public RestBean<String> deleteCourseCategory(@RequestParam String id) {
+        boolean result = coursesService.deleteCourseCategory(id);
+        if (!result) return RestBean.failure(500, "删除课程分类失败，请确认分类下没有子分类和课程");
+        return RestBean.success("删除课程分类成功!");
     }
 
 }

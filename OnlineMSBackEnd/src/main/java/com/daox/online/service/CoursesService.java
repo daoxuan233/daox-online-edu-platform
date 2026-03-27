@@ -225,9 +225,10 @@ public interface CoursesService {
      *
      * @param name     分类名称
      * @param parentId 父级分类id
+     * @param orderIndex 排序权重
      * @return 创建结果 true：成功，false：失败
      */
-    boolean createCourseCategory(String name, String parentId);
+    boolean createCourseCategory(String name, String parentId, Integer orderIndex);
 
     /**
      * 获取用户已完成课程数量
@@ -243,9 +244,10 @@ public interface CoursesService {
      * @param id       分类id
      * @param name     分类名称
      * @param parentId 父级分类id
+     * @param orderIndex 排序权重
      * @return 更新结果 true：成功，false：失败
      */
-    boolean updateCourseCategory(String id, String name, String parentId);
+    boolean updateCourseCategory(String id, String name, String parentId, Integer orderIndex);
 
     /**
      * 删除课程分类
