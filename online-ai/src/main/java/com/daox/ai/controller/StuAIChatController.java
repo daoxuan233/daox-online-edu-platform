@@ -44,6 +44,7 @@ public class StuAIChatController {
                                      HttpServletRequest request) {
         log.info("[streamAiChat.method] 接收到的问题: {}", question);
         String userId = UserUtils.getCurrentUserId(request);
+        String userRole = UserUtils.getCurrentUserRole(request);
         // 2.【关键】执行安全校验
         //    如果userId为空，说明请求没有携带有效Token，或者Token无效
         if (userId == null) {
@@ -51,7 +52,7 @@ public class StuAIChatController {
             // 对于响应式端点，必须通过 Flux.error() 或 Mono.error() 来传递错误
             return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户未登录或Token无效"));
         }
-        return aiChatService.streamChatAndSave(userId, question, conversationId)
+        return aiChatService.streamChatAndSave(userId, userRole, question, conversationId, null)
                 .map(AIResponse::getContent);
     }
 
@@ -71,6 +72,7 @@ public class StuAIChatController {
                                                  HttpServletRequest request) {
         log.info("[streamAiChatResponse.method] 接收到的问题: {}", question);
         String userId = UserUtils.getCurrentUserId(request);
+        String userRole = UserUtils.getCurrentUserRole(request);
         // 2.【关键】执行安全校验
         //    如果userId为空，说明请求没有携带有效Token，或者Token无效
         if (userId == null) {
@@ -78,17 +80,7 @@ public class StuAIChatController {
             // 对于响应式端点，必须通过 Flux.error() 或 Mono.error() 来传递错误
             return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户未登录或Token无效"));
         }
-        if (options == null) {
-            return aiChatService.streamChatAndSave(userId, question, conversationId);
-        }
-        String platform = options.getPlatform();
-        return switch (platform) {
-            case "deepseek" -> aiChatService.streamChatAndSaveDeepSeekRes(userId, question, conversationId);
-
-            // TODO: 平台选择后的模型选择
-            case "qwen" -> aiChatService.streamChatAndSaveQwenRes(userId, question, conversationId);
-            default -> aiChatService.streamChatAndSave(userId, question, conversationId);
-        };
+        return aiChatService.streamChatAndSave(userId, userRole, question, conversationId, options);
     }
 
     /**

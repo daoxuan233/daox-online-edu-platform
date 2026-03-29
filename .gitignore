@@ -7,7 +7,12 @@
 
 # 排除.vercel文件夹
 /.vercel/
-/.trae/
+/.github/
+/.agents/
+/.venv/
+/log/
+/sql/
+
 
 # IDE相关文件
 .idea/

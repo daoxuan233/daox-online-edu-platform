@@ -44,9 +44,11 @@ public class JwtRequestFilter extends OncePerRequestFilter { // OncePerRequestFi
         if (jwt != null) {
             // 从JWT中提取用户ID
             String userId = utils.toId(jwt);
+            String userRole = utils.toRole(jwt);
             // 将用户ID存入请求的Attribute中，键为 "userId"
             // 这个 ATTR_USER_ID 应该是一个常量，例如在 Const 类中定义
             request.setAttribute(Const.ATTR_USER_ID, userId);
+            request.setAttribute(Const.ATTR_USER_ROLE, userRole);
         }
 
         // 无论Token是否有效，都继续执行过滤器链

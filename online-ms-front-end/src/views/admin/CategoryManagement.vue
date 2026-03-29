@@ -29,6 +29,41 @@
       </div>
     </div>
 
+    <div class="delete-policy-section">
+      <div class="policy-grid">
+        <div class="policy-card glass-card">
+          <div class="policy-icon danger">
+            <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          </div>
+          <div class="policy-content">
+            <h3>紧急删除</h3>
+            <p>立即删除所选分类，并同步发布系统公告、发送邮件提醒教师尽快更换课程分类。</p>
+            <span class="policy-tag danger">适合误建、违规或必须马上下线的分类</span>
+          </div>
+        </div>
+        <div class="policy-card glass-card">
+          <div class="policy-icon primary">
+            <font-awesome-icon :icon="['fas', 'hourglass-half']" />
+          </div>
+          <div class="policy-content">
+            <h3>常规删除</h3>
+            <p>进入三天保留期，系统会通知相关教师；待保留期结束或教师全部确认后才会真正删除。</p>
+            <span class="policy-tag primary">适合常规清理、需要过渡期的分类</span>
+          </div>
+        </div>
+        <div class="policy-card glass-card">
+          <div class="policy-icon warning">
+            <font-awesome-icon :icon="['fas', 'right-left']" />
+          </div>
+          <div class="policy-content">
+            <h3>分类迁移</h3>
+            <p>顶级分类删除前建议先迁移课程，尤其当该分类树下仍有课程时，必须先完成迁移再删除。</p>
+            <span class="policy-tag warning">迁移一旦开始，教师端会立即收到公告提醒</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="stats-section">
       <div class="stats-grid" ref="statsRef">
@@ -127,8 +162,7 @@
           <div class="filter-group">
             <label class="filter-label">排序方式</label>
             <el-select v-model="filters.sortBy" placeholder="排序方式" class="tech-select">
-              <el-option label="创建时间" value="created_at"></el-option>
-              <el-option label="更新时间" value="updated_at"></el-option>
+
               <el-option label="分类名称" value="name"></el-option>
               <el-option label="课程数量" value="course_count"></el-option>
               <el-option label="排序权重" value="sort_order"></el-option>
@@ -242,7 +276,10 @@
                         <font-awesome-icon :icon="['fas', category.status === 'active' ? 'ban' : 'check']" />
                         {{ category.status === 'active' ? '禁用' : '启用' }}
                       </el-dropdown-item>
-                      <el-dropdown-item @click="deleteCategory(category)">
+                      <el-dropdown-item @click="openMigrationDialog(category)">
+                        <font-awesome-icon :icon="['fas', 'right-left']" /> 分类迁移
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="openDeleteDialog(category)">
                         <font-awesome-icon :icon="['fas', 'trash']" class="text-danger" /> 删除
                       </el-dropdown-item>
                     </el-dropdown-menu>
@@ -280,16 +317,7 @@
                 </div>
               </div>
               
-              <div class="category-dates">
-                <div class="date-item">
-                  <font-awesome-icon :icon="['fas', 'calendar-plus']" />
-                  <span>创建：{{ formatDate(category.createdAt) }}</span>
-                </div>
-                <div class="date-item">
-                  <font-awesome-icon :icon="['fas', 'clock']" />
-                  <span>更新：{{ formatDate(category.updatedAt) }}</span>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -330,7 +358,10 @@
                   <el-button size="small" text class="tech-text-btn" @click.stop="editCategory(data)">
                     <font-awesome-icon :icon="['fas', 'edit']" />
                   </el-button>
-                  <el-button size="small" text class="tech-text-btn danger" @click.stop="deleteCategory(data)">
+                  <el-button size="small" text class="tech-text-btn" @click.stop="openMigrationDialog(data)">
+                    <font-awesome-icon :icon="['fas', 'right-left']" />
+                  </el-button>
+                  <el-button size="small" text class="tech-text-btn danger" @click.stop="openDeleteDialog(data)">
                     <font-awesome-icon :icon="['fas', 'trash']" />
                   </el-button>
                 </div>
@@ -418,7 +449,10 @@
                       <el-dropdown-item @click="moveCategory(row)">
                         <font-awesome-icon :icon="['fas', 'arrows-alt']" /> 移动
                       </el-dropdown-item>
-                      <el-dropdown-item @click="deleteCategory(row)" divided>
+                      <el-dropdown-item @click="openMigrationDialog(row)">
+                        <font-awesome-icon :icon="['fas', 'right-left']" /> 迁移
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="openDeleteDialog(row)" divided>
                         <font-awesome-icon :icon="['fas', 'trash']" class="text-danger" /> 删除
                       </el-dropdown-item>
                     </el-dropdown-menu>
@@ -501,6 +535,291 @@
         </div>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="showDeleteDialog"
+      width="920px"
+      class="tech-dialog glass-dialog danger-dialog"
+      :show-close="false"
+      append-to-body
+      @open="onDialogOpen"
+      @closed="closeDeleteDialog"
+    >
+      <template #header="{ close }">
+        <div class="dialog-header">
+          <div class="title-icon warning-bg"><font-awesome-icon :icon="['fas', 'shield-halved']" /></div>
+          <span>分类删除风险确认</span>
+          <button class="close-btn" @click="closeDeleteDialog">
+            <font-awesome-icon :icon="['fas', 'times']" />
+          </button>
+        </div>
+      </template>
+
+      <div v-loading="deletePreviewLoading" class="danger-dialog-body">
+        <template v-if="deletePreview">
+          <div class="danger-banner" :class="{ top: deletePreview.topLevel }">
+            <div class="danger-banner-icon">
+              <font-awesome-icon :icon="['fas', deletePreview.topLevel ? 'skull-crossbones' : 'triangle-exclamation']" />
+            </div>
+            <div class="danger-banner-content">
+              <h3>{{ deletePreview.topLevel ? '顶级分类删除高风险警告' : '分类删除需谨慎确认' }}</h3>
+              <p>
+                {{ deletePreview.topLevel
+                  ? '当前分类属于顶级分类，删除后会连同全部子分类一起删除。若分类树下仍有课程，必须先执行分类迁移。'
+                  : '当前分类支持紧急删除与常规删除两种方式。请根据业务紧急程度选择，并确认删除原因会写入审计日志。'
+                }}
+              </p>
+            </div>
+          </div>
+
+          <div class="preview-summary-grid">
+            <div class="summary-card glass-card">
+              <span class="summary-label">当前分类</span>
+              <strong>{{ deletePreview.categoryName }}</strong>
+              <small>{{ deletePreview.topLevel ? '顶级分类' : '非顶级分类' }}</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">影响子分类</span>
+              <strong>{{ deletePreview.descendantCategoryCount || 0 }}</strong>
+              <small>删除时将一并处理</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">影响课程</span>
+              <strong>{{ deletePreview.affectedCourseCount || 0 }}</strong>
+              <small>需教师尽快调整</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">影响教师</span>
+              <strong>{{ deletePreview.affectedTeacherCount || 0 }}</strong>
+              <small>将收到公告或邮件</small>
+            </div>
+          </div>
+
+          <div v-if="deletePreview.warnings?.length" class="warning-list glass-card">
+            <div class="warning-list-header">
+              <font-awesome-icon :icon="['fas', 'circle-exclamation']" />
+              <span>强提示说明</span>
+            </div>
+            <div v-for="(warning, index) in deletePreview.warnings" :key="`${warning}-${index}`" class="warning-item">
+              <font-awesome-icon :icon="['fas', 'angle-right']" />
+              <span>{{ warning }}</span>
+            </div>
+          </div>
+
+          <div class="reason-panel glass-card">
+            <div class="section-heading">删除原因</div>
+            <el-input
+              v-model="deleteReason"
+              type="textarea"
+              :rows="3"
+              maxlength="200"
+              show-word-limit
+              placeholder="请输入删除原因，便于写入审计日志并同步到通知文案"
+              class="tech-input"
+            />
+          </div>
+
+          <div v-if="deletePreview.affectedCourses?.length" class="impact-panel glass-card">
+            <div class="section-heading">受影响课程</div>
+            <div class="impact-list">
+              <div
+                v-for="course in deletePreview.affectedCourses.slice(0, 6)"
+                :key="course.courseId"
+                class="impact-item"
+              >
+                <div class="impact-title">{{ course.courseTitle }}</div>
+                <div class="impact-meta">
+                  <span>教师：{{ course.teacherName || course.teacherId }}</span>
+                  <span>当前分类：{{ course.currentCategoryName || '-' }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="deletePreview.affectedCourses.length > 6" class="impact-more">
+              仅展示前 6 门课程，完整影响范围以删除预览数据为准
+            </div>
+          </div>
+
+          <div v-if="deletePreview.topLevel || deletePreview.migrationRecommended" class="migration-callout glass-card">
+            <div class="section-heading">优先建议</div>
+            <p>建议先执行“分类迁移”，将课程迁移至新的正式分类后，再根据实际情况选择删除方式。</p>
+            <el-button class="glass-btn migration-btn" @click="switchToMigrationFromDelete">
+              <font-awesome-icon :icon="['fas', 'right-left']" />
+              去做分类迁移
+            </el-button>
+          </div>
+
+          <div class="delete-action-grid">
+            <div class="delete-action-card emergency">
+              <div class="action-card-header">
+                <div class="action-card-icon"><font-awesome-icon :icon="['fas', 'bolt']" /></div>
+                <div>
+                  <h4>紧急删除</h4>
+                  <p>立即删除，立即发公告，立即发邮件</p>
+                </div>
+              </div>
+              <ul class="action-card-list">
+                <li>适用于违规、误建、必须马上下线的分类</li>
+                <li>非顶级分类若仍有关联课程，将自动转入“待重新分类”</li>
+                <li>顶级分类若仍有关联课程，后端会拒绝执行</li>
+              </ul>
+              <el-button
+                type="danger"
+                class="danger-cta-btn"
+                :loading="deleteSubmitting === 'emergency'"
+                :disabled="deletePreview.emergencyDeleteAllowed === false"
+                @click="submitDelete('emergency')"
+              >
+                立即执行紧急删除
+              </el-button>
+            </div>
+
+            <div class="delete-action-card regular">
+              <div class="action-card-header">
+                <div class="action-card-icon"><font-awesome-icon :icon="['fas', 'calendar-days']" /></div>
+                <div>
+                  <h4>常规删除</h4>
+                  <p>保留三天，教师确认后或到期后再删</p>
+                </div>
+              </div>
+              <ul class="action-card-list">
+                <li>适用于常规清理，需要通知与过渡期的分类</li>
+                <li>系统会为相关教师生成确认待办并发布公告</li>
+                <li>满足条件后由系统自动完成最终删除</li>
+              </ul>
+              <el-button
+                type="primary"
+                class="regular-cta-btn"
+                :loading="deleteSubmitting === 'regular'"
+                :disabled="deletePreview.regularDeleteAllowed === false"
+                @click="submitDelete('regular')"
+              >
+                提交常规删除申请
+              </el-button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showMigrationDialog"
+      width="920px"
+      class="tech-dialog glass-dialog"
+      :show-close="false"
+      append-to-body
+      @open="onDialogOpen"
+      @closed="closeMigrationDialog"
+    >
+      <template #header="{ close }">
+        <div class="dialog-header">
+          <div class="title-icon"><font-awesome-icon :icon="['fas', 'right-left']" /></div>
+          <span>分类迁移</span>
+          <button class="close-btn" @click="closeMigrationDialog">
+            <font-awesome-icon :icon="['fas', 'times']" />
+          </button>
+        </div>
+      </template>
+
+      <div v-loading="migrationPreviewLoading" class="migration-dialog-body">
+        <template v-if="migrationPreview">
+          <div class="migration-banner glass-card">
+            <div class="danger-banner-icon migration-icon">
+              <font-awesome-icon :icon="['fas', 'bullhorn']" />
+            </div>
+            <div class="danger-banner-content">
+              <h3>迁移开始后会立即通知教师</h3>
+              <p>系统会发布公告，提醒相关教师课程分类正在迁移。请确认目标分类无误后再提交。</p>
+            </div>
+          </div>
+
+          <div class="preview-summary-grid">
+            <div class="summary-card glass-card">
+              <span class="summary-label">源分类</span>
+              <strong>{{ migrationPreview.categoryName }}</strong>
+              <small>{{ migrationPreview.topLevel ? '顶级分类' : '普通分类' }}</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">涉及子分类</span>
+              <strong>{{ migrationPreview.descendantCategoryCount || 0 }}</strong>
+              <small>迁移时会一并统计</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">待迁课程</span>
+              <strong>{{ migrationPreview.affectedCourseCount || 0 }}</strong>
+              <small>迁移后不再占用原分类</small>
+            </div>
+            <div class="summary-card glass-card">
+              <span class="summary-label">影响教师</span>
+              <strong>{{ migrationPreview.affectedTeacherCount || 0 }}</strong>
+              <small>教师端会收到公告</small>
+            </div>
+          </div>
+
+          <div class="reason-panel glass-card">
+            <div class="section-heading">迁移设置</div>
+            <el-form label-width="100px">
+              <el-form-item label="目标分类">
+                <el-select
+                  v-model="migrationForm.targetCategoryId"
+                  placeholder="请选择迁移目标分类"
+                  filterable
+                  class="tech-select w-full"
+                >
+                  <el-option
+                    v-for="option in migrationPreview.availableTargetCategories || []"
+                    :key="option.categoryId"
+                    :label="option.categoryName"
+                    :value="option.categoryId"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="迁移原因">
+                <el-input
+                  v-model="migrationForm.reason"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="200"
+                  show-word-limit
+                  placeholder="请输入迁移原因，相关教师会在公告中看到该说明"
+                  class="tech-input"
+                />
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <div v-if="migrationPreview.affectedCourses?.length" class="impact-panel glass-card">
+            <div class="section-heading">迁移涉及课程</div>
+            <div class="impact-list">
+              <div
+                v-for="course in migrationPreview.affectedCourses.slice(0, 8)"
+                :key="course.courseId"
+                class="impact-item"
+              >
+                <div class="impact-title">{{ course.courseTitle }}</div>
+                <div class="impact-meta">
+                  <span>教师：{{ course.teacherName || course.teacherId }}</span>
+                  <span>当前分类：{{ course.currentCategoryName || '-' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button class="glass-btn" @click="closeMigrationDialog">取消</el-button>
+          <el-button
+            type="primary"
+            class="tech-btn"
+            :loading="migrationSubmitting"
+            @click="submitMigration"
+          >
+            确认迁移并通知教师
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -510,9 +829,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { gsap } from 'gsap'
 import {
   createAdminCategory,
-  deleteAdminCategory,
+  emergencyDeleteAdminCategory,
   getAdminCategoryTree,
   getAdminCourseList,
+  migrateAdminCategoryCourses,
+  previewAdminCategoryDelete,
+  previewAdminCategoryMigration,
+  regularDeleteAdminCategory,
   updateAdminCategory
 } from '@/api/admin/adminManagement'
 
@@ -537,8 +860,23 @@ const currentPage = ref(1)
 const pageSize = ref(12)
 const selectedCategories = ref([])
 const showCreateDialog = ref(false)
+const showDeleteDialog = ref(false)
+const showMigrationDialog = ref(false)
 const editingCategory = ref(null)
 const categories = ref([])
+const deletePreviewLoading = ref(false)
+const migrationPreviewLoading = ref(false)
+const deleteSubmitting = ref('')
+const migrationSubmitting = ref(false)
+const pendingDeleteCategory = ref(null)
+const deletePreview = ref(null)
+const migrationPreview = ref(null)
+const deleteReason = ref('')
+const migrationForm = ref({
+  sourceCategoryId: '',
+  targetCategoryId: '',
+  reason: ''
+})
 
 /**
  * 分类表单仅保留后端真实支持的字段。
@@ -682,6 +1020,8 @@ const availableParents = computed(() => categories.value.filter(category =>
   category.level < 3 && (!editingCategory.value || category.id !== editingCategory.value.id)
 ))
 
+const activeDeleteCategory = computed(() => pendingDeleteCategory.value || deletePreview.value || migrationPreview.value || null)
+
 const getLevelName = (level) => ({ 1: '一级', 2: '二级', 3: '三级' }[level] || '未知')
 const getStatusTagType = (status) => (status === 'active' ? 'success' : 'danger')
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString('zh-CN') : '-')
@@ -803,21 +1143,149 @@ const moveCategory = () => {
   ElMessage.info('当前版本未提供分类移动接口，请通过排序权重调整顺序')
 }
 
-const deleteCategory = async (category) => {
+const openDeleteDialog = async (category) => {
+  pendingDeleteCategory.value = category
+  showDeleteDialog.value = true
+  deleteReason.value = ''
+  deletePreview.value = null
+  deletePreviewLoading.value = true
   try {
-    await ElMessageBox.confirm(`确定要删除分类 ${category.name} 吗？`, '删除分类', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    })
-    await deleteAdminCategory(category.id)
-    ElMessage.success('分类删除成功')
+    deletePreview.value = await previewAdminCategoryDelete(category.id)
+  } catch (error) {
+    console.error('删除预览加载失败:', error)
+    ElMessage.error(error?.message || '删除预览加载失败，请稍后重试')
+    showDeleteDialog.value = false
+  } finally {
+    deletePreviewLoading.value = false
+  }
+}
+
+const closeDeleteDialog = () => {
+  showDeleteDialog.value = false
+  deletePreview.value = null
+  deleteReason.value = ''
+  deleteSubmitting.value = ''
+  pendingDeleteCategory.value = null
+}
+
+const submitDelete = async (mode) => {
+  if (!deletePreview.value?.categoryId) {
+    ElMessage.warning('删除预览尚未加载完成')
+    return
+  }
+  const actionText = mode === 'emergency' ? '紧急删除' : '常规删除申请'
+  try {
+    await ElMessageBox.confirm(
+      mode === 'emergency'
+        ? '确认后将立即删除该分类，并马上向相关教师发送公告和邮件提醒，是否继续？'
+        : '确认后该分类将进入三天保留期，并立即通知相关教师，是否继续？',
+      `确认${actionText}`,
+      {
+        confirmButtonText: mode === 'emergency' ? '确认执行' : '确认提交',
+        cancelButtonText: '取消',
+        type: mode === 'emergency' ? 'error' : 'warning'
+      }
+    )
+    deleteSubmitting.value = mode
+    const payload = {
+      categoryId: deletePreview.value.categoryId,
+      reason: deleteReason.value?.trim()
+    }
+    const result = mode === 'emergency'
+      ? await emergencyDeleteAdminCategory(payload)
+      : await regularDeleteAdminCategory(payload)
+    ElMessage.success(result?.message || `${actionText}成功`)
+    closeDeleteDialog()
     await loadCategories()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('分类删除失败:', error)
-      ElMessage.error(error?.message || '分类删除失败，请确认分类下没有子分类和课程')
+      console.error(`${actionText}失败:`, error)
+      ElMessage.error(error?.message || `${actionText}失败，请稍后重试`)
     }
+  } finally {
+    deleteSubmitting.value = ''
+  }
+}
+
+const openMigrationDialog = async (category) => {
+  const sourceCategory = category || activeDeleteCategory.value
+  if (!sourceCategory?.id) {
+    ElMessage.warning('未找到待迁移分类')
+    return
+  }
+  migrationForm.value = {
+    sourceCategoryId: sourceCategory.id,
+    targetCategoryId: '',
+    reason: ''
+  }
+  showMigrationDialog.value = true
+  migrationPreview.value = null
+  migrationPreviewLoading.value = true
+  try {
+    migrationPreview.value = await previewAdminCategoryMigration(sourceCategory.id)
+  } catch (error) {
+    console.error('迁移预览加载失败:', error)
+    ElMessage.error(error?.message || '迁移预览加载失败，请稍后重试')
+    showMigrationDialog.value = false
+  } finally {
+    migrationPreviewLoading.value = false
+  }
+}
+
+const closeMigrationDialog = () => {
+  showMigrationDialog.value = false
+  migrationSubmitting.value = false
+  migrationPreview.value = null
+  migrationForm.value = {
+    sourceCategoryId: '',
+    targetCategoryId: '',
+    reason: ''
+  }
+}
+
+const switchToMigrationFromDelete = async () => {
+  const category = pendingDeleteCategory.value || deletePreview.value
+  closeDeleteDialog()
+  await openMigrationDialog({
+    id: category?.categoryId || category?.id
+  })
+}
+
+const submitMigration = async () => {
+  if (!migrationForm.value.targetCategoryId) {
+    ElMessage.warning('请选择目标分类')
+    return
+  }
+  if (!migrationForm.value.sourceCategoryId) {
+    ElMessage.warning('未找到源分类')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '确认后将立即执行分类迁移，并向相关教师发布系统公告，是否继续？',
+      '确认分类迁移',
+      {
+        confirmButtonText: '确认迁移',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    migrationSubmitting.value = true
+    const result = await migrateAdminCategoryCourses({
+      sourceCategoryId: migrationForm.value.sourceCategoryId,
+      targetCategoryId: migrationForm.value.targetCategoryId,
+      reason: migrationForm.value.reason?.trim()
+    })
+    ElMessage.success(result?.message || '分类迁移成功')
+    closeMigrationDialog()
+    await loadCategories()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('分类迁移失败:', error)
+      ElMessage.error(error?.message || '分类迁移失败，请稍后重试')
+    }
+  } finally {
+    migrationSubmitting.value = false
   }
 }
 
@@ -834,24 +1302,7 @@ const batchDelete = async () => {
     ElMessage.warning('请先选择分类')
     return
   }
-  try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedCategories.value.length} 个分类吗？`, '批量删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    })
-    for (const categoryId of selectedCategories.value) {
-      await deleteAdminCategory(categoryId)
-    }
-    selectedCategories.value = []
-    ElMessage.success('批量删除成功')
-    await loadCategories()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('批量删除失败:', error)
-      ElMessage.error(error?.message || '批量删除失败，请确认分类下没有子分类和课程')
-    }
-  }
+  ElMessage.warning('分类删除属于高风险操作，当前版本仅支持逐个分类审慎处理')
 }
 
 const animateList = () => {
@@ -982,6 +1433,260 @@ onUnmounted(() => {
 .header-actions {
   display: flex;
   gap: 16px;
+}
+
+.delete-policy-section {
+  margin-bottom: 24px;
+}
+
+.policy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.policy-card {
+  display: flex;
+  gap: 16px;
+  padding: 22px;
+  align-items: flex-start;
+}
+
+.policy-icon,
+.action-card-icon,
+.danger-banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.policy-icon.danger,
+.delete-action-card.emergency .action-card-icon,
+.danger-banner.top .danger-banner-icon {
+  background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+}
+
+.policy-icon.primary,
+.delete-action-card.regular .action-card-icon {
+  background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+}
+
+.policy-icon.warning,
+.migration-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.policy-content h3,
+.danger-banner-content h3,
+.action-card-header h4,
+.section-heading {
+  margin: 0 0 8px;
+  color: #0f172a;
+}
+
+.policy-content p,
+.danger-banner-content p,
+.migration-callout p,
+.action-card-header p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.policy-tag {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.policy-tag.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.policy-tag.primary {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.policy-tag.warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.danger-dialog-body,
+.migration-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 180px;
+}
+
+.danger-banner,
+.migration-banner,
+.warning-list,
+.reason-panel,
+.impact-panel,
+.migration-callout {
+  padding: 20px 22px;
+}
+
+.danger-banner,
+.migration-banner {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: rgba(239, 246, 255, 0.78);
+}
+
+.danger-banner.top {
+  border-color: rgba(239, 68, 68, 0.24);
+  background: rgba(254, 242, 242, 0.88);
+}
+
+.warning-bg {
+  background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+  color: #fff;
+}
+
+.preview-summary-grid,
+.delete-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-card strong {
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.summary-card small,
+.summary-label,
+.impact-meta,
+.impact-more {
+  color: #64748b;
+}
+
+.summary-label {
+  font-size: 13px;
+}
+
+.warning-list-header,
+.warning-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.warning-list-header {
+  margin-bottom: 12px;
+  color: #b45309;
+  font-weight: 700;
+}
+
+.warning-item + .warning-item {
+  margin-top: 10px;
+}
+
+.warning-item {
+  color: #7c2d12;
+  line-height: 1.6;
+}
+
+.impact-list {
+  display: grid;
+  gap: 12px;
+}
+
+.impact-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.impact-title {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.impact-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.impact-more {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.delete-action-card {
+  border-radius: 22px;
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.delete-action-card.emergency {
+  border-color: rgba(239, 68, 68, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(254, 226, 226, 0.6);
+}
+
+.delete-action-card.regular {
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(219, 234, 254, 0.7);
+}
+
+.action-card-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.action-card-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  line-height: 1.8;
+}
+
+.danger-cta-btn,
+.regular-cta-btn,
+.migration-btn {
+  width: 100%;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.migration-btn {
+  max-width: 220px;
+}
+
+.w-full {
+  width: 100%;
 }
 
 .action-btn {

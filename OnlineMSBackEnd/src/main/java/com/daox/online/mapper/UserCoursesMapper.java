@@ -4,6 +4,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 @Mapper
 public interface UserCoursesMapper {
     /**
@@ -14,4 +16,13 @@ public interface UserCoursesMapper {
      */
     @Select("SELECT 1 FROM user_courses WHERE user_id = #{userId} AND course_id = #{courseId} LIMIT 1")
     Integer findByUserIdAndCourseId(@Param("userId") String userId, @Param("courseId") String courseId);
+
+    /**
+     * 获取课程下全部选课用户ID。
+     *
+     * @param courseId 课程ID
+     * @return 用户ID列表
+     */
+    @Select("SELECT user_id FROM user_courses WHERE course_id = #{courseId}")
+    List<String> findUserIdsByCourseId(@Param("courseId") String courseId);
 }

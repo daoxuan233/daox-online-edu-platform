@@ -55,6 +55,14 @@
               <span class="nav-text">阅卷中心</span>
             </router-link>
           </li>
+          <li class="nav-item">
+            <router-link to="/teacher/notifications" class="nav-link" exact-active-class="active">
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'bell']"/>
+              </div>
+              <span class="nav-text">通知中心</span>
+            </router-link>
+          </li>
         </ul>
       </nav>
     </aside>
@@ -76,7 +84,7 @@
 
         <div class="navbar-right">
           <div class="notifications">
-            <el-badge :value="3" class="notification-badge" @click="toggleNotifications">
+            <el-badge :value="unreadNotifications" :hidden="unreadNotifications === 0" class="notification-badge" @click="toggleNotifications">
               <button class="neu-button-icon sm">
                 <font-awesome-icon :icon="['fas', 'bell']" />
               </button>
@@ -141,16 +149,25 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {logout} from '@/api/index.js'
 import {ElMessage} from 'element-plus'
 import {getIdentifier} from '@/utils/tokenAnalysis.js'
 import {getTeacherProfile} from '@/api/teacher/teacherAPI.js'
+import { getUnreadNotificationCount } from '@/api/notifications.js'
+import gsap from 'gsap'
 
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(true)
+const unreadNotifications = ref(0)
+
+/**
+ * 教师端布局动画时间线。
+ * 页面卸载时需要主动销毁，避免 GSAP 实例残留。
+ */
+let layoutTimeline = null
 
 // 教师信息
 const teacherInfo = ref({
@@ -166,7 +183,17 @@ const pageTitles = {
   'CourseEdit': '编辑课程',
   'QuestionBank': '题库管理',
   'AssessmentManagement': '考试管理',
-  'GradingCenter': '阅卷中心'
+  'GradingCenter': '阅卷中心',
+  'TeacherNotifications': '通知中心'
+}
+
+/**
+ * 响应通知中心页面发出的未读数同步事件。
+ *
+ * @param {CustomEvent} event 通知事件对象
+ */
+const handleUnreadNotificationUpdate = (event) => {
+  unreadNotifications.value = Number(event?.detail?.unreadCount || 0)
 }
 
 const currentPageTitle = computed(() => {
@@ -217,8 +244,39 @@ const loadUserProfile = async () => {
 }
 
 const toggleNotifications = () => {
-  // 跳转到聊天页面
-  router.push('/teacher/chat')
+  router.push('/teacher/notifications')
+}
+
+/**
+ * 获取教师端未读通知数量。
+ *
+ * @returns {Promise<void>} 异步结果
+ */
+const loadUnreadNotifications = async () => {
+  try {
+    const data = await getUnreadNotificationCount()
+    unreadNotifications.value = Number(data?.unreadCount || 0)
+  } catch (error) {
+    console.error('获取教师未读通知数失败:', error)
+  }
+}
+
+/**
+ * 执行教师布局入场动画。
+ * 仅使用 transform 与 opacity，减少布局抖动。
+ */
+const runLayoutAnimation = () => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.set(['.sidebar', '.navbar', '.page-content-wrapper'], { opacity: 1, x: 0, y: 0 })
+    return
+  }
+
+  layoutTimeline?.kill()
+  layoutTimeline = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  layoutTimeline
+    .fromTo('.sidebar', { x: -50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6 })
+    .fromTo('.navbar', { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, '-=0.25')
+    .fromTo('.page-content-wrapper', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55 }, '-=0.2')
 }
 
 // 处理用户菜单命令
@@ -263,6 +321,18 @@ const handleLogout = () => {
 // 组件挂载时加载用户数据
 onMounted(() => {
   loadUserProfile()
+  loadUnreadNotifications()
+  runLayoutAnimation()
+  window.addEventListener('notification-unread-updated', handleUnreadNotificationUpdate)
+})
+
+watch(() => route.fullPath, () => {
+  loadUnreadNotifications()
+})
+
+onUnmounted(() => {
+  layoutTimeline?.kill()
+  window.removeEventListener('notification-unread-updated', handleUnreadNotificationUpdate)
 })
 </script>
 

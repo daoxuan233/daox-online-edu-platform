@@ -2,13 +2,22 @@ package com.daox.online.controller.admin;
 
 import com.daox.online.entity.mysql.Courses;
 import com.daox.online.entity.RestBean;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryDeleteRequestVO;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryMigrationRequestVO;
 import com.daox.online.entity.views.requestVO.admin.AdminCategorySaveVO;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryDeleteResultVO;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryOperationPreviewVO;
 import com.daox.online.entity.views.responseVO.course.CourseCategoriesVo;
+import com.daox.online.service.AuditLogService;
 import com.daox.online.service.CoursesService;
+import com.daox.online.uilts.UserUtils;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +31,8 @@ public class CoursesController {
 
     @Resource
     private CoursesService coursesService;
+    @Resource
+    private AuditLogService auditLogService;
 
     /**
      * 获取所有课程
@@ -125,6 +136,157 @@ public class CoursesController {
         boolean result = coursesService.deleteCourseCategory(id);
         if (!result) return RestBean.failure(500, "删除课程分类失败，请确认分类下没有子分类和课程");
         return RestBean.success("删除课程分类成功!");
+    }
+
+    /**
+     * 预览分类删除影响范围。
+     *
+     * @param id 分类ID
+     * @return 预览结果
+     */
+    @GetMapping("/categories/delete/preview")
+    public RestBean<AdminCategoryOperationPreviewVO> previewDeleteCourseCategory(@RequestParam("id") String id) {
+        return RestBean.success(coursesService.previewDeleteCourseCategory(id));
+    }
+
+    /**
+     * 紧急删除分类。
+     *
+     * @param request 删除请求
+     * @param httpServletRequest HTTP请求
+     * @return 删除结果
+     */
+    @PostMapping("/categories/delete/emergency")
+    public RestBean<AdminCategoryDeleteResultVO> emergencyDeleteCourseCategory(@Valid @RequestBody AdminCategoryDeleteRequestVO request,
+                                                                               HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        AdminCategoryDeleteResultVO result = coursesService.emergencyDeleteCourseCategory(operatorId, request);
+        auditLogService.recordSensitiveOperation(
+                "ADMIN_CAT_DEL_EM",
+                "course_category",
+                result.getCategoryId(),
+                buildDeleteAuditSnapshot(operatorId, request),
+                buildResultAuditSnapshot(result),
+                "SUCCESS",
+                "管理员通过接口执行课程分类紧急删除");
+        return RestBean.success(result);
+    }
+
+    /**
+     * 提交常规删除申请。
+     *
+     * @param request 删除请求
+     * @param httpServletRequest HTTP请求
+     * @return 删除结果
+     */
+    @PostMapping("/categories/delete/regular")
+    public RestBean<AdminCategoryDeleteResultVO> regularDeleteCourseCategory(@Valid @RequestBody AdminCategoryDeleteRequestVO request,
+                                                                             HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        AdminCategoryDeleteResultVO result = coursesService.regularDeleteCourseCategory(operatorId, request);
+        auditLogService.recordSensitiveOperation(
+                "ADMIN_CAT_DEL_RG",
+                "course_category",
+                result.getCategoryId(),
+                buildDeleteAuditSnapshot(operatorId, request),
+                buildResultAuditSnapshot(result),
+                "SUCCESS",
+                "管理员通过接口提交课程分类常规删除");
+        return RestBean.success(result);
+    }
+
+    /**
+     * 预览分类迁移影响范围。
+     *
+     * @param id 分类ID
+     * @return 预览结果
+     */
+    @GetMapping("/categories/migration/preview")
+    public RestBean<AdminCategoryOperationPreviewVO> previewCategoryMigration(@RequestParam("id") String id) {
+        return RestBean.success(coursesService.previewCategoryMigration(id));
+    }
+
+    /**
+     * 执行分类迁移。
+     *
+     * @param request 迁移请求
+     * @param httpServletRequest HTTP请求
+     * @return 迁移结果
+     */
+    @PostMapping("/categories/migration/execute")
+    public RestBean<AdminCategoryDeleteResultVO> migrateCategoryCourses(@Valid @RequestBody AdminCategoryMigrationRequestVO request,
+                                                                        HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        AdminCategoryDeleteResultVO result = coursesService.migrateCategoryCourses(operatorId, request);
+        auditLogService.recordSensitiveOperation(
+                "ADMIN_CAT_MIG",
+                "course_category",
+                result.getCategoryId(),
+                buildMigrationAuditSnapshot(operatorId, request),
+                buildResultAuditSnapshot(result),
+                "SUCCESS",
+                "管理员通过接口执行课程分类迁移");
+        return RestBean.success(result);
+    }
+
+    /**
+     * 构建删除请求审计快照。
+     *
+     * @param operatorId 操作人ID
+     * @param request 删除请求
+     * @return 审计快照
+     */
+    private Map<String, Object> buildDeleteAuditSnapshot(String operatorId, AdminCategoryDeleteRequestVO request) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("operatorId", operatorId);
+        snapshot.put("categoryId", request.getCategoryId());
+        snapshot.put("reason", request.getReason());
+        return snapshot;
+    }
+
+    /**
+     * 构建迁移请求审计快照。
+     *
+     * @param operatorId 操作人ID
+     * @param request 迁移请求
+     * @return 审计快照
+     */
+    private Map<String, Object> buildMigrationAuditSnapshot(String operatorId, AdminCategoryMigrationRequestVO request) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("operatorId", operatorId);
+        snapshot.put("sourceCategoryId", request.getSourceCategoryId());
+        snapshot.put("targetCategoryId", request.getTargetCategoryId());
+        snapshot.put("reason", request.getReason());
+        return snapshot;
+    }
+
+    /**
+     * 构建分类操作结果审计快照。
+     *
+     * @param result 操作结果
+     * @return 审计快照
+     */
+    private Map<String, Object> buildResultAuditSnapshot(AdminCategoryDeleteResultVO result) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("requestId", result.getRequestId());
+        snapshot.put("operationType", result.getOperationType());
+        snapshot.put("mode", result.getMode());
+        snapshot.put("categoryId", result.getCategoryId());
+        snapshot.put("categoryName", result.getCategoryName());
+        snapshot.put("announcementId", result.getAnnouncementId());
+        snapshot.put("effectiveAt", result.getEffectiveAt());
+        snapshot.put("preserveUntil", result.getPreserveUntil());
+        snapshot.put("message", result.getMessage());
+        return snapshot;
     }
 
 }

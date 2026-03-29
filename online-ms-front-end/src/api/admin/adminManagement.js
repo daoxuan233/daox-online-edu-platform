@@ -165,6 +165,46 @@ export const updateAdminCategory = (id, payload) => requestPost(`/admin/course/c
 export const deleteAdminCategory = (id) => requestPost(`/admin/course/categories/delete${buildQueryString({ id })}`)
 
 /**
+ * 预览课程分类删除影响范围。
+ *
+ * @param {string} id 分类ID
+ * @returns {Promise<any>} 删除预览结果
+ */
+export const previewAdminCategoryDelete = (id) => requestGet(`/admin/course/categories/delete/preview${buildQueryString({ id })}`)
+
+/**
+ * 执行课程分类紧急删除。
+ *
+ * @param {{categoryId: string, reason?: string}} payload 删除请求
+ * @returns {Promise<any>} 删除结果
+ */
+export const emergencyDeleteAdminCategory = (payload) => requestPost('/admin/course/categories/delete/emergency', payload)
+
+/**
+ * 提交课程分类常规删除申请。
+ *
+ * @param {{categoryId: string, reason?: string}} payload 删除请求
+ * @returns {Promise<any>} 删除结果
+ */
+export const regularDeleteAdminCategory = (payload) => requestPost('/admin/course/categories/delete/regular', payload)
+
+/**
+ * 预览课程分类迁移影响范围。
+ *
+ * @param {string} id 分类ID
+ * @returns {Promise<any>} 迁移预览结果
+ */
+export const previewAdminCategoryMigration = (id) => requestGet(`/admin/course/categories/migration/preview${buildQueryString({ id })}`)
+
+/**
+ * 执行课程分类迁移。
+ *
+ * @param {{sourceCategoryId: string, targetCategoryId: string, reason?: string}} payload 迁移请求
+ * @returns {Promise<any>} 迁移结果
+ */
+export const migrateAdminCategoryCourses = (payload) => requestPost('/admin/course/categories/migration/execute', payload)
+
+/**
  * 获取管理员首页概览数据。
  *
  * @param {{days?: number}} params 趋势统计参数

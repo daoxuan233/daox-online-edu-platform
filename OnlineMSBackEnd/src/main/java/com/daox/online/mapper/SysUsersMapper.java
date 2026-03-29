@@ -120,6 +120,23 @@ public interface SysUsersMapper {
     List<Users> getUserListAll();
 
     /**
+     * 获取有效教师列表。
+     *
+     * @return 未删除的教师列表
+     */
+    @Select("SELECT * FROM users WHERE role = 'teacher' AND is_deleted = 0")
+    @Results({@Result(property = "id", column = "id"), @Result(property = "identifier", column = "identifier"), @Result(property = "password", column = "password"), @Result(property = "nickname", column = "nickname"), @Result(property = "email", column = "email"), @Result(property = "role", column = "role"), @Result(property = "avatarUrl", column = "avatar_url"), @Result(property = "createdAt", column = "created_at"), @Result(property = "updatedAt", column = "updated_at"), @Result(property = "isDeleted", column = "is_deleted"),})
+    List<Users> getValidTeacherList();
+
+    /**
+     * 获取所有未删除用户ID。
+     *
+     * @return 用户ID列表
+     */
+    @Select("SELECT id FROM users WHERE is_deleted = 0")
+    List<String> findActiveUserIds();
+
+    /**
      * 删除用户 - 逻辑删除
      *
      * @param userId 用户ID

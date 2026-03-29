@@ -80,12 +80,12 @@
       </article>
       <article class="stat-card glass-card hover-float">
         <div class="stat-icon gradient-green">
-          <font-awesome-icon :icon="['fas', 'book-open']" />
+          <font-awesome-icon :icon="['fas', 'folder-tree']" />
         </div>
         <div class="stat-content">
-          <span class="stat-label">删课记录</span>
-          <strong class="stat-value text-gradient-green">{{ stats.courseDelete }}</strong>
-          <span class="stat-hint">课程资源链路变更</span>
+          <span class="stat-label">分类敏感操作</span>
+          <strong class="stat-value text-gradient-green">{{ stats.categoryOps }}</strong>
+          <span class="stat-hint">删除、迁移与保留期相关动作</span>
         </div>
       </article>
       <article class="stat-card glass-card hover-float">
@@ -472,7 +472,26 @@
               </div>
               <div>
                 <dt>资源ID</dt>
-                <dd class="code-font">{{ selectedLog.resourceId || '未记录' }}</dd>
+                <dd class="code-font id-display-row">
+                  <el-tooltip
+                    v-if="selectedLog.resourceId && selectedLog.resourceId.length > 10"
+                    :content="selectedLog.resourceId"
+                    placement="top"
+                    effect="dark"
+                  >
+                    <span>{{ selectedLog.resourceId.substring(0, 10) }}...</span>
+                  </el-tooltip>
+                  <span v-else>{{ selectedLog.resourceId || '未记录' }}</span>
+                  <el-button
+                    v-if="selectedLog.resourceId"
+                    class="copy-action-btn"
+                    text
+                    title="复制完整ID"
+                    @click="copyToClipboard(selectedLog.resourceId)"
+                  >
+                    <font-awesome-icon :icon="['fas', 'copy']" />
+                  </el-button>
+                </dd>
               </div>
               <div>
                 <dt>操作动作</dt>
@@ -575,11 +594,85 @@ const filters = ref({
   dateRange: []
 })
 
-const actionOptions = [
-  { label: '删除课程', value: 'COURSE_DELETE' },
-  { label: '密码重置', value: 'USER_PASSWORD_RESET' },
-  { label: '同步触发', value: 'QUESTION_VECTOR_SYNC_TRIGGER' }
-]
+const ACTION_META = {
+  COURSE_DELETE: {
+    label: '删除课程',
+    icon: ['fas', 'book-open'],
+    tone: 'tone-danger'
+  },
+  USER_PASSWORD_RESET: {
+    label: '密码重置',
+    icon: ['fas', 'key'],
+    tone: 'tone-warning'
+  },
+  QUESTION_VECTOR_SYNC_TRIGGER: {
+    label: '同步触发',
+    icon: ['fas', 'arrows-rotate'],
+    tone: 'tone-info'
+  },
+  ADMIN_CAT_DEL_EM: {
+    label: '紧急删除分类',
+    icon: ['fas', 'bolt'],
+    tone: 'tone-danger'
+  },
+  ADMIN_CAT_DEL_RG: {
+    label: '常规删除分类',
+    icon: ['fas', 'calendar-days'],
+    tone: 'tone-warning'
+  },
+  ADMIN_CAT_MIG: {
+    label: '分类迁移',
+    icon: ['fas', 'right-left'],
+    tone: 'tone-info'
+  },
+  ADMIN_CAT_DEL_EM_REQ: {
+    label: '紧急删除申请',
+    icon: ['fas', 'triangle-exclamation'],
+    tone: 'tone-danger'
+  },
+  ADMIN_CAT_DEL_EM_DONE: {
+    label: '紧急删除完成',
+    icon: ['fas', 'trash-can'],
+    tone: 'tone-danger'
+  },
+  ADMIN_CAT_DEL_RG_REQ: {
+    label: '常规删除申请',
+    icon: ['fas', 'hourglass-half'],
+    tone: 'tone-warning'
+  },
+  ADMIN_CAT_DEL_RG_WAIT: {
+    label: '常规删除保留中',
+    icon: ['fas', 'clock'],
+    tone: 'tone-warning'
+  },
+  ADMIN_CAT_DEL_RG_DONE: {
+    label: '常规删除完成',
+    icon: ['fas', 'check-double'],
+    tone: 'tone-success'
+  },
+  ADMIN_CAT_MIG_REQ: {
+    label: '分类迁移申请',
+    icon: ['fas', 'route'],
+    tone: 'tone-info'
+  },
+  ADMIN_CAT_MIG_DONE: {
+    label: '分类迁移完成',
+    icon: ['fas', 'shuffle'],
+    tone: 'tone-info'
+  },
+  UNKNOWN: {
+    label: '未知动作',
+    icon: ['fas', 'circle-info'],
+    tone: 'tone-neutral'
+  }
+}
+
+const actionOptions = Object.entries(ACTION_META)
+  .filter(([value]) => value !== 'UNKNOWN')
+  .map(([value, meta]) => ({
+    label: meta.label,
+    value
+  }))
 
 const statusOptions = [
   { label: '成功', value: 'SUCCESS' },
@@ -826,6 +919,77 @@ const mockAuditLogs = () => ([
       updatedAt: '2026-03-27T12:10:21'
     }),
     createdAt: '2026-03-27T12:10:21'
+  },
+  {
+    id: 'audit-6',
+    action: 'ADMIN_CAT_DEL_EM',
+    resourceType: 'course_category',
+    resourceId: 'CAT-3001',
+    status: 'SUCCESS',
+    message: '管理员执行课程分类紧急删除',
+    operatorId: 'admin-1001',
+    operatorIdentifier: 'A0001',
+    operatorName: '系统管理员',
+    operatorRole: 'admin',
+    requestIp: '127.0.0.1',
+    requestMethod: 'POST',
+    requestPath: '/api/admin/course/categories/delete/emergency',
+    requestSource: JSON.stringify({
+      ip: '127.0.0.1',
+      host: 'localhost:8080',
+      referer: 'http://localhost:5173/admin/categories',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome'
+    }),
+    beforeSnapshot: JSON.stringify({
+      operatorId: 'admin-1001',
+      categoryId: 'CAT-3001',
+      reason: '发现错误分类命名，立即下线'
+    }),
+    afterSnapshot: JSON.stringify({
+      requestId: 'REQ-DEL-1001',
+      operationType: 'delete',
+      mode: 'emergency',
+      categoryId: 'CAT-3001',
+      categoryName: '临时测试分类',
+      announcementId: 'ANN-9001',
+      message: '分类已紧急删除，相关教师已通过系统公告和邮件收到通知'
+    }),
+    createdAt: '2026-03-27T12:36:45'
+  },
+  {
+    id: 'audit-7',
+    action: 'ADMIN_CAT_MIG_DONE',
+    resourceType: 'course_category',
+    resourceId: 'CAT-TOP-100',
+    status: 'SUCCESS',
+    message: '管理员完成课程分类迁移',
+    operatorId: 'admin-1002',
+    operatorIdentifier: 'A0002',
+    operatorName: '安全审计员',
+    operatorRole: 'admin',
+    requestIp: '10.10.2.14',
+    requestMethod: 'POST',
+    requestPath: '/api/admin/course/categories/migration/execute',
+    requestSource: JSON.stringify({
+      ip: '10.10.2.14',
+      host: 'ops.online-education.local',
+      referer: 'http://localhost:5173/admin/categories',
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari'
+    }),
+    beforeSnapshot: JSON.stringify({
+      sourceCategoryId: 'CAT-TOP-100',
+      sourceCategoryName: '旧版开发分类',
+      targetCategoryId: 'CAT-NEW-600',
+      targetCategoryName: '新版课程分类',
+      reason: '顶级分类下存在大量课程，先迁移后删除'
+    }),
+    afterSnapshot: JSON.stringify({
+      targetCategoryId: 'CAT-NEW-600',
+      targetCategoryName: '新版课程分类',
+      affectedCourseCount: 12,
+      announcementId: 'ANN-9002'
+    }),
+    createdAt: '2026-03-27T13:05:10'
   }
 ]).map(normalizeLog)
 
@@ -863,18 +1027,13 @@ const loadAuditLogs = async () => {
 }
 
 const actionLabel = (action) => {
-  const labels = {
-    COURSE_DELETE: '删除课程',
-    USER_PASSWORD_RESET: '密码重置',
-    QUESTION_VECTOR_SYNC_TRIGGER: '同步触发',
-    UNKNOWN: '未知动作'
-  }
-  return labels[action] || action
+  return ACTION_META[action]?.label || action || ACTION_META.UNKNOWN.label
 }
 
 const resourceLabel = (resourceType) => {
   const labels = {
     course: '课程资源',
+    course_category: '课程分类',
     user: '用户账户',
     question_vector_sync: '向量同步任务',
     unknown: '未知资源'
@@ -913,21 +1072,11 @@ const roleTagType = (role) => {
 }
 
 const actionIcon = (action) => {
-  const icons = {
-    COURSE_DELETE: ['fas', 'book-open'],
-    USER_PASSWORD_RESET: ['fas', 'key'],
-    QUESTION_VECTOR_SYNC_TRIGGER: ['fas', 'arrows-rotate']
-  }
-  return icons[action] || ['fas', 'circle-info']
+  return ACTION_META[action]?.icon || ACTION_META.UNKNOWN.icon
 }
 
 const actionToneClass = (action) => {
-  const tones = {
-    COURSE_DELETE: 'tone-danger',
-    USER_PASSWORD_RESET: 'tone-warning',
-    QUESTION_VECTOR_SYNC_TRIGGER: 'tone-info'
-  }
-  return tones[action] || 'tone-neutral'
+  return ACTION_META[action]?.tone || ACTION_META.UNKNOWN.tone
 }
 
 const sourceLabel = (log) => {
@@ -972,7 +1121,7 @@ const paginatedLogs = computed(() => {
 const stats = computed(() => ({
   total: logs.value.length,
   failed: logs.value.filter(item => item.status === 'FAILED').length,
-  courseDelete: logs.value.filter(item => item.action === 'COURSE_DELETE').length,
+  categoryOps: logs.value.filter(item => item.action?.startsWith('ADMIN_CAT_')).length,
   passwordReset: logs.value.filter(item => item.action === 'USER_PASSWORD_RESET').length,
   syncTrigger: logs.value.filter(item => item.action === 'QUESTION_VECTOR_SYNC_TRIGGER').length
 }))
@@ -1002,15 +1151,35 @@ const openDetail = (log) => {
   detailVisible.value = true
 }
 
+const copyToClipboard = async (text) => {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制到剪贴板')
+  } catch (err) {
+    ElMessage.error('复制失败，请检查浏览器权限')
+  }
+}
+
 const onDrawerOpen = () => {
   nextTick(() => {
-    gsap.fromTo('.glass-drawer', 
-      { opacity: 0, x: 50 },
-      { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' }
+    // 采用 ui-ux-pro-max-skill 级别动画，确保内容层叠加载，提升详情面板呈现体感
+    const tln = gsap.timeline()
+
+    // 面板内部元素分别按次序渐入
+    tln.fromTo('.drawer-header',
+      { opacity: 0, y: -20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }
     )
-    gsap.fromTo('.detail-card',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.4, stagger: 0.1, delay: 0.2, ease: 'back.out(1.2)' }
+    .fromTo('.detail-card',
+      { opacity: 0, y: 30 },
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'back.out(1.2)' },
+      "-=0.3"
+    )
+    .fromTo('.snapshot-card',
+      { opacity: 0, x: 20 },
+      { opacity: 1, x: 0, duration: 0.5, stagger: 0.15, ease: 'power3.out' },
+      "-=0.3"
     )
   })
 }
@@ -1688,6 +1857,9 @@ onUnmounted(() => {
 .tech-dl div:last-child { border-bottom: none; padding-bottom: 0; }
 .tech-dl dt { color: #64748b; font-size: 13px; }
 .tech-dl dd { margin: 0; font-weight: 500; color: #334155; font-size: 14px; }
+.id-display-row { display: flex; align-items: center; gap: 4px; }
+.copy-action-btn { padding: 4px; border-radius: 4px; height: 24px; min-height: 24px; color: #94a3b8; transition: all 0.3s ease; }
+.copy-action-btn:hover { color: #0061ff; background: rgba(0, 97, 255, 0.1); transform: scale(1.05); }
 .request-source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .tech-inset { background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02); }
 .tech-inset span { font-size: 12px; color: #64748b; }

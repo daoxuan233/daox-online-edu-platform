@@ -18,7 +18,7 @@ public interface SystemAnnouncementsMapper {
      * @return 系统公告列表
      */
     @Select("SELECT * FROM system_announcements ORDER BY created_at DESC LIMIT #{pageNum}, #{pageSize}")
-    @Results({@Result(column = "id", property = "id"), @Result(column = "title", property = "title"), @Result(column = "content", property = "content"), @Result(column = "creator_id", property = "creatorId"), @Result(column = "is_active", property = "isActive"), @Result(column = "created_at", property = "createdAt"), @Result(column = "expired_at", property = "expiredAt")})
+    @Results({@Result(column = "id", property = "id"), @Result(column = "title", property = "title"), @Result(column = "content", property = "content"), @Result(column = "creator_id", property = "creatorId"), @Result(column = "is_active", property = "isActive"), @Result(column = "created_at", property = "createdAt"), @Result(column = "expired_time", property = "expiredAt")})
     List<SystemAnnouncements> getSystemAnnouncements(int pageNum, int pageSize);
 
     /**
@@ -27,7 +27,7 @@ public interface SystemAnnouncementsMapper {
      * @param systemAnnouncements 系统公告
      * @return 状态码
      */
-    @Insert("insert into system_announcements (id, title, content, creator_id, is_active, created_at,expired_time) values (#{id},#{title},#{content},#{creatorId},#{isActive},#{createdAt},#{expiredTime})")
+    @Insert("insert into system_announcements (id, title, content, creator_id, is_active, created_at, expired_time) values (#{id}, #{title}, #{content}, #{creatorId}, #{isActive}, #{createdAt}, #{expiredAt})")
     int publishSystemAnnouncement(SystemAnnouncements systemAnnouncements);
 
     /**
@@ -50,7 +50,11 @@ public interface SystemAnnouncementsMapper {
      * @return 更新结果
      */
     @Update("UPDATE system_announcements SET title = #{title}, content = #{content}, is_active = #{isActive}, expired_time = #{expiredTime} WHERE id = #{id}")
-    int updateSystemAnnouncement(String id, String title, String content, Integer isActive, Date expiredTime);
+    int updateSystemAnnouncement(@Param("id") String id,
+                                 @Param("title") String title,
+                                 @Param("content") String content,
+                                 @Param("isActive") Integer isActive,
+                                 @Param("expiredTime") Date expiredTime);
 
     /**
      * 根据id查询公告
@@ -59,6 +63,7 @@ public interface SystemAnnouncementsMapper {
      * @return 公告对象
      */
     @Select("SELECT * FROM system_announcements WHERE id = #{id}")
+    @Results({@Result(column = "id", property = "id"), @Result(column = "title", property = "title"), @Result(column = "content", property = "content"), @Result(column = "creator_id", property = "creatorId"), @Result(column = "is_active", property = "isActive"), @Result(column = "created_at", property = "createdAt"), @Result(column = "expired_time", property = "expiredAt")})
     SystemAnnouncements getSystemAnnouncementById(String id);
 
     /**

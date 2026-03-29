@@ -5,21 +5,33 @@ import com.daox.online.entity.mysql.*;
 import com.daox.online.entity.dto.CourseCoreInfoDto;
 import com.daox.online.entity.dto.CourseOutlineDto;
 import com.daox.online.entity.dto.CourseSearchDTO;
+import com.daox.online.entity.views.BO.AdminCategoryPendingDeleteBO;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryDeleteRequestVO;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryMigrationRequestVO;
+import com.daox.online.entity.views.requestVO.teacher.CreateTeacherTodoRequest;
 import com.daox.online.entity.views.requestVO.teacher.CoursePropertiesVo;
 import com.daox.online.entity.views.requestVO.teacher.TeacherCourseVo;
 import com.daox.online.entity.views.responseVO.*;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryDeleteResultVO;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryOperationPreviewVO;
 import com.daox.online.entity.views.responseVO.course.CourseCategoriesVo;
 import com.daox.online.entity.views.responseVO.course.CourseDetailedStatisticsVo;
 import com.daox.online.entity.views.responseVO.course.CourseVo;
 import com.daox.online.entity.views.responseVO.course.TeacherCourseDetailVo;
+import com.daox.online.entity.views.responseVO.teacher.TeacherTodoVo;
 import com.daox.online.entity.views.responseVO.user.UserCoursesVo;
 import com.daox.online.mapper.*;
 import com.daox.online.service.AuditLogService;
+import com.daox.online.service.CategoryNotificationService;
 import com.daox.online.service.CoursesService;
+import com.daox.online.service.NotificationCenterService;
 import com.daox.online.service.SysUserService;
+import com.daox.online.service.SystemAnnouncementsService;
+import com.daox.online.service.TeacherTodoService;
 import com.daox.online.service.UsersService;
 import com.daox.online.uilts.constant.CourseLevel;
 import com.daox.online.uilts.constant.Const;
+import com.daox.online.uilts.constant.NotificationConstants;
 import com.daox.online.uilts.HybridIdGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,10 +41,14 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -44,6 +60,13 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class CoursesServiceImpl implements CoursesService {
+
+    private static final String CATEGORY_DELETE_MODE_EMERGENCY = "emergency";
+    private static final String CATEGORY_DELETE_MODE_REGULAR = "regular";
+    private static final String CATEGORY_OPERATION_DELETE = "delete";
+    private static final String CATEGORY_OPERATION_MIGRATION = "migration";
+    private static final int CATEGORY_REGULAR_DELETE_RETAIN_DAYS = 3;
+    private static final int CATEGORY_NOTICE_EXPIRE_DAYS = 7;
 
     @Resource
     private CoursesMapper coursesMapper;
@@ -77,6 +100,23 @@ public class CoursesServiceImpl implements CoursesService {
     private ObjectMapper objectMapper;
     @Resource
     private AuditLogService auditLogService;
+    @Resource
+    private SystemAnnouncementsService systemAnnouncementsService;
+    @Resource
+    private TeacherTodoService teacherTodoService;
+    @Resource
+    private TeacherTodosMapper teacherTodosMapper;
+    @Resource
+    private SysUsersMapper sysUsersMapper;
+
+    @Resource
+    private NotificationCenterService notificationCenterService;
+
+    /**
+     * 分类操作邮件通知服务（异步发送，事务提交后回调触发，不影响主业务事务）
+     */
+    @Resource
+    private CategoryNotificationService categoryNotificationService;
 
     /**
      * 公开课程列表 - 分页查询
@@ -639,6 +679,15 @@ public class CoursesServiceImpl implements CoursesService {
         if (course == null) {
             throw new RuntimeException("操作失败：ID为 " + courseId + " 的课程不存在。");
         }
+        String operatorId = course.getTeacherId();
+        CourseProperties existingProperties = coursePropertiesMapper.selectByCourseId(courseId);
+        boolean coreChanged = !Objects.equals(course.getTitle(), courseDto.getTitle())
+                || !Objects.equals(course.getDescription(), courseDto.getDescription())
+                || !Objects.equals(course.getCoverImageUrl(), courseDto.getCoverImageUrl())
+                || !Objects.equals(course.getTeacherId(), courseDto.getTeacherId())
+                || !Objects.equals(course.getCategoryId(), courseDto.getCategoryId())
+                || !Objects.equals(course.getStatus(), courseDto.getStatus())
+                || !Objects.equals(course.getIsPrivate(), courseDto.isPrivateCourse() ? 1 : 0);
 
         // 2. 更新 Course 表
         course.setTitle(courseDto.getTitle());
@@ -654,6 +703,12 @@ public class CoursesServiceImpl implements CoursesService {
 
         // 3. 更新 CourseProperties 表
         CourseCoreInfoDto.CoursePropertiesDto propsDto = courseDto.getProperties();
+    boolean propertiesChanged = propsDto != null && (existingProperties == null
+        || !Objects.equals(existingProperties.getLevel(), propsDto.getLevel())
+        || !Objects.equals(existingProperties.getTargetAudience(), propsDto.getTargetAudience())
+        || !Objects.equals(existingProperties.getRequirements(), propsDto.getRequirements())
+        || !Objects.equals(existingProperties.getPrice(), propsDto.getPrice())
+        || !Objects.equals(existingProperties.getOriginalPrice(), propsDto.getOriginalPrice()));
         if (propsDto != null) {
             CourseProperties properties = coursePropertiesMapper.selectByCourseId(courseId);
             if (properties == null) {
@@ -676,6 +731,13 @@ public class CoursesServiceImpl implements CoursesService {
                 properties.setOriginalPrice(propsDto.getOriginalPrice());
                 coursePropertiesMapper.updateByCourseIdSelective(properties);
             }
+        }
+        if (coreChanged || propertiesChanged) {
+            notificationCenterService.notifyCourseChanged(
+                    course,
+                    sysUserService.findUserById(operatorId),
+                    NotificationConstants.COURSE_ACTION_INFO_UPDATED
+            );
         }
         return course;
     }
@@ -795,6 +857,17 @@ public class CoursesServiceImpl implements CoursesService {
         if (!sectionsToInsert.isEmpty()) {
             sectionMapper.insertBatch(sectionsToInsert);
         }
+        boolean outlineChanged = !chaptersToInsert.isEmpty()
+                || !chaptersToUpdate.isEmpty()
+                || !sectionsToInsert.isEmpty()
+                || !sectionsToUpdate.isEmpty()
+                || !chapterIdsToDelete.isEmpty()
+                || !sectionIdsToDelete.isEmpty();
+        if (outlineChanged) {
+            Courses course = courseMapper.selectByPrimaryKey(courseId);
+            Users actor = course == null ? null : sysUserService.findUserById(course.getTeacherId());
+            notificationCenterService.notifyCourseChanged(course, actor, NotificationConstants.COURSE_ACTION_OUTLINE_UPDATED);
+        }
     }
 
     /**
@@ -897,6 +970,11 @@ public class CoursesServiceImpl implements CoursesService {
                 );
                 if (coursePropertiesBool > 0) {
                     log.info("[updateCourse.method] 创建课程属性成功: userId={}, courseId={}", userId, courseId);
+                    notificationCenterService.notifyCourseChanged(
+                            coursesMapper.getCourseById(courseId),
+                            sysUserService.findUserById(userId),
+                            NotificationConstants.COURSE_ACTION_INFO_UPDATED
+                    );
                     return "更新完成";
                 } else {
                     log.warn("[updateCourse.method] 创建课程属性失败: userId={}, courseId={}", userId, courseId);
@@ -911,6 +989,11 @@ public class CoursesServiceImpl implements CoursesService {
                 );
                 if (courseProperties > 0) {
                     log.info("[updateCourse.method] 更新课程属性成功: userId={}, courseId={}", userId, courseId);
+                    notificationCenterService.notifyCourseChanged(
+                            coursesMapper.getCourseById(courseId),
+                            sysUserService.findUserById(userId),
+                            NotificationConstants.COURSE_ACTION_INFO_UPDATED
+                    );
                     return "更新完成";
                 } else {
                     log.warn("[updateCourse.method] 更新课程属性失败: userId={}, courseId={}", userId, courseId);
@@ -1031,6 +1114,11 @@ public class CoursesServiceImpl implements CoursesService {
             boolean published = coursesMapper.publishCourse(courseId) > 0;
             if (published) {
                 refreshTeacherCourseCache(userId);
+                notificationCenterService.notifyCourseChanged(
+                        coursesMapper.getCourseById(courseId),
+                        sysUserService.findUserById(userId),
+                        NotificationConstants.COURSE_ACTION_PUBLISHED
+                );
             }
             return published;
         }
@@ -1052,6 +1140,11 @@ public class CoursesServiceImpl implements CoursesService {
                 int i = coursesMapper.archiveCourse(courseId, userId);
                 if (i > 0) {
                     log.info("[archiveCourse.method] 课程归档成功: userId={}, courseId={}", userId, courseId);
+                    notificationCenterService.notifyCourseChanged(
+                            coursesMapper.getCourseById(courseId),
+                            sysUserService.findUserById(userId),
+                            NotificationConstants.COURSE_ACTION_ARCHIVED
+                    );
                     return true;
                 }
             }
@@ -1330,6 +1423,346 @@ public class CoursesServiceImpl implements CoursesService {
     }
 
     /**
+     * 预览分类删除影响范围。
+     *
+     * @param categoryId 分类ID
+     * @return 预览结果
+     */
+    @Override
+    public AdminCategoryOperationPreviewVO previewDeleteCourseCategory(String categoryId) {
+        CategoryDeleteContext context = buildCategoryDeleteContext(categoryId);
+        return buildOperationPreview(context, true);
+    }
+
+    /**
+     * 执行紧急删除。
+     *
+     * <p>执行流程：</p>
+     * <ol>
+     *   <li>构建删除上下文并校验合法性；</li>
+     *   <li>若非顶级分类且存在课程，先将课程迁入兜底分类；</li>
+     *   <li>发布系统公告；</li>
+     *   <li>物理删除分类；</li>
+     *   <li>写入完成审计日志；</li>
+     *   <li>注册事务提交后回调：事务成功提交后，异步向受影响教师发送邮件通知。</li>
+     * </ol>
+     *
+     * <p><b>注意：</b>邮件通知故意在事务提交后异步触发，即使邮件发送失败也不会引起事务回滚。</p>
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    删除请求
+     * @return 删除结果
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AdminCategoryDeleteResultVO emergencyDeleteCourseCategory(String operatorId, AdminCategoryDeleteRequestVO request) {
+        CategoryDeleteContext context = buildCategoryDeleteContext(request.getCategoryId());
+        validateDeleteRequestContext(context);
+        if (context.isTopLevel() && !context.getAffectedCourses().isEmpty()) {
+            throw new BusinessException("400", "顶级分类仍存在关联课程，请先完成分类迁移后再执行删除");
+        }
+
+        String reason = normalizeReason(request.getReason());
+        Map<String, Object> beforeSnapshot = buildCategoryDeleteBeforeSnapshot(context, reason);
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_DEL_EM_REQ",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                Map.of("mode", CATEGORY_DELETE_MODE_EMERGENCY),
+                "SUCCESS",
+                "管理员发起课程分类紧急删除");
+
+        String fallbackCategoryId = null;
+        if (!context.isTopLevel() && !context.getAffectedCourses().isEmpty()) {
+            fallbackCategoryId = ensureFallbackCategory().getId();
+            migrateCoursesToCategory(context.getAffectedCourses(), fallbackCategoryId);
+        }
+
+        // 在删除分类前，提前构建受影响课程信息（含教师邮箱），供事务提交后的异步邮件通知使用
+        // 之所以在此处构建而非 afterCommit 内部，是因为分类删除后部分信息将无法查询
+        final List<AdminCategoryOperationPreviewVO.AffectedCourseItem> affectedItems =
+                buildAffectedCourseItems(context.getAffectedCourses());
+        // 确定兜底分类名称：有课程被自动迁入时告知教师
+        final String finalFallbackName = StringUtils.hasText(fallbackCategoryId)
+                ? Const.CATEGORY_SYSTEM_FALLBACK_NAME : null;
+        final String deletedCategoryName = context.getCategory().getName();
+
+        String announcementId = publishDeleteAnnouncement(operatorId, context, CATEGORY_DELETE_MODE_EMERGENCY, reason);
+        // 执行物理删除（按深度倒序，先删子分类）
+        deleteCategoriesInOrder(context.getCategoryIdsToDelete());
+
+        Map<String, Object> afterSnapshot = buildCategoryDeleteAfterSnapshot(context, CATEGORY_DELETE_MODE_EMERGENCY,
+                announcementId, fallbackCategoryId, null);
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_DEL_EM_DONE",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                afterSnapshot,
+                "SUCCESS",
+                "管理员完成课程分类紧急删除");
+
+        // 注册事务提交后回调：
+        // - 只有事务真正提交成功，才会触发邮件通知，避免事务回滚时发出错误通知
+        // - 邮件通知方法标注了 @Async，afterCommit 内仅做线程提交，不阻塞当前请求
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                categoryNotificationService.sendEmergencyDeleteEmails(
+                        deletedCategoryName, affectedItems, finalFallbackName);
+            }
+        });
+
+        return buildDeleteResult(context,
+                CATEGORY_OPERATION_DELETE,
+                CATEGORY_DELETE_MODE_EMERGENCY,
+                hybridIdGenerator.generateId(),
+                announcementId,
+                new Date(),
+                null,
+                0,
+                "分类已紧急删除，系统公告已发布，邮件通知将异步发送给相关教师");
+    }
+
+    /**
+     * 提交常规删除申请。
+     *
+     * <p>执行流程：</p>
+     * <ol>
+     *   <li>构建删除上下文并校验合法性；</li>
+     *   <li>写入申请审计日志；</li>
+     *   <li>发布系统公告，为每位受影响教师创建确认待办；</li>
+     *   <li>将删除任务序列化后存入 Redis 待处理集合；</li>
+     *   <li>写入等待状态审计日志；</li>
+     *   <li>注册事务提交后回调：事务成功提交后，异步向受影响教师发送邮件通知。</li>
+     * </ol>
+     *
+     * <p>实际物理删除由定时任务 {@code CategoryDeleteTask} 在保留期届满或教师全部确认后执行。</p>
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    删除请求
+     * @return 删除结果（含请求ID、保留截止时间等信息）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AdminCategoryDeleteResultVO regularDeleteCourseCategory(String operatorId, AdminCategoryDeleteRequestVO request) {
+        CategoryDeleteContext context = buildCategoryDeleteContext(request.getCategoryId());
+        validateDeleteRequestContext(context);
+        if (context.isTopLevel() && !context.getAffectedCourses().isEmpty()) {
+            throw new BusinessException("400", "顶级分类仍存在关联课程，请先完成分类迁移后再提交常规删除");
+        }
+
+        String reason = normalizeReason(request.getReason());
+        Date now = new Date();
+        Date preserveUntil = Date.from(LocalDateTime.now()
+                .plusDays(CATEGORY_REGULAR_DELETE_RETAIN_DAYS)
+                .atZone(ZoneId.systemDefault())
+                .toInstant());
+        Map<String, Object> beforeSnapshot = buildCategoryDeleteBeforeSnapshot(context, reason);
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_DEL_RG_REQ",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                Map.of("mode", CATEGORY_DELETE_MODE_REGULAR, "preserveUntil", preserveUntil),
+                "SUCCESS",
+                "管理员提交课程分类常规删除申请");
+
+        String announcementId = publishDeleteAnnouncement(operatorId, context, CATEGORY_DELETE_MODE_REGULAR, reason);
+        List<AdminCategoryPendingDeleteBO.TeacherConfirmationItem> teacherConfirmations =
+                createTeacherConfirmationTodos(context, preserveUntil);
+        String requestId = hybridIdGenerator.generateId();
+        AdminCategoryPendingDeleteBO pendingDelete = new AdminCategoryPendingDeleteBO()
+                .setRequestId(requestId)
+                .setCategoryId(context.getCategory().getId())
+                .setCategoryName(context.getCategory().getName())
+                .setTopLevel(context.isTopLevel())
+                .setDeleteMode(CATEGORY_DELETE_MODE_REGULAR)
+                .setReason(reason)
+                .setOperatorId(operatorId)
+                .setAnnouncementId(announcementId)
+                .setAffectedCourseIds(context.getAffectedCourses().stream().map(Courses::getId).toList())
+                .setCategoryIdsToDelete(new ArrayList<>(context.getCategoryIdsToDelete()))
+                .setTeacherConfirmations(teacherConfirmations)
+                .setCreatedAt(now)
+                .setPreserveUntil(preserveUntil);
+        savePendingDeleteRecord(pendingDelete);
+
+        // 提前构建受影响课程信息（含教师邮箱），供事务提交后的异步邮件通知使用
+        final List<AdminCategoryOperationPreviewVO.AffectedCourseItem> affectedItems =
+                buildAffectedCourseItems(context.getAffectedCourses());
+        final String pendingCategoryName = context.getCategory().getName();
+        final Date finalPreserveUntil = preserveUntil;
+
+        Map<String, Object> afterSnapshot = buildCategoryDeleteAfterSnapshot(context, CATEGORY_DELETE_MODE_REGULAR,
+                announcementId, null, preserveUntil);
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_DEL_RG_WAIT",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                afterSnapshot,
+                "SUCCESS",
+                "课程分类已进入三天保留期，等待自动删除或教师提前确认");
+
+        // 注册事务提交后回调：
+        // - 事务成功提交后，异步发送常规删除申请邮件给受影响教师
+        // - 邮件中包含截止时间和待办事项提示，帮助教师及时处理
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                categoryNotificationService.sendRegularDeleteRequestEmails(
+                        pendingCategoryName, finalPreserveUntil, affectedItems);
+            }
+        });
+
+        return buildDeleteResult(context,
+                CATEGORY_OPERATION_DELETE,
+                CATEGORY_DELETE_MODE_REGULAR,
+                requestId,
+                announcementId,
+                now,
+                preserveUntil,
+                teacherConfirmations.size(),
+                "分类已进入三天保留期；到期或所有相关教师确认后，系统将自动完成删除，邮件通知将异步发送给相关教师");
+    }
+
+    /**
+     * 预览分类迁移影响范围。
+     *
+     * @param categoryId 分类ID
+     * @return 预览结果
+     */
+    @Override
+    public AdminCategoryOperationPreviewVO previewCategoryMigration(String categoryId) {
+        CategoryDeleteContext context = buildCategoryDeleteContext(categoryId);
+        AdminCategoryOperationPreviewVO preview = buildOperationPreview(context, true);
+        if (context.getAffectedCourses().isEmpty()) {
+            preview.getWarnings().add("当前分类及其子分类下暂无课程，无需执行迁移。");
+        } else {
+            preview.getWarnings().add("分类迁移开始后，教师端会立即收到系统公告提醒。");
+        }
+        return preview;
+    }
+
+    /**
+     * 执行分类迁移。
+     *
+     * <p>执行流程：</p>
+     * <ol>
+     *   <li>校验源分类与目标分类不能相同，且目标不能为系统保留分类或源分类树内分类；</li>
+     *   <li>在迁移前提前构建受影响课程信息（含教师邮箱），供后续邮件通知使用；</li>
+     *   <li>批量更新课程的分类字段至目标分类；</li>
+     *   <li>发布系统公告通知教师；</li>
+     *   <li>写入审计日志；</li>
+     *   <li>注册事务提交后回调：事务成功提交后，异步向受影响教师发送邮件通知。</li>
+     * </ol>
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    迁移请求（包含源分类ID、目标分类ID、原因）
+     * @return 迁移结果
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AdminCategoryDeleteResultVO migrateCategoryCourses(String operatorId, AdminCategoryMigrationRequestVO request) {
+        if (Objects.equals(request.getSourceCategoryId(), request.getTargetCategoryId())) {
+            throw new BusinessException("400", "源分类和目标分类不能相同");
+        }
+        CategoryDeleteContext context = buildCategoryDeleteContext(request.getSourceCategoryId());
+        CourseCategories targetCategory = requireCategory(request.getTargetCategoryId());
+        if (Const.CATEGORY_SYSTEM_FALLBACK_NAME.equals(targetCategory.getName())) {
+            throw new BusinessException("400", "分类迁移不能直接迁移到系统保留分类");
+        }
+        if (context.getScopeCategoryIds().contains(targetCategory.getId())) {
+            throw new BusinessException("400", "目标分类不能选择当前分类或其子分类");
+        }
+
+        String reason = normalizeReason(request.getReason());
+
+        // 在迁移执行前，提前构建受影响课程信息（含教师邮箱），供事务提交后的异步邮件通知使用
+        // 迁移后课程的 categoryId 已更新，此处需在变更前捕获原始状态
+        final List<AdminCategoryOperationPreviewVO.AffectedCourseItem> affectedItems =
+                buildAffectedCourseItems(context.getAffectedCourses());
+        final String sourceCategoryName = context.getCategory().getName();
+        final String targetCategoryName = targetCategory.getName();
+
+        Map<String, Object> beforeSnapshot = buildCategoryMigrationBeforeSnapshot(context, targetCategory, reason);
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_MIG_REQ",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                Map.of("targetCategoryId", targetCategory.getId(), "targetCategoryName", targetCategory.getName()),
+                "SUCCESS",
+                "管理员发起课程分类迁移");
+
+        migrateCoursesToCategory(context.getAffectedCourses(), targetCategory.getId());
+        String announcementId = publishMigrationAnnouncement(operatorId, context, targetCategory, reason);
+
+        Map<String, Object> afterSnapshot = Map.of(
+                "targetCategoryId", targetCategory.getId(),
+                "targetCategoryName", targetCategory.getName(),
+                "affectedCourseCount", context.getAffectedCourses().size(),
+                "announcementId", announcementId
+        );
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_MIG_DONE",
+                "course_category",
+                context.getCategory().getId(),
+                beforeSnapshot,
+                afterSnapshot,
+                "SUCCESS",
+                "管理员完成课程分类迁移");
+
+        // 注册事务提交后回调：
+        // - 事务成功提交后，异步发送迁移完成邮件给受影响教师
+        // - 告知教师课程所属分类已变更，请核对确认
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                categoryNotificationService.sendMigrationEmails(
+                        sourceCategoryName, targetCategoryName, affectedItems);
+            }
+        });
+
+        return buildDeleteResult(context,
+                CATEGORY_OPERATION_MIGRATION,
+                "execute",
+                hybridIdGenerator.generateId(),
+                announcementId,
+                new Date(),
+                null,
+                0,
+                "分类关联课程已迁移完成，系统公告已发布，邮件通知将异步发送给相关教师");
+    }
+
+    /**
+     * 处理 Redis 中待完成的常规删除任务。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void processPendingCategoryDeletionTasks() {
+        Set<Object> requestIds = redisTemplate.opsForSet().members(Const.CATEGORY_PENDING_DELETE_INDEX_KEY);
+        if (CollectionUtils.isEmpty(requestIds)) {
+            return;
+        }
+        for (Object requestIdObj : requestIds) {
+            if (requestIdObj == null) {
+                continue;
+            }
+            String requestId = String.valueOf(requestIdObj);
+            try {
+                AdminCategoryPendingDeleteBO pendingDelete = loadPendingDeleteRecord(requestId);
+                if (pendingDelete == null) {
+                    redisTemplate.opsForSet().remove(Const.CATEGORY_PENDING_DELETE_INDEX_KEY, requestId);
+                    continue;
+                }
+                if (!shouldFinalizePendingDelete(pendingDelete)) {
+                    continue;
+                }
+                finalizePendingDelete(pendingDelete);
+            } catch (Exception exception) {
+                log.error("[processPendingCategoryDeletionTasks.method] 处理常规删除任务失败: requestId={}", requestId, exception);
+            }
+        }
+    }
+
+    /**
      * 获取课程统计
      *
      * @return 课程统计
@@ -1471,9 +1904,681 @@ public class CoursesServiceImpl implements CoursesService {
         }
     }
 
+    /**
+     * 构建分类删除上下文。
+     *
+     * @param categoryId 分类ID
+     * @return 删除上下文
+     */
+    private CategoryDeleteContext buildCategoryDeleteContext(String categoryId) {
+        CourseCategories category = requireCategory(categoryId);
+        boolean topLevel = isTopLevelCategory(category);
+        List<String> scopeCategoryIds = getCategoryTreeIds(categoryId);
+        List<String> categoryIdsToDelete = topLevel ? new ArrayList<>(scopeCategoryIds) : List.of(categoryId);
+        List<Courses> affectedCourses = scopeCategoryIds.isEmpty()
+                ? Collections.emptyList()
+                : coursesMapper.listCoursesByCategoryIds(scopeCategoryIds);
+        return new CategoryDeleteContext()
+                .setCategory(category)
+                .setTopLevel(topLevel)
+                .setScopeCategoryIds(scopeCategoryIds)
+                .setCategoryIdsToDelete(categoryIdsToDelete)
+                .setAffectedCourses(affectedCourses)
+                .setHasChildCategories(scopeCategoryIds.size() > 1);
+    }
 
     /**
-     * 将 CourseCategories 对象转换为 CourseCategoriesVo 对象
+     * 构建分类操作预览。
+     *
+     * @param context              分类上下文
+     * @param includeTargetOptions 是否包含目标分类候选项
+     * @return 预览结果
+     */
+    private AdminCategoryOperationPreviewVO buildOperationPreview(CategoryDeleteContext context, boolean includeTargetOptions) {
+        AdminCategoryOperationPreviewVO preview = new AdminCategoryOperationPreviewVO()
+                .setCategoryId(context.getCategory().getId())
+                .setCategoryName(context.getCategory().getName())
+                .setTopLevel(context.isTopLevel())
+                .setMigrationRecommended(context.isTopLevel() || !context.getAffectedCourses().isEmpty())
+                .setCascadeDeleteChildren(context.isTopLevel())
+                .setDescendantCategoryCount(Math.max(context.getScopeCategoryIds().size() - 1, 0))
+                .setAffectedCourseCount(context.getAffectedCourses().size())
+                .setAffectedTeacherCount(countAffectedTeachers(context.getAffectedCourses()));
+
+        boolean deleteAllowed = true;
+        if (!context.isTopLevel() && context.isHasChildCategories()) {
+            preview.getWarnings().add("该非顶级分类下仍存在子分类，请先处理下级分类后再删除。");
+            deleteAllowed = false;
+        }
+        if (context.isTopLevel()) {
+            preview.getWarnings().add("顶级分类删除会级联删除其下全部子分类，属于高风险操作。");
+            preview.getWarnings().add("建议优先执行分类迁移，确认分类树下不存在任何课程后再执行删除。");
+            if (!context.getAffectedCourses().isEmpty()) {
+                preview.getWarnings().add("当前顶级分类树下仍存在课程，删除操作将被后端拦截，必须先完成迁移。");
+                deleteAllowed = false;
+            }
+        } else {
+            preview.getWarnings().add("紧急删除会立即删除分类，并通过系统公告和邮件通知相关教师尽快更换课程分类。");
+            preview.getWarnings().add("常规删除会保留三天；到期或相关教师全部确认后，系统才会真正删除该分类。");
+            if (!context.getAffectedCourses().isEmpty()) {
+                preview.getWarnings().add("若删除时仍有课程停留在该分类下，系统会自动转入“待重新分类”保留分类。");
+            }
+        }
+        preview.setEmergencyDeleteAllowed(deleteAllowed);
+        preview.setRegularDeleteAllowed(deleteAllowed);
+        preview.setAffectedCourses(buildAffectedCourseItems(context.getAffectedCourses()));
+        if (includeTargetOptions) {
+            preview.setAvailableTargetCategories(buildTargetCategoryOptions(context.getScopeCategoryIds()));
+        }
+        return preview;
+    }
+
+    /**
+     * 校验删除上下文是否合法。
+     *
+     * @param context 删除上下文
+     */
+    private void validateDeleteRequestContext(CategoryDeleteContext context) {
+        if (!context.isTopLevel() && context.isHasChildCategories()) {
+            throw new BusinessException("400", "当前非顶级分类下仍存在子分类，请先处理子分类后再删除");
+        }
+    }
+
+    /**
+     * 构建受影响课程摘要。
+     *
+     * @param courses 课程列表
+     * @return 摘要列表
+     */
+    private List<AdminCategoryOperationPreviewVO.AffectedCourseItem> buildAffectedCourseItems(List<Courses> courses) {
+        Map<String, Users> teacherMap = sysUsersMapper.getValidTeacherList().stream()
+                .collect(Collectors.toMap(Users::getId, Function.identity(), (left, right) -> left));
+        Map<String, CourseCategories> categoryMap = courseCategoryMapper.findAll().stream()
+                .collect(Collectors.toMap(CourseCategories::getId, Function.identity(), (left, right) -> left));
+        return courses.stream().map(course -> {
+            Users teacher = teacherMap.get(course.getTeacherId());
+            CourseCategories courseCategory = categoryMap.get(course.getCategoryId());
+            return new AdminCategoryOperationPreviewVO.AffectedCourseItem()
+                    .setCourseId(course.getId())
+                    .setCourseTitle(course.getTitle())
+                    .setTeacherId(course.getTeacherId())
+                    .setTeacherName(teacher == null ? null : teacher.getNickname())
+                    .setTeacherEmail(teacher == null ? null : teacher.getEmail())
+                    .setCurrentCategoryId(course.getCategoryId())
+                    .setCurrentCategoryName(courseCategory == null ? null : courseCategory.getName());
+        }).toList();
+    }
+
+    /**
+     * 构建可迁移目标分类选项。
+     *
+     * @param excludedCategoryIds 需要排除的分类ID
+     * @return 目标分类列表
+     */
+    private List<AdminCategoryOperationPreviewVO.CategoryOptionItem> buildTargetCategoryOptions(List<String> excludedCategoryIds) {
+        Set<String> excludedSet = new HashSet<>(excludedCategoryIds);
+        return courseCategoryMapper.findAll().stream()
+                .filter(category -> !excludedSet.contains(category.getId()))
+                .filter(category -> !Const.CATEGORY_SYSTEM_FALLBACK_NAME.equals(category.getName()))
+                .map(category -> new AdminCategoryOperationPreviewVO.CategoryOptionItem()
+                        .setCategoryId(category.getId())
+                        .setCategoryName(category.getName())
+                        .setParentId(category.getParentId()))
+                .toList();
+    }
+
+    /**
+     * 获取分类树中自身及全部子孙分类ID。
+     *
+     * @param categoryId 分类ID
+     * @return 分类ID列表
+     */
+    private List<String> getCategoryTreeIds(String categoryId) {
+        List<String> categoryIds = courseCategoryMapper.findSelfAndDescendantIds(categoryId);
+        if (CollectionUtils.isEmpty(categoryIds)) {
+            return List.of(categoryId);
+        }
+        return categoryIds;
+    }
+
+    /**
+     * 判断当前分类是否为顶级分类。
+     *
+     * @param category 分类实体
+     * @return 是否为顶级分类
+     */
+    private boolean isTopLevelCategory(CourseCategories category) {
+        return category.getParentId() == null || category.getParentId().isBlank() || "0".equals(category.getParentId());
+    }
+
+    /**
+     * 强制校验分类存在。
+     *
+     * @param categoryId 分类ID
+     * @return 分类实体
+     */
+    private CourseCategories requireCategory(String categoryId) {
+        if (!StringUtils.hasText(categoryId)) {
+            throw new BusinessException("400", "分类ID不能为空");
+        }
+        CourseCategories category = coursesMapper.getCourseCategoryById(categoryId);
+        if (category == null) {
+            throw new BusinessException("404", "目标分类不存在");
+        }
+        return category;
+    }
+
+    /**
+     * 统计受影响教师数量。
+     *
+     * @param courses 课程列表
+     * @return 教师数量
+     */
+    private int countAffectedTeachers(List<Courses> courses) {
+        return (int) courses.stream()
+                .map(Courses::getTeacherId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .count();
+    }
+
+    /**
+     * 发布分类删除系统公告。
+     *
+     * @param operatorId 操作人ID
+     * @param context    删除上下文
+     * @param mode       删除模式
+     * @param reason     删除原因
+     * @return 公告ID
+     */
+    private String publishDeleteAnnouncement(String operatorId,
+                                             CategoryDeleteContext context,
+                                             String mode,
+                                             String reason) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiredAt = now.plusDays(CATEGORY_NOTICE_EXPIRE_DAYS);
+        String title = CATEGORY_DELETE_MODE_EMERGENCY.equals(mode)
+                ? "课程分类紧急删除通知"
+                : "课程分类常规删除通知";
+        String content = buildDeleteAnnouncementContent(context, mode, reason);
+        SystemAnnouncementsVo announcement = systemAnnouncementsService.publishSystemAnnouncement(
+                operatorId,
+                title,
+                content,
+                Const.IS_ACTIVE_TRUE,
+                now,
+                expiredAt
+        );
+        return announcement == null ? null : announcement.getId();
+    }
+
+    /**
+     * 发布分类迁移系统公告。
+     *
+     * @param operatorId     操作人ID
+     * @param context        分类上下文
+     * @param targetCategory 目标分类
+     * @param reason         迁移原因
+     * @return 公告ID
+     */
+    private String publishMigrationAnnouncement(String operatorId,
+                                                CategoryDeleteContext context,
+                                                CourseCategories targetCategory,
+                                                String reason) {
+        LocalDateTime now = LocalDateTime.now();
+        SystemAnnouncementsVo announcement = systemAnnouncementsService.publishSystemAnnouncement(
+                operatorId,
+                "课程分类迁移通知",
+                "管理员已启动课程分类迁移，原分类“" + context.getCategory().getName() + "”下的课程将迁移至“"
+                        + targetCategory.getName() + "”。请相关教师及时核对课程分类设置。迁移原因："
+                        + reason,
+                Const.IS_ACTIVE_TRUE,
+                now,
+                now.plusDays(CATEGORY_NOTICE_EXPIRE_DAYS)
+        );
+        return announcement == null ? null : announcement.getId();
+    }
+
+    /**
+     * 构建删除公告内容。
+     *
+     * @param context 删除上下文
+     * @param mode    删除模式
+     * @param reason  删除原因
+     * @return 公告内容
+     */
+    private String buildDeleteAnnouncementContent(CategoryDeleteContext context, String mode, String reason) {
+        if (CATEGORY_DELETE_MODE_EMERGENCY.equals(mode)) {
+            return "管理员已执行课程分类“" + context.getCategory().getName() + "”的紧急删除操作。"
+                    + "请相关教师立即检查并调整名下课程分类。删除原因：" + reason;
+        }
+        return "管理员已提交课程分类“" + context.getCategory().getName() + "”的常规删除申请。"
+                + "该分类将进入三天保留期，若相关教师全部确认或保留期结束，系统将自动完成删除。删除原因："
+                + reason;
+    }
+
+    /**
+     * 为相关教师创建确认待办。
+     *
+     * @param context       删除上下文
+     * @param preserveUntil 保留截止时间
+     * @return 教师确认绑定列表
+     */
+    private List<AdminCategoryPendingDeleteBO.TeacherConfirmationItem> createTeacherConfirmationTodos(CategoryDeleteContext context,
+                                                                                                      Date preserveUntil) {
+        Map<String, Users> teacherMap = sysUsersMapper.getValidTeacherList().stream()
+                .collect(Collectors.toMap(Users::getId, Function.identity(), (left, right) -> left));
+        List<AdminCategoryPendingDeleteBO.TeacherConfirmationItem> confirmationItems = new ArrayList<>();
+        Set<String> teacherIds = context.getAffectedCourses().stream()
+                .map(Courses::getTeacherId)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (String teacherId : teacherIds) {
+            Users teacher = teacherMap.get(teacherId);
+            if (teacher == null) {
+                continue;
+            }
+            CreateTeacherTodoRequest todoRequest = new CreateTeacherTodoRequest();
+            todoRequest.setContent("【分类删除确认】分类“" + context.getCategory().getName()
+                    + "”将在保留期后删除，请及时处理课程分类并完成确认。");
+            todoRequest.setPriority("high");
+            todoRequest.setDueDate(preserveUntil);
+            TeacherTodoVo teacherTodo = teacherTodoService.createTeacherTodo(teacherId, todoRequest);
+            confirmationItems.add(new AdminCategoryPendingDeleteBO.TeacherConfirmationItem()
+                    .setTeacherId(teacherId)
+                    .setTodoId(teacherTodo.getId()));
+        }
+        return confirmationItems;
+    }
+
+    /**
+     * 确保系统兜底分类存在。
+     *
+     * @return 兜底分类
+     */
+    private CourseCategories ensureFallbackCategory() {
+        CourseCategories fallbackCategory = coursesMapper.getCategoryByName(Const.CATEGORY_SYSTEM_FALLBACK_NAME);
+        if (fallbackCategory != null) {
+            return fallbackCategory;
+        }
+        String categoryId = hybridIdGenerator.generateId();
+        coursesMapper.createCategory(new CourseCategories()
+                .setId(categoryId)
+                .setName(Const.CATEGORY_SYSTEM_FALLBACK_NAME)
+                .setParentId("0")
+                .setOrderIndex(Const.ORDER_INDEX_MAX));
+        return coursesMapper.getCourseCategoryById(categoryId);
+    }
+
+    /**
+     * 批量迁移课程到指定分类。
+     *
+     * @param courses           课程列表
+     * @param targetCategoryId  目标分类ID
+     */
+    private void migrateCoursesToCategory(List<Courses> courses, String targetCategoryId) {
+        if (CollectionUtils.isEmpty(courses)) {
+            return;
+        }
+        List<String> courseIds = courses.stream().map(Courses::getId).toList();
+        coursesMapper.batchUpdateCourseCategory(targetCategoryId, courseIds);
+    }
+
+    /**
+     * 按深度顺序删除分类，确保子分类先删。
+     *
+     * @param categoryIds 分类ID列表
+     */
+    private void deleteCategoriesInOrder(List<String> categoryIds) {
+        Map<String, CourseCategories> categoryMap = courseCategoryMapper.findAll().stream()
+                .collect(Collectors.toMap(CourseCategories::getId, Function.identity(), (left, right) -> left));
+        List<String> deleteOrder = new ArrayList<>(categoryIds);
+        deleteOrder.sort(Comparator.comparingInt((String id) -> calculateCategoryDepth(id, categoryMap)).reversed());
+        for (String categoryId : deleteOrder) {
+            coursesMapper.deleteCategory(categoryId);
+        }
+    }
+
+    /**
+     * 计算分类深度。
+     *
+     * @param categoryId  分类ID
+     * @param categoryMap 分类映射
+     * @return 深度值
+     */
+    private int calculateCategoryDepth(String categoryId, Map<String, CourseCategories> categoryMap) {
+        int depth = 0;
+        CourseCategories current = categoryMap.get(categoryId);
+        while (current != null && StringUtils.hasText(current.getParentId()) && !"0".equals(current.getParentId())) {
+            depth++;
+            current = categoryMap.get(current.getParentId());
+        }
+        return depth;
+    }
+
+    /**
+     * 保存常规删除待处理记录。
+     *
+     * @param pendingDelete 待处理记录
+     */
+    private void savePendingDeleteRecord(AdminCategoryPendingDeleteBO pendingDelete) {
+        try {
+            String key = Const.CATEGORY_PENDING_DELETE_PREFIX + pendingDelete.getRequestId();
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(pendingDelete), 30, TimeUnit.DAYS);
+            redisTemplate.opsForSet().add(Const.CATEGORY_PENDING_DELETE_INDEX_KEY, pendingDelete.getRequestId());
+        } catch (Exception exception) {
+            throw new BusinessException("500", "常规删除任务写入缓存失败");
+        }
+    }
+
+    /**
+     * 读取常规删除待处理记录。
+     *
+     * @param requestId 请求ID
+     * @return 待处理记录
+     */
+    private AdminCategoryPendingDeleteBO loadPendingDeleteRecord(String requestId) {
+        try {
+            Object value = redisTemplate.opsForValue().get(Const.CATEGORY_PENDING_DELETE_PREFIX + requestId);
+            if (value == null) {
+                return null;
+            }
+            String json = value instanceof String ? (String) value : objectMapper.writeValueAsString(value);
+            return objectMapper.readValue(json, AdminCategoryPendingDeleteBO.class);
+        } catch (Exception exception) {
+            log.error("[loadPendingDeleteRecord.method] 读取常规删除任务失败: requestId={}", requestId, exception);
+            return null;
+        }
+    }
+
+    /**
+     * 判断待处理删除是否满足最终执行条件。
+     *
+     * @param pendingDelete 待处理记录
+     * @return 是否可以执行最终删除
+     */
+    private boolean shouldFinalizePendingDelete(AdminCategoryPendingDeleteBO pendingDelete) {
+        boolean expired = pendingDelete.getPreserveUntil() != null && !pendingDelete.getPreserveUntil().after(new Date());
+        boolean hasConfirmations = !CollectionUtils.isEmpty(pendingDelete.getTeacherConfirmations());
+        return expired || (hasConfirmations && areAllTeachersConfirmed(pendingDelete));
+    }
+
+    /**
+     * 判断相关教师是否均已完成确认待办。
+     *
+     * @param pendingDelete 待处理记录
+     * @return 是否全部确认
+     */
+    private boolean areAllTeachersConfirmed(AdminCategoryPendingDeleteBO pendingDelete) {
+        if (CollectionUtils.isEmpty(pendingDelete.getTeacherConfirmations())) {
+            return false;
+        }
+        for (AdminCategoryPendingDeleteBO.TeacherConfirmationItem item : pendingDelete.getTeacherConfirmations()) {
+            TeacherTodos teacherTodo = teacherTodosMapper.selectByIdAndTeacherId(item.getTodoId(), item.getTeacherId());
+            if (teacherTodo == null || teacherTodo.getCompleted() == null || teacherTodo.getCompleted() != 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 最终执行常规删除。
+     *
+     * <p>由定时任务 {@code CategoryDeleteTask} 调用，在保留期届满或相关教师全部确认后触发。</p>
+     *
+     * <p>执行流程：</p>
+     * <ol>
+     *   <li>确认分类仍存在（已被手动删除则清理记录直接退出）；</li>
+     *   <li>查询保留期内残留的课程；若是顶级分类且仍有课程则跳过（需管理员手动处理）；</li>
+     *   <li>非顶级分类的残留课程自动迁入兜底分类；</li>
+     *   <li>从受影响教师列表中预先构建邮件目标（含教师邮箱）；</li>
+     *   <li>物理删除分类，清理 Redis 记录；</li>
+     *   <li>写入完成审计日志；</li>
+     *   <li>注册事务提交后回调：异步向受影响教师发送最终删除完成邮件。</li>
+     * </ol>
+     *
+     * @param pendingDelete 待处理的常规删除记录（来自 Redis）
+     */
+    private void finalizePendingDelete(AdminCategoryPendingDeleteBO pendingDelete) {
+        CourseCategories currentCategory = coursesMapper.getCourseCategoryById(pendingDelete.getCategoryId());
+        if (currentCategory == null) {
+            // 分类已不存在，直接清理 Redis 记录即可
+            cleanupPendingDeleteRecord(pendingDelete.getRequestId());
+            return;
+        }
+
+        // 查询在保留期内尚未被教师手动迁移的残留课程
+        List<Courses> remainingCourses = CollectionUtils.isEmpty(pendingDelete.getCategoryIdsToDelete())
+                ? Collections.emptyList()
+                : coursesMapper.listCoursesByCategoryIds(pendingDelete.getCategoryIdsToDelete());
+
+        if (Boolean.TRUE.equals(pendingDelete.getTopLevel()) && !remainingCourses.isEmpty()) {
+            // 顶级分类仍存在课程：出于安全保护，暂不执行删除，需管理员介入处理
+            log.warn("[finalizePendingDelete.method] 顶级分类仍存在课程，暂不执行删除: requestId={}, categoryId={}",
+                    pendingDelete.getRequestId(), pendingDelete.getCategoryId());
+            return;
+        }
+
+        String fallbackCategoryId = null;
+        if (!Boolean.TRUE.equals(pendingDelete.getTopLevel()) && !remainingCourses.isEmpty()) {
+            // 非顶级分类存在残留课程：自动迁入兜底分类，确保教师课程不丢失
+            fallbackCategoryId = ensureFallbackCategory().getId();
+            migrateCoursesToCategory(remainingCourses, fallbackCategoryId);
+        }
+
+        // 在物理删除前，从 teacherConfirmations 中查询受影响教师的邮箱信息
+        // 这样即便删除后无法再查询到分类信息，邮件通知的目标仍然可以确定
+        final List<AdminCategoryOperationPreviewVO.AffectedCourseItem> emailTargets =
+                buildEmailTargetsFromConfirmations(pendingDelete.getTeacherConfirmations());
+        final String finalCategoryName = pendingDelete.getCategoryName();
+
+        // 执行物理删除（按分类深度倒序，确保子分类先删）
+        deleteCategoriesInOrder(pendingDelete.getCategoryIdsToDelete());
+        // 清理 Redis 中的待处理记录
+        cleanupPendingDeleteRecord(pendingDelete.getRequestId());
+
+        // 构建审计快照并写入日志
+        Map<String, Object> beforeSnapshot = new LinkedHashMap<>();
+        beforeSnapshot.put("requestId", pendingDelete.getRequestId());
+        beforeSnapshot.put("categoryId", pendingDelete.getCategoryId());
+        beforeSnapshot.put("categoryName", pendingDelete.getCategoryName());
+        beforeSnapshot.put("categoryIdsToDelete", pendingDelete.getCategoryIdsToDelete());
+        beforeSnapshot.put("reason", pendingDelete.getReason());
+
+        Map<String, Object> afterSnapshot = new LinkedHashMap<>();
+        afterSnapshot.put("requestId", pendingDelete.getRequestId());
+        afterSnapshot.put("announcementId", pendingDelete.getAnnouncementId());
+        afterSnapshot.put("fallbackCategoryId", fallbackCategoryId);
+        afterSnapshot.put("executedAt", new Date());
+
+        auditLogService.recordSensitiveOperation("ADMIN_CAT_DEL_RG_DONE",
+                "course_category",
+                pendingDelete.getCategoryId(),
+                beforeSnapshot,
+                afterSnapshot,
+                "SUCCESS",
+                "常规删除任务已由系统自动完成");
+
+        // 注册事务提交后回调：
+        // - 事务成功提交后，异步通知受影响教师分类已正式删除
+        // - 此时 emailTargets 已在删除前构建完毕，不依赖已删除的分类数据
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                categoryNotificationService.sendRegularDeleteFinalizedEmails(finalCategoryName, emailTargets);
+            }
+        });
+    }
+
+    /**
+     * 根据教师确认列表构建邮件通知目标。
+     *
+     * <p>从 {@code teacherConfirmations} 中提取教师ID，查询有效教师列表后组装
+     * {@link AdminCategoryOperationPreviewVO.AffectedCourseItem}（仅包含教师信息，课程字段为空），
+     * 用于常规删除最终执行时的邮件通知。</p>
+     *
+     * <p>之所以从 confirmations 而非当前课程列表构建，是因为在保留期内教师可能已
+     * 自行将课程迁移至其他分类，但仍需接收最终删除的完成通知。</p>
+     *
+     * @param confirmations 教师确认待办绑定列表（来自 Redis 持久化对象）
+     * @return 邮件目标列表（包含教师邮箱）
+     */
+    private List<AdminCategoryOperationPreviewVO.AffectedCourseItem> buildEmailTargetsFromConfirmations(
+            List<AdminCategoryPendingDeleteBO.TeacherConfirmationItem> confirmations) {
+        if (CollectionUtils.isEmpty(confirmations)) {
+            return Collections.emptyList();
+        }
+        // 一次性查询所有有效教师，减少数据库交互
+        Map<String, Users> teacherMap = sysUsersMapper.getValidTeacherList().stream()
+                .collect(Collectors.toMap(Users::getId, Function.identity(), (left, right) -> left));
+
+        return confirmations.stream()
+                .map(AdminCategoryPendingDeleteBO.TeacherConfirmationItem::getTeacherId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .map(teacherMap::get)
+                .filter(Objects::nonNull)
+                .map(teacher -> new AdminCategoryOperationPreviewVO.AffectedCourseItem()
+                        .setTeacherId(teacher.getId())
+                        .setTeacherName(teacher.getNickname())
+                        .setTeacherEmail(teacher.getEmail()))
+                .toList();
+    }
+
+    /**
+     * 清理 Redis 中的常规删除待处理记录。
+     *
+     * <p>同时从待处理索引集合和具体详情 Key 两处删除，确保不留残留数据。</p>
+     *
+     * @param requestId 请求ID（对应 Redis key 中的唯一标识）
+     */
+    private void cleanupPendingDeleteRecord(String requestId) {
+        redisTemplate.delete(Const.CATEGORY_PENDING_DELETE_PREFIX + requestId);
+        redisTemplate.opsForSet().remove(Const.CATEGORY_PENDING_DELETE_INDEX_KEY, requestId);
+    }
+
+    /**
+     * 归一化删除或迁移原因。
+     *
+     * @param reason 原始原因
+     * @return 归一化后的原因
+     */
+    private String normalizeReason(String reason) {
+        if (!StringUtils.hasText(reason)) {
+            return "管理员未填写额外原因说明";
+        }
+        return reason.trim();
+    }
+
+    /**
+     * 构建删除前快照。
+     *
+     * @param context 删除上下文
+     * @param reason  删除原因
+     * @return 快照
+     */
+    private Map<String, Object> buildCategoryDeleteBeforeSnapshot(CategoryDeleteContext context, String reason) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("categoryId", context.getCategory().getId());
+        snapshot.put("categoryName", context.getCategory().getName());
+        snapshot.put("topLevel", context.isTopLevel());
+        snapshot.put("scopeCategoryIds", context.getScopeCategoryIds());
+        snapshot.put("categoryIdsToDelete", context.getCategoryIdsToDelete());
+        snapshot.put("affectedCourseIds", context.getAffectedCourses().stream().map(Courses::getId).toList());
+        snapshot.put("reason", reason);
+        return snapshot;
+    }
+
+    /**
+     * 构建删除后快照。
+     *
+     * @param context            删除上下文
+     * @param mode               删除模式
+     * @param announcementId     公告ID
+     * @param fallbackCategoryId 兜底分类ID
+     * @param preserveUntil      保留截止时间
+     * @return 快照
+     */
+    private Map<String, Object> buildCategoryDeleteAfterSnapshot(CategoryDeleteContext context,
+                                                                 String mode,
+                                                                 String announcementId,
+                                                                 String fallbackCategoryId,
+                                                                 Date preserveUntil) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("mode", mode);
+        snapshot.put("categoryId", context.getCategory().getId());
+        snapshot.put("announcementId", announcementId);
+        snapshot.put("fallbackCategoryId", fallbackCategoryId);
+        snapshot.put("preserveUntil", preserveUntil);
+        snapshot.put("affectedCourseCount", context.getAffectedCourses().size());
+        snapshot.put("affectedTeacherCount", countAffectedTeachers(context.getAffectedCourses()));
+        return snapshot;
+    }
+
+    /**
+     * 构建迁移前快照。
+     *
+     * @param context        分类上下文
+     * @param targetCategory 目标分类
+     * @param reason         迁移原因
+     * @return 快照
+     */
+    private Map<String, Object> buildCategoryMigrationBeforeSnapshot(CategoryDeleteContext context,
+                                                                     CourseCategories targetCategory,
+                                                                     String reason) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("sourceCategoryId", context.getCategory().getId());
+        snapshot.put("sourceCategoryName", context.getCategory().getName());
+        snapshot.put("targetCategoryId", targetCategory.getId());
+        snapshot.put("targetCategoryName", targetCategory.getName());
+        snapshot.put("affectedCourseIds", context.getAffectedCourses().stream().map(Courses::getId).toList());
+        snapshot.put("reason", reason);
+        return snapshot;
+    }
+
+    /**
+     * 构建统一返回结果。
+     *
+     * @param context                    分类上下文
+     * @param operationType              操作类型
+     * @param mode                       模式
+     * @param requestId                  请求ID
+     * @param announcementId             公告ID
+     * @param effectiveAt                生效时间
+     * @param preserveUntil              保留截止时间
+     * @param pendingTeacherConfirmations 待确认教师数量
+     * @param message                    结果说明
+     * @return 返回结果
+     */
+    private AdminCategoryDeleteResultVO buildDeleteResult(CategoryDeleteContext context,
+                                                          String operationType,
+                                                          String mode,
+                                                          String requestId,
+                                                          String announcementId,
+                                                          Date effectiveAt,
+                                                          Date preserveUntil,
+                                                          Integer pendingTeacherConfirmations,
+                                                          String message) {
+        return new AdminCategoryDeleteResultVO()
+                .setRequestId(requestId)
+                .setOperationType(operationType)
+                .setMode(mode)
+                .setCategoryId(context.getCategory().getId())
+                .setCategoryName(context.getCategory().getName())
+                .setTopLevel(context.isTopLevel())
+                .setDescendantCategoryCount(Math.max(context.getScopeCategoryIds().size() - 1, 0))
+                .setAffectedCourseCount(context.getAffectedCourses().size())
+                .setAffectedTeacherCount(countAffectedTeachers(context.getAffectedCourses()))
+                .setPendingTeacherConfirmations(pendingTeacherConfirmations)
+                .setAnnouncementId(announcementId)
+                .setEffectiveAt(effectiveAt)
+                .setPreserveUntil(preserveUntil)
+                .setMessage(message);
+    }
+
+
+    /**
      *
      * @param category CourseCategories 对象
      * @return CourseCategoriesVo 对象
@@ -1557,5 +2662,44 @@ public class CoursesServiceImpl implements CoursesService {
         return Arrays.stream(words)
                 .map(word -> "+" + word)
                 .collect(Collectors.joining(" "));
+    }
+
+    /**
+     * 分类删除上下文。
+     */
+    @lombok.Getter
+    @lombok.Setter
+    @lombok.experimental.Accessors(chain = true)
+    private static class CategoryDeleteContext {
+
+        /**
+         * 当前分类
+         */
+        private CourseCategories category;
+
+        /**
+         * 是否为顶级分类
+         */
+        private boolean topLevel;
+
+        /**
+         * 当前分类树范围
+         */
+        private List<String> scopeCategoryIds = new ArrayList<>();
+
+        /**
+         * 最终待删除分类ID列表
+         */
+        private List<String> categoryIdsToDelete = new ArrayList<>();
+
+        /**
+         * 受影响课程
+         */
+        private List<Courses> affectedCourses = new ArrayList<>();
+
+        /**
+         * 是否存在子分类
+         */
+        private boolean hasChildCategories;
     }
 }

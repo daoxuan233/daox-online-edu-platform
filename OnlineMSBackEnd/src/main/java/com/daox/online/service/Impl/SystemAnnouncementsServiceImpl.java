@@ -4,6 +4,7 @@ import com.daox.online.entity.mysql.SystemAnnouncements;
 import com.daox.online.entity.mysql.Users;
 import com.daox.online.entity.views.responseVO.SystemAnnouncementsVo;
 import com.daox.online.mapper.SystemAnnouncementsMapper;
+import com.daox.online.service.NotificationCenterService;
 import com.daox.online.service.SysUserService;
 import com.daox.online.service.SystemAnnouncementsService;
 import com.daox.online.uilts.DateUtils;
@@ -33,6 +34,9 @@ public class SystemAnnouncementsServiceImpl implements SystemAnnouncementsServic
 
     @Resource
     private SecondaryHybridIdGenerator secondaryHybridIdGenerator;
+
+    @Resource
+    private NotificationCenterService notificationCenterService;
 
     /**
      * 获取系统公告
@@ -96,7 +100,8 @@ public class SystemAnnouncementsServiceImpl implements SystemAnnouncementsServic
             return null;
         }
         String id = secondaryHybridIdGenerator.generateId();
-        Date createdAtDate = expiredAt != null ? Date.from(cratedAt.atZone(ZoneId.systemDefault()).toInstant()) : null;
+        LocalDateTime createdTime = cratedAt == null ? LocalDateTime.now() : cratedAt;
+        Date createdAtDate = Date.from(createdTime.atZone(ZoneId.systemDefault()).toInstant());
         Date expiredAtDate = expiredAt != null ? Date.from(expiredAt.atZone(ZoneId.systemDefault()).toInstant()) : null;
         SystemAnnouncements systemAnnouncements = new SystemAnnouncements()
                 .setId(id).setTitle(title)
@@ -107,6 +112,7 @@ public class SystemAnnouncementsServiceImpl implements SystemAnnouncementsServic
                 .setExpiredAt(expiredAtDate);
         int result = systemAnnouncementsMapper.publishSystemAnnouncement(systemAnnouncements);
         if (result > 0) {
+            notificationCenterService.dispatchSystemAnnouncement(systemAnnouncements, userById);
             return new SystemAnnouncementsVo()
                     .setId(id)
                     .setTitle(title)
@@ -163,6 +169,7 @@ public class SystemAnnouncementsServiceImpl implements SystemAnnouncementsServic
         int i = systemAnnouncementsMapper.updateSystemAnnouncement(id, title, content, isActive, expiredAtDate);
         if (i > 0) {
             log.info("[updateSystemAnnouncement.method]更新了 {} 条公告", i);
+            notificationCenterService.syncAnnouncementNotification(id, title, content, expiredAtDate);
             return new SystemAnnouncementsVo()
                     .setId(id)
                     .setTitle(title)
@@ -186,6 +193,9 @@ public class SystemAnnouncementsServiceImpl implements SystemAnnouncementsServic
     @Override
     public Boolean deleteSystemAnnouncement(String id) {
         int i = systemAnnouncementsMapper.deleteSystemAnnouncement(id);
+        if (i > 0) {
+            notificationCenterService.removeAnnouncementNotification(id);
+        }
         return i > 0;
     }
 }

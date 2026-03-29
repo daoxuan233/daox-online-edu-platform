@@ -1,20 +1,23 @@
 package com.daox.ai.service.Impl;
 
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
+import com.daox.ai.config.AIGovernanceProperties;
 import com.daox.ai.entity.dto.ConversationSummaryDTO;
+import com.daox.ai.entity.mongodb.AiCallRecord;
+import com.daox.ai.entity.mongodb.AiQuotaPolicy;
+import com.daox.ai.entity.mongodb.AiRuntimeStrategy;
 import com.daox.ai.entity.mongodb.ChatMessage;
+import com.daox.ai.entity.request.ModelPlatformOptions;
 import com.daox.ai.entity.response.AIResponse;
+import com.daox.ai.repository.AiCallRecordRepository;
+import com.daox.ai.repository.AiQuotaPolicyRepository;
+import com.daox.ai.repository.AiRuntimeStrategyRepository;
 import com.daox.ai.repository.ChatMessageRepository;
 import com.daox.ai.service.AIChatService;
 import com.daox.ai.utils.Const;
 import jakarta.annotation.Resource;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -26,21 +29,45 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+/**
+ * AI 对话服务实现。
+ * <p>
+ * 该实现统一接入以下治理能力：
+ * <ul>
+ *     <li>管理员视角的调用统计与审计落库</li>
+ *     <li>用户 / 角色 / 全局三级额度控制</li>
+ *     <li>输入与输出双向内容审查</li>
+ *     <li>按平台顺序执行的重试与降级策略</li>
+ * </ul>
+ */
 @Slf4j
 @Service
 public class AIChatServiceImpl implements AIChatService {
+
+    private static final int HISTORY_SIZE = 15;
+    private static final int STREAM_CHUNK_SIZE = 120;
 
     @Resource
     private ChatClient chatClient;
@@ -51,437 +78,507 @@ public class AIChatServiceImpl implements AIChatService {
     @Resource
     private ReactiveMongoTemplate reactiveMongoTemplate;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private AiCallRecordRepository aiCallRecordRepository;
+
+    @Resource
+    private AiQuotaPolicyRepository aiQuotaPolicyRepository;
+
+    @Resource
+    private AiRuntimeStrategyRepository aiRuntimeStrategyRepository;
+
+    @Resource
+    private AIGovernanceProperties aiGovernanceProperties;
 
     /**
-     * 主方法：处理AI流式对话并异步保存记录。 [default -- OpenAI]
-     * 这是Controller层应该调用的方法。
-     *
-     * @param userId         发起请求的用户ID
-     * @param question       用户的问题
-     * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
+     * {@inheritDoc}
      */
     @Override
-    public Flux<AIResponse> streamChatAndSave(String userId, String question, String conversationId) {
-        log.info("[streamChatAndSave.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
+    public Flux<AIResponse> streamChatAndSave(String userId, String userRole, String question,
+                                              String conversationId, ModelPlatformOptions options) {
+        String normalizedRole = normalizeRole(userRole);
+        String normalizedQuestion = question == null ? "" : question.trim();
+        String validatedConversationId = validateConversationId(userId, conversationId);
+        String requestedPlatform = options == null ? null : normalizePlatform(options.getPlatform());
+        String requestedModel = options == null ? null : trimToNull(options.getModel());
+        String requestId = UUID.randomUUID().toString();
+        LocalDateTime startedAt = LocalDateTime.now();
+        long startNanos = System.nanoTime();
 
-        // 0. 检测并验证会话ID，得出一个“有效final”的会话ID
-        String validatedConversationId = conversationId;
-        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
-            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-            if (!validatedConversationId.startsWith(conversationPrefix)) {
-                log.warn("[streamChatAndSave.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
-                validatedConversationId = null; // 将其置为null，以开启新会话
-            }
+        if (normalizedQuestion.isBlank()) {
+            return buildTerminalMessage("提问内容不能为空");
         }
-        // 将处理过的ID赋值给一个final变量，以便在lambda中使用
-        final String finalConversationId = validatedConversationId;
 
-        // 1. 如果有会话ID，则异步获取历史消息；否则，返回一个空的列表。
-        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
-                ? getMessagesForConversation(finalConversationId, 0, 10) // 获取最近10条消息
-                .map(chatMessages -> {
-                    Collections.reverse(chatMessages); // 将消息反转，以符合时间顺序
-                    return chatMessages.stream()
-                            .<Message>map(message -> { // 显式转换为Message类型
-                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
-                                    return new AssistantMessage(message.getContent());
-                                } else {
-                                    return new UserMessage(message.getContent());
+        Mono<List<Message>> historyMono = loadHistoryMessages(validatedConversationId);
+        Mono<AiRuntimeStrategy> strategyMono = loadRuntimeStrategy();
+        Mono<AiQuotaPolicy> quotaPolicyMono = resolveQuotaPolicy(userId, normalizedRole);
+
+        return Mono.zip(historyMono, strategyMono, quotaPolicyMono)
+                .flatMapMany(tuple -> {
+                    List<Message> history = tuple.getT1();
+                    AiRuntimeStrategy strategy = tuple.getT2();
+                    AiQuotaPolicy quotaPolicy = tuple.getT3();
+
+                    ModerationResult inputModeration = inspectText(normalizedQuestion, strategy, "输入");
+                    if (inputModeration.blocked()) {
+                        return rejectBeforeExecution(requestId, userId, normalizedRole, validatedConversationId,
+                                requestedPlatform, requestedModel, normalizedQuestion, inputModeration,
+                                startedAt, startNanos,
+                                "请求命中内容审查规则，已进入管理员审查队列。", 0, false,
+                                QuotaSnapshot.fromPolicy(quotaPolicy));
+                    }
+
+                    return checkAndConsumeQuota(userId, quotaPolicy)
+                            .flatMapMany(quotaSnapshot -> {
+                                if (!quotaSnapshot.allowed()) {
+                                    return rejectBeforeExecution(requestId, userId, normalizedRole, validatedConversationId,
+                                            requestedPlatform, requestedModel, normalizedQuestion,
+                                            new ModerationResult(false, inputModeration.reviewStatus(), inputModeration.reason()),
+                                            startedAt, startNanos, quotaSnapshot.rejectReason(), 0, false, quotaSnapshot);
                                 }
-                            })
-                            .collect(Collectors.toList());
-                })
-                : Mono.just(Collections.emptyList()); // 新对话则历史为空
 
-        // 2. 将历史消息加载与AI调用串联起来
-        Flux<String> contentStream = historyMono.flatMapMany(history ->
-                        // 直接构建调用链：加载历史消息，添加当前问题，然后发起流式请求
-                        chatClient.prompt()
-                                .messages(history)
-                                // .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
-                                .user(question)
-                                .stream()
-                                .content()
-                )
-                .cache(); // 使用cache()来允许多次订阅
+                                List<String> candidates = buildPlatformCandidates(requestedPlatform, strategy);
+                                int maxAttempts = Math.min(Math.max(strategy.getMaxAttempts(), 1), candidates.size());
 
-        // 3. 创建保存聊天记录的操作，获取AI消息ID
-        Mono<String> aiMessageIdMono = contentStream
-                .collect(Collectors.joining())
-                .flatMap(aiResponse ->
-                        saveAiChatMessages(userId, question, aiResponse, finalConversationId)
-                )
-                .map(Tuple2::getT2); // 获取AI消息ID
-
-        // 4. 返回内容流，最后返回包含AI消息ID的结束信号
-        return Flux.concat(
-                // 先返回流式内容，recordId暂时为null
-                contentStream.map(content -> AIResponse.builder().content(content).build()),
-                // 流结束后，返回包含AI消息ID的最终响应
-                aiMessageIdMono.map(aiMessageId ->
-                        AIResponse.builder().recordId(aiMessageId).content("").build()
-                )
-        );
+                                return executeWithFallback(history, normalizedQuestion, requestedModel, candidates, maxAttempts)
+                                        .flatMapMany(outcome -> handleExecutionSuccess(requestId, userId, normalizedRole,
+                                                validatedConversationId, requestedPlatform, requestedModel,
+                                                normalizedQuestion, inputModeration, quotaSnapshot,
+                                                strategy, startedAt, startNanos, outcome))
+                                        .onErrorResume(error -> handleExecutionFailure(requestId, userId, normalizedRole,
+                                                validatedConversationId, requestedPlatform, requestedModel,
+                                                normalizedQuestion, inputModeration, quotaSnapshot,
+                                                startedAt, startNanos, error, maxAttempts));
+                            });
+                });
     }
 
     /**
-     * 主方法：处理AI流式对话并异步保存记录。 [deepseek]
-     * 这是Controller层应该调用的方法。
-     *
-     * @param userId         发起请求的用户ID
-     * @param question       用户的问题
-     * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
-     */
-    @Override
-    public Flux<String> streamChatAndSaveDeepSeek(String userId, String question, String conversationId) {
-        log.info("[streamChatAndSaveDeepSeek.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
-
-        // 0. 检测并验证会话ID，得出一个“有效final”的会话ID
-        String validatedConversationId = conversationId;
-        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
-            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-            if (!validatedConversationId.startsWith(conversationPrefix)) {
-                log.warn("[streamChatAndSaveDeepSeek.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
-                validatedConversationId = null; // 将其置为null，以开启新会话
-            }
-        }
-        // 将处理过的ID赋值给一个final变量，以便在lambda中使用
-        final String finalConversationId = validatedConversationId;
-
-        // 1. 如果有会话ID，则异步获取历史消息；否则，返回一个空的列表。
-        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
-                ? getMessagesForConversation(finalConversationId, 0, 15) // 获取最近10条消息
-                .map(chatMessages -> {
-                    Collections.reverse(chatMessages); // 将消息反转，以符合时间顺序
-                    return chatMessages.stream()
-                            .<Message>map(message -> { // 显式转换为Message类型
-                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
-                                    return new AssistantMessage(message.getContent());
-                                } else {
-                                    return new UserMessage(message.getContent());
-                                }
-                            })
-                            .collect(Collectors.toList());
-                })
-                : Mono.just(Collections.emptyList()); // 新对话则历史为空
-        // 平台选择
-        ChatClient.Builder builder = ChatClient.builder(DeepSeekChatModel.builder().build());
-        // 2. 将历史消息加载与AI调用串联起来
-        Flux<String> contentStream = historyMono.flatMapMany(history ->
-                        // 直接构建调用链：加载历史消息，添加当前问题，然后发起流式请求
-                        builder.defaultOptions(ChatOptions.builder().model("deepseek-chat").build())
-                                .build()
-                                .prompt()
-                                .messages(history)
-                                .user(question)
-                                .stream()
-                                .content()
-                )
-                .cache(); // 使用cache()来允许多次订阅
-
-        // 3. 创建保存聊天记录的操作
-        Mono<Void> saveOperation = contentStream
-                .collect(Collectors.joining())
-                .flatMap(aiResponse ->
-                        saveAiChatMessages(userId, question, aiResponse, finalConversationId)
-                )
-                .then();
-
-        // 4. 先返回内容流，待流结束后再执行保存操作
-        return contentStream.concatWith(saveOperation.then(Mono.empty()));
-    }
-
-    @Override
-    public Flux<AIResponse> streamChatAndSaveDeepSeekRes(String userId, String question, String conversationId) {
-        log.info("[streamChatAndSaveDeepSeekRes.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
-
-        String validatedConversationId = conversationId;
-        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
-            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-            if (!validatedConversationId.startsWith(conversationPrefix)) {
-                log.warn("[streamChatAndSaveDeepSeekRes.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
-                validatedConversationId = null;
-            }
-        }
-        final String finalConversationId = validatedConversationId;
-
-        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
-                ? getMessagesForConversation(finalConversationId, 0, 15)
-                .map(chatMessages -> {
-                    Collections.reverse(chatMessages);
-                    return chatMessages.stream()
-                            .<Message>map(message -> {
-                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
-                                    return new AssistantMessage(message.getContent());
-                                } else {
-                                    return new UserMessage(message.getContent());
-                                }
-                            })
-                            .collect(Collectors.toList());
-                })
-                : Mono.just(Collections.emptyList());
-
-        ChatClient.Builder builder = ChatClient.builder(DeepSeekChatModel.builder().build());
-        Flux<String> contentStream = historyMono.flatMapMany(history ->
-                        builder.defaultOptions(ChatOptions.builder().model("deepseek-chat").build())
-                                .build()
-                                .prompt()
-                                .messages(history)
-                                .user(question)
-                                .stream()
-                                .content()
-                )
-                .cache();
-
-        Mono<String> aiMessageIdMono = contentStream
-                .collect(Collectors.joining())
-                .flatMap(aiResponse -> saveAiChatMessages(userId, question, aiResponse, finalConversationId))
-                .map(Tuple2::getT2);
-
-        return Flux.concat(
-                contentStream.map(content -> AIResponse.builder().content(content).build()),
-                aiMessageIdMono.map(aiMessageId -> AIResponse.builder().recordId(aiMessageId).content("").build())
-        );
-    }
-
-    /**
-     * 主方法：处理AI流式对话并异步保存记录。 [qwen]
-     * 这是Controller层应该调用的方法。
-     *
-     * @param userId         发起请求的用户ID
-     * @param question       用户的问题
-     * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
-     */
-    @Override
-    public Flux<String> streamChatAndSaveQwen(String userId, String question, String conversationId) {
-        log.info("[streamChatAndSaveQwen.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
-
-        // 0. 检测并验证会话ID，得出一个“有效final”的会话ID
-        String validatedConversationId = conversationId;
-        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
-            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-            if (!validatedConversationId.startsWith(conversationPrefix)) {
-                log.warn("[streamChatAndSaveQwen.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
-                validatedConversationId = null; // 将其置为null，以开启新会话
-            }
-        }
-        // 将处理过的ID赋值给一个final变量，以便在lambda中使用
-        final String finalConversationId = validatedConversationId;
-
-        // 1. 如果有会话ID，则异步获取历史消息；否则，返回一个空的列表。
-        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
-                ? getMessagesForConversation(finalConversationId, 0, 15) // 获取最近10条消息
-                .map(chatMessages -> {
-                    Collections.reverse(chatMessages); // 将消息反转，以符合时间顺序
-                    return chatMessages.stream()
-                            .<Message>map(message -> { // 显式转换为Message类型
-                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
-                                    return new AssistantMessage(message.getContent());
-                                } else {
-                                    return new UserMessage(message.getContent());
-                                }
-                            })
-                            .collect(Collectors.toList());
-                })
-                : Mono.just(Collections.emptyList()); // 新对话则历史为空
-        // 平台选择
-        ChatClient.Builder builder = ChatClient.builder(DashScopeChatModel.builder().build());
-        // 2. 将历史消息加载与AI调用串联起来
-        Flux<String> contentStream = historyMono.flatMapMany(history ->
-                        // 直接构建调用链：加载历史消息，添加当前问题，然后发起流式请求
-                        builder.defaultOptions(ChatOptions.builder().model("qwen3-max-preview").build())
-                                .build()
-                                .prompt()
-                                .messages(history)
-                                .user(question)
-                                .stream()
-                                .content()
-                )
-                .cache(); // 使用cache()来允许多次订阅
-
-        // 3. 创建保存聊天记录的操作
-        Mono<Void> saveOperation = contentStream
-                .collect(Collectors.joining())
-                .flatMap(aiResponse ->
-                        saveAiChatMessages(userId, question, aiResponse, finalConversationId)
-                )
-                .then();
-
-        // 4. 先返回内容流，待流结束后再执行保存操作
-        return contentStream.concatWith(saveOperation.then(Mono.empty()));
-    }
-
-    @Override
-    public Flux<AIResponse> streamChatAndSaveQwenRes(String userId, String question, String conversationId) {
-        log.info("[streamChatAndSaveQwenRes.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
-
-        String validatedConversationId = conversationId;
-        if (validatedConversationId != null && !validatedConversationId.isBlank()) {
-            String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-            if (!validatedConversationId.startsWith(conversationPrefix)) {
-                log.warn("[streamChatAndSaveQwenRes.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
-                validatedConversationId = null;
-            }
-        }
-        final String finalConversationId = validatedConversationId;
-
-        Mono<List<Message>> historyMono = (finalConversationId != null && !finalConversationId.isBlank())
-                ? getMessagesForConversation(finalConversationId, 0, 15)
-                .map(chatMessages -> {
-                    Collections.reverse(chatMessages);
-                    return chatMessages.stream()
-                            .<Message>map(message -> {
-                                if (Const.AI_ASSISTANT.equals(message.getSenderId())) {
-                                    return new AssistantMessage(message.getContent());
-                                } else {
-                                    return new UserMessage(message.getContent());
-                                }
-                            })
-                            .collect(Collectors.toList());
-                })
-                : Mono.just(Collections.emptyList());
-
-        ChatClient.Builder builder = ChatClient.builder(DashScopeChatModel.builder().build());
-        Flux<String> contentStream = historyMono.flatMapMany(history ->
-                        builder.defaultOptions(ChatOptions.builder().model("qwen3-max-preview").build())
-                                .build()
-                                .prompt()
-                                .messages(history)
-                                .user(question)
-                                .stream()
-                                .content()
-                )
-                .cache();
-
-        Mono<String> aiMessageIdMono = contentStream
-                .collect(Collectors.joining())
-                .flatMap(aiResponse -> saveAiChatMessages(userId, question, aiResponse, finalConversationId))
-                .map(Tuple2::getT2);
-
-        return Flux.concat(
-                contentStream.map(content -> AIResponse.builder().content(content).build()),
-                aiMessageIdMono.map(aiMessageId -> AIResponse.builder().recordId(aiMessageId).content("").build())
-        );
-    }
-
-    /**
-     * 获取会话历史记录列表
-     *
-     * @param userId 用户id
-     * @return 会话列表
+     * {@inheritDoc}
      */
     @Override
     public Mono<List<ConversationSummaryDTO>> getConversationSummaries(String userId) {
-        log.info("[getConversationSummaries.method]获取会话历史记录列表,user ID = {}", userId);
-        // 1. 拼接 conversation_id 的前缀，用于模糊匹配
         String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-        // 2. 构建聚合管道 (Aggregation Pipeline)
         Aggregation aggregation = Aggregation.newAggregation(
-                // 2.1. 模糊匹配: 筛选出所有符合前缀的会话
                 Aggregation.match(Criteria.where("conversation_id").regex("^" + conversationPrefix)),
-                // 2.2. 排序: 按会话ID和时间戳升序，为分组做准备
                 Aggregation.sort(Sort.by(Sort.Direction.ASC, "conversation_id", "timestamp")),
-                // 2.3. 分组: 按 conversation_id 进行分组
                 Aggregation.group("conversation_id")
-                        // 取每个分组第一条消息的内容作为标题
                         .first("content").as("title")
-                        // 取每个分组最后一条消息的时间作为最后更新时间
                         .last("timestamp").as("lastMessageTime"),
-
-                // 2.4. 投射: 将分组结果映射到 ConversationSummaryDTO
                 Aggregation.project()
-                        .and("_id").as("conversationId") // 将 MongoDB 的 _id 字段映射为 conversationId
+                        .and("_id").as("conversationId")
                         .and("title").as("title")
                         .and("lastMessageTime").as("lastMessageTime")
         );
-        // 3. 执行聚合查询
-        Flux<ConversationSummaryDTO> summariesFlux = reactiveMongoTemplate.aggregate(
-                aggregation,
-                "chat_messages", // 在 chat_messages 集合上执行聚合
-                ConversationSummaryDTO.class // 结果映射的目标类
-        );
-
-        // 4. 将响应式流 (Flux) 收集成一个列表 (List)，并用 Mono 包装后返回
-        return summariesFlux.collectList();
+        return reactiveMongoTemplate.aggregate(aggregation, "chat_messages", ConversationSummaryDTO.class).collectList();
     }
 
     /**
-     * 分页获取单个对话中的消息历史。
-     *
-     * @param conversationId 对话ID
-     * @param page           页码 (从0开始)
-     * @param size           每页大小
-     * @return 一页消息的列表，用 Mono 包装
+     * {@inheritDoc}
      */
     @Override
     public Mono<List<ChatMessage>> getMessagesForConversation(String conversationId, int page, int size) {
-        // 1. 创建一个 Pageable 对象，并指定排序规则：按时间戳降序（最新的消息在最前面）
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"));
-
-        // 2. 调用 repository 的分页查询方法，它会返回一个 Flux
-        Flux<ChatMessage> messagesFlux = chatMessageRepository.findByConversationId(conversationId, pageable);
-
-        // 3. 将这个 Flux<ChatMessage> 收集成一个 List<ChatMessage>，并用 Mono 包装返回
-        return messagesFlux.collectList();
+        return chatMessageRepository.findByConversationId(conversationId, pageable).collectList();
     }
 
     /**
-     * 删除一个会话
-     *
-     * @param userId         用户id
-     * @param conversationId 会话id
+     * {@inheritDoc}
      */
     @Override
     public Mono<Void> deleteConversation(String userId, String conversationId) {
-        // 1. 构建预期的会话ID前缀，用于安全校验
         String expectedPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
-
-        // 2. 安全检查：验证该会话是否属于当前用户。
-        //    这是为了防止一个用户删除另一个用户的会话。
         if (conversationId == null || !conversationId.startsWith(expectedPrefix)) {
-            log.warn("[deleteConversation.method] 安全警告：用户 {} 尝试删除不属于自己的会话 {}。操作被拒绝。", userId, conversationId);
-            // 返回一个带有错误的Mono，明确表示权限不足或请求无效。
-            // 这比返回 Mono.empty() 更能清晰地表达错误状态。
             return Mono.error(new IllegalArgumentException("无权删除该会话或会话ID无效"));
         }
-
-        // 3. 调用 repository 的删除方法。
-        //    该方法本身返回一个 Mono<Void>，我们直接将其返回给调用者（Controller）。
-        //    Controller 层可以根据这个 Mono 的完成或错误信号来给前端返回相应的成功或失败响应。
-        log.info("[deleteConversation.method] 用户 {} 正在删除会话 {}", userId, conversationId);
         return chatMessageRepository.deleteByConversationId(conversationId);
     }
 
     /**
-     * 私有辅助方法：负责创建并保存用户和AI的两条消息记录。
+     * 处理模型调用成功后的分支。
      *
-     * @param userId         用户ID，用于标识消息的发送者。
-     * @param question       用户的提问内容，将作为用户消息保存。
-     * @param aiResponse     AI模型的回答内容，将作为AI消息保存。
-     * @param conversationId (可选) 用于继续之前的对话。如果为空，将创建新会话。
-     * @return 返回一个Mono，其中包含本次对话的ID和AI消息的ID。
+     * @return 返回给前端的响应流
+     */
+    private Flux<AIResponse> handleExecutionSuccess(String requestId, String userId, String userRole,
+                                                    String conversationId, String requestedPlatform,
+                                                    String requestedModel, String question,
+                                                    ModerationResult inputModeration,
+                                                    QuotaSnapshot quotaSnapshot, AiRuntimeStrategy strategy,
+                                                    LocalDateTime startedAt, long startNanos,
+                                                    ExecutionOutcome outcome) {
+        ModerationResult outputModeration = inspectText(outcome.content(), strategy, "输出");
+        long latencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+        if (outputModeration.blocked()) {
+            AiCallRecord record = buildBaseRecord(requestId, userId, userRole, conversationId, requestedPlatform,
+                    outcome.platform(), outcome.model(), question, outcome.content(), latencyMs, startedAt,
+                    quotaSnapshot, outcome.attemptCount(), outcome.degraded())
+                    .setCallStatus(AiCallRecord.CallStatus.REJECTED)
+                    .setReviewStatus(AiCallRecord.ReviewStatus.PENDING)
+                    .setReviewReason(outputModeration.reason())
+                    .setFailureReason("模型输出命中内容审查规则")
+                    .setCompletedAt(LocalDateTime.now());
+            return aiCallRecordRepository.save(record)
+                    .thenMany(buildTerminalMessage("模型响应命中审查规则，结果已被拦截并进入管理员审查队列。"));
+        }
+
+        AiCallRecord.ReviewStatus finalReviewStatus = mergeReviewStatus(inputModeration, outputModeration);
+        String finalReviewReason = mergeReviewReason(inputModeration, outputModeration);
+
+        return saveAiChatMessages(userId, question, outcome.content(), conversationId)
+                .flatMapMany(savedTuple -> {
+                    AiCallRecord record = buildBaseRecord(requestId, userId, userRole, savedTuple.getT1(), requestedPlatform,
+                            outcome.platform(), outcome.model(), question, outcome.content(), latencyMs, startedAt,
+                            quotaSnapshot, outcome.attemptCount(), outcome.degraded())
+                            .setCallStatus(AiCallRecord.CallStatus.SUCCESS)
+                            .setReviewStatus(finalReviewStatus)
+                            .setReviewReason(finalReviewReason)
+                            .setCompletedAt(LocalDateTime.now());
+                    return aiCallRecordRepository.save(record)
+                            .thenMany(buildSuccessResponses(outcome.content(), savedTuple.getT2()));
+                });
+    }
+
+    /**
+     * 处理模型调用失败后的分支。
+     *
+     * @return 返回给前端的响应流
+     */
+    private Flux<AIResponse> handleExecutionFailure(String requestId, String userId, String userRole,
+                                                    String conversationId, String requestedPlatform,
+                                                    String requestedModel, String question,
+                                                    ModerationResult inputModeration,
+                                                    QuotaSnapshot quotaSnapshot, LocalDateTime startedAt,
+                                                    long startNanos, Throwable error, int attemptCount) {
+        long latencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        AiCallRecord record = buildBaseRecord(requestId, userId, userRole, conversationId, requestedPlatform,
+                null, requestedModel, question, null, latencyMs, startedAt, quotaSnapshot, attemptCount, false)
+                .setCallStatus(AiCallRecord.CallStatus.FAILED)
+                .setReviewStatus(inputModeration.reviewStatus())
+                .setReviewReason(inputModeration.reason())
+                .setFailureReason(error.getMessage())
+                .setCompletedAt(LocalDateTime.now());
+        return aiCallRecordRepository.save(record)
+                .thenMany(buildTerminalMessage("AI 服务暂时不可用，已按降级策略重试失败，请稍后再试。"));
+    }
+
+    /**
+     * 在调用真正发生前，统一处理拒绝场景。
+     *
+     * @return 返回给前端的响应流
+     */
+    private Flux<AIResponse> rejectBeforeExecution(String requestId, String userId, String userRole,
+                                                   String conversationId, String requestedPlatform,
+                                                   String requestedModel, String question,
+                                                   ModerationResult moderationResult,
+                                                   LocalDateTime startedAt, long startNanos,
+                                                   String terminalMessage, int attemptCount,
+                                                   boolean degraded, QuotaSnapshot quotaSnapshot) {
+        long latencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        AiCallRecord record = buildBaseRecord(requestId, userId, userRole, conversationId, requestedPlatform,
+                null, requestedModel, question, null, latencyMs, startedAt, quotaSnapshot, attemptCount, degraded)
+                .setCallStatus(AiCallRecord.CallStatus.REJECTED)
+                .setReviewStatus(moderationResult.reviewStatus())
+                .setReviewReason(moderationResult.reason())
+                .setFailureReason(terminalMessage)
+                .setCompletedAt(LocalDateTime.now());
+        return aiCallRecordRepository.save(record)
+                .thenMany(buildTerminalMessage(terminalMessage));
+    }
+
+    /**
+     * 构建统一的调用审计对象。
+     *
+     * @return 调用审计记录
+     */
+    private AiCallRecord buildBaseRecord(String requestId, String userId, String userRole,
+                                         String conversationId, String requestedPlatform,
+                                         String finalPlatform, String model, String question,
+                                         String responseContent, long latencyMs,
+                                         LocalDateTime startedAt, QuotaSnapshot quotaSnapshot,
+                                         int attemptCount, boolean degraded) {
+        return new AiCallRecord()
+                .setRequestId(requestId)
+                .setUserId(userId)
+                .setUserRole(userRole)
+                .setConversationId(conversationId)
+                .setRequestedPlatform(requestedPlatform)
+                .setFinalPlatform(finalPlatform)
+                .setModel(model)
+                .setQuestionContent(question)
+                .setResponseContent(responseContent)
+                .setAttemptCount(attemptCount)
+                .setDegraded(degraded)
+                .setQuotaDailyLimit(quotaSnapshot.dailyLimit())
+                .setQuotaDailyUsed(quotaSnapshot.dailyUsed())
+                .setQuotaHourlyLimit(quotaSnapshot.hourlyLimit())
+                .setQuotaHourlyUsed(quotaSnapshot.hourlyUsed())
+                .setLatencyMs(latencyMs)
+                .setCreatedAt(startedAt);
+    }
+
+    /**
+     * 载入历史消息。
+     *
+     * @param conversationId 会话 ID
+     * @return 历史消息列表
+     */
+    private Mono<List<Message>> loadHistoryMessages(String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return Mono.just(Collections.emptyList());
+        }
+        return getMessagesForConversation(conversationId, 0, HISTORY_SIZE)
+                .map(chatMessages -> {
+                    Collections.reverse(chatMessages);
+                    return chatMessages.stream()
+                            .<Message>map(message -> Const.AI_ASSISTANT.equals(message.getSenderId())
+                                    ? new AssistantMessage(message.getContent())
+                                    : new UserMessage(message.getContent()))
+                            .collect(Collectors.toList());
+                });
+    }
+
+    /**
+     * 执行平台级重试与降级。
+     *
+     * @return 最终成功结果
+     */
+    private Mono<ExecutionOutcome> executeWithFallback(List<Message> history, String question,
+                                                       String requestedModel, List<String> candidates,
+                                                       int maxAttempts) {
+        return executeWithFallback(history, question, requestedModel, candidates, maxAttempts, 0);
+    }
+
+    /**
+     * 递归执行降级调用。
+     *
+     * @return 最终成功结果
+     */
+    private Mono<ExecutionOutcome> executeWithFallback(List<Message> history, String question,
+                                                       String requestedModel, List<String> candidates,
+                                                       int maxAttempts, int index) {
+        if (index >= maxAttempts || index >= candidates.size()) {
+            return Mono.error(new IllegalStateException("所有 AI 平台重试均失败"));
+        }
+        String platform = candidates.get(index);
+        String model = resolveModel(platform, requestedModel);
+        return invokePlatform(platform, model, history, question)
+                .map(content -> new ExecutionOutcome(platform, model, content, index + 1, index > 0))
+                .onErrorResume(error -> executeWithFallback(history, question, requestedModel, candidates, maxAttempts, index + 1));
+    }
+
+    /**
+     * 具体调用某个平台。
+     *
+     * @return 模型完整回答
+     */
+    private Mono<String> invokePlatform(String platform, String model, List<Message> history, String question) {
+        return Mono.fromCallable(() -> switch (platform) {
+                    case "deepseek" -> ChatClient.builder(DeepSeekChatModel.builder().build())
+                            .defaultOptions(ChatOptions.builder().model(model).build())
+                            .build()
+                            .prompt()
+                            .messages(history)
+                            .user(question)
+                            .call()
+                            .content();
+                    case "qwen" -> ChatClient.builder(DashScopeChatModel.builder().build())
+                            .defaultOptions(ChatOptions.builder().model(model).build())
+                            .build()
+                            .prompt()
+                            .messages(history)
+                            .user(question)
+                            .call()
+                            .content();
+                    default -> chatClient.prompt()
+                            .messages(history)
+                            .user(question)
+                            .call()
+                            .content();
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(content -> {
+                    if (content == null || content.isBlank()) {
+                        return Mono.error(new IllegalStateException("模型返回了空响应"));
+                    }
+                    return Mono.just(content);
+                });
+    }
+
+    /**
+     * 加载运行时策略。
+     *
+     * @return 运行时策略
+     */
+    private Mono<AiRuntimeStrategy> loadRuntimeStrategy() {
+        return aiRuntimeStrategyRepository.findById(AiRuntimeStrategy.DEFAULT_ID)
+                .switchIfEmpty(Mono.just(defaultRuntimeStrategy()));
+    }
+
+    /**
+     * 解析当前生效的配额策略。
+     *
+     * @return 配额策略
+     */
+    private Mono<AiQuotaPolicy> resolveQuotaPolicy(String userId, String userRole) {
+        return aiQuotaPolicyRepository.findByScopeTypeAndScopeValueAndEnabledTrue(AiQuotaPolicy.ScopeType.USER, userId)
+                .switchIfEmpty(aiQuotaPolicyRepository.findByScopeTypeAndScopeValueAndEnabledTrue(AiQuotaPolicy.ScopeType.ROLE, userRole))
+                .switchIfEmpty(aiQuotaPolicyRepository.findByScopeTypeAndScopeValueAndEnabledTrue(AiQuotaPolicy.ScopeType.GLOBAL, "default"))
+                .switchIfEmpty(Mono.just(defaultQuotaPolicy(userRole)));
+    }
+
+    /**
+     * 检查并消耗额度。
+     *
+     * @return 额度快照
+     */
+    private Mono<QuotaSnapshot> checkAndConsumeQuota(String userId, AiQuotaPolicy quotaPolicy) {
+        return Mono.fromSupplier(() -> {
+            if (!Boolean.TRUE.equals(quotaPolicy.getEnabled())) {
+                return QuotaSnapshot.unlimited();
+            }
+            String dailyKey = Const.AI_QUOTA_DAILY + userId + ":" + LocalDate.now();
+            String hourlyKey = Const.AI_QUOTA_HOURLY + userId + ":" + LocalDate.now() + ":" + LocalTime.now().getHour();
+            int currentDaily = currentCounter(dailyKey);
+            int currentHourly = currentCounter(hourlyKey);
+
+            if (quotaPolicy.getDailyLimit() != null && quotaPolicy.getDailyLimit() > 0 && currentDaily >= quotaPolicy.getDailyLimit()) {
+                return new QuotaSnapshot(quotaPolicy.getDailyLimit(), currentDaily,
+                        quotaPolicy.getHourlyLimit(), currentHourly, false,
+                        "当前 AI 日额度已用尽，请稍后再试或联系管理员。");
+            }
+            if (quotaPolicy.getHourlyLimit() != null && quotaPolicy.getHourlyLimit() > 0 && currentHourly >= quotaPolicy.getHourlyLimit()) {
+                return new QuotaSnapshot(quotaPolicy.getDailyLimit(), currentDaily,
+                        quotaPolicy.getHourlyLimit(), currentHourly, false,
+                        "当前 AI 小时额度已用尽，请稍后再试或联系管理员。");
+            }
+
+            int nextDaily = incrementCounter(dailyKey, secondsUntilTomorrow());
+            int nextHourly = incrementCounter(hourlyKey, secondsUntilNextHour());
+            return new QuotaSnapshot(quotaPolicy.getDailyLimit(), nextDaily,
+                    quotaPolicy.getHourlyLimit(), nextHourly, true, null);
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 对文本执行内容审查。
+     *
+     * @return 审查结果
+     */
+    private ModerationResult inspectText(String text, AiRuntimeStrategy strategy, String direction) {
+        if (strategy == null || !Boolean.TRUE.equals(strategy.getReviewEnabled()) || text == null || text.isBlank()) {
+            return new ModerationResult(false, AiCallRecord.ReviewStatus.PASSED, null);
+        }
+
+        String blockedKeyword = findMatchedKeyword(text, strategy.getBlockedKeywords());
+        if (blockedKeyword != null) {
+            return new ModerationResult(true, AiCallRecord.ReviewStatus.PENDING,
+                    direction + "命中阻断词: " + blockedKeyword);
+        }
+
+        String reviewKeyword = findMatchedKeyword(text, strategy.getReviewKeywords());
+        if (reviewKeyword != null) {
+            return new ModerationResult(false, AiCallRecord.ReviewStatus.PENDING,
+                    direction + "命中人工审查词: " + reviewKeyword);
+        }
+
+        return new ModerationResult(false, AiCallRecord.ReviewStatus.PASSED, null);
+    }
+
+    /**
+     * 合并输入输出的审查状态。
+     *
+     * @return 最终审查状态
+     */
+    private AiCallRecord.ReviewStatus mergeReviewStatus(ModerationResult inputModeration, ModerationResult outputModeration) {
+        if (inputModeration.reviewStatus() == AiCallRecord.ReviewStatus.PENDING
+                || outputModeration.reviewStatus() == AiCallRecord.ReviewStatus.PENDING) {
+            return AiCallRecord.ReviewStatus.PENDING;
+        }
+        return AiCallRecord.ReviewStatus.PASSED;
+    }
+
+    /**
+     * 合并输入输出的审查原因。
+     *
+     * @return 合并后的原因
+     */
+    private String mergeReviewReason(ModerationResult inputModeration, ModerationResult outputModeration) {
+        List<String> reasons = new ArrayList<>();
+        if (inputModeration.reason() != null && !inputModeration.reason().isBlank()) {
+            reasons.add(inputModeration.reason());
+        }
+        if (outputModeration.reason() != null && !outputModeration.reason().isBlank()) {
+            reasons.add(outputModeration.reason());
+        }
+        return reasons.isEmpty() ? null : String.join("; ", reasons);
+    }
+
+    /**
+     * 构建平台尝试顺序。
+     *
+     * @return 去重后的平台列表
+     */
+    private List<String> buildPlatformCandidates(String requestedPlatform, AiRuntimeStrategy strategy) {
+        LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        if (requestedPlatform != null && !requestedPlatform.isBlank()) {
+            ordered.add(normalizePlatform(requestedPlatform));
+        }
+        List<String> fallbackPlatforms = strategy == null ? List.of() : strategy.getFallbackPlatforms();
+        for (String platform : fallbackPlatforms) {
+            ordered.add(normalizePlatform(platform));
+        }
+        if (ordered.isEmpty()) {
+            ordered.add("openai");
+            ordered.add("deepseek");
+            ordered.add("qwen");
+        }
+        return new ArrayList<>(ordered);
+    }
+
+    /**
+     * 构建成功响应流。
+     *
+     * @return 返回给前端的流式响应
+     */
+    private Flux<AIResponse> buildSuccessResponses(String content, String aiMessageId) {
+        Flux<AIResponse> contentFlux = Flux.fromIterable(splitContent(content, STREAM_CHUNK_SIZE))
+                .map(chunk -> AIResponse.builder().content(chunk).build());
+        return Flux.concat(contentFlux, Mono.just(AIResponse.builder().recordId(aiMessageId).content("").build()));
+    }
+
+    /**
+     * 构建单条提示消息。
+     *
+     * @return 单条响应流
+     */
+    private Flux<AIResponse> buildTerminalMessage(String message) {
+        return Flux.just(AIResponse.builder().content(message).build());
+    }
+
+    /**
+     * 保存聊天记录。
+     *
+     * @return 返回会话 ID 与 AI 消息 ID
      */
     private Mono<Tuple2<String, String>> saveAiChatMessages(String userId, String question, String aiResponse, String conversationId) {
-        // 判断是新对话还是旧对话，如果是新对话，则生成一个新的UUID作为ID
         final String currentConversationId = (conversationId == null || conversationId.isBlank())
                 ? Const.AI_ASSISTANT_CONVERSATION + userId + "_" + UUID.randomUUID()
                 : conversationId;
 
-        // 创建代表用户问题的ChatMessage对象
         ChatMessage userMessage = new ChatMessage()
                 .setConversationId(currentConversationId)
                 .setSenderId(userId)
-                .setReceiverId(Const.AI_ASSISTANT) // AI的固定标识符
+                .setReceiverId(Const.AI_ASSISTANT)
                 .setMessageType(ChatMessage.MessageType.AI)
                 .setContentType(ChatMessage.ContentType.TEXT)
                 .setContent(question)
                 .setTimestamp(LocalDateTime.now())
                 .setStatus(ChatMessage.MessageStatus.READ);
 
-        // 创建代表AI回答的ChatMessage对象
         ChatMessage aiMessage = new ChatMessage()
                 .setConversationId(currentConversationId)
                 .setSenderId(Const.AI_ASSISTANT)
@@ -489,100 +586,262 @@ public class AIChatServiceImpl implements AIChatService {
                 .setMessageType(ChatMessage.MessageType.AI)
                 .setContentType(ChatMessage.ContentType.RICH_TEXT)
                 .setContent(aiResponse)
-                .setTimestamp(LocalDateTime.now().plusNanos(1_000_000)) // 确保时间戳稍后于用户消息
+                .setTimestamp(LocalDateTime.now().plusNanos(1_000_000))
                 .setStatus(ChatMessage.MessageStatus.DELIVERED);
 
-        // 使用 saveAll 批量插入这两条消息，这是一个响应式操作
         return chatMessageRepository.saveAll(List.of(userMessage, aiMessage))
                 .filter(chatMessage -> Const.AI_ASSISTANT.equals(chatMessage.getSenderId()))
                 .next()
                 .map(aiMsg -> Tuples.of(currentConversationId, aiMsg.getId()));
     }
 
-    public Flux<String> chatFluxTest(String question) {
-        log.info("[chatFluxTest.method] 开始调用AI模型，问题: {}", question);
-
-        return chatClient.prompt() // 使用不带参数的 prompt()
-                .user(question) // 使用 .user() 方法传递问题
-                .stream()       // 发起流式请求
-                .content();     // 获取内容流
-
-        // 返回带有诊断日志的流
-        /*return contentStream
-                .doOnNext(chunk -> {
-                    // 每当收到一个数据块时，打印日志
-                    log.info("AI-CHUNK: {}", chunk);
-                })
-                .doOnError(error -> {
-                    // 当流内部发生任何错误时，打印详细的错误日志
-                    log.error("AI-STREAM-ERROR: ", error);
-                })
-                .doOnComplete(() -> {
-                    // 当流成功完成时，打印日志
-                    log.info("AI-STREAM-COMPLETE: 流处理完成");
-                });*/
+    /**
+     * 校验会话 ID 的归属。
+     *
+     * @return 合法会话 ID，非法时返回 null
+     */
+    private String validateConversationId(String userId, String conversationId) {
+        String validatedConversationId = trimToNull(conversationId);
+        if (validatedConversationId == null) {
+            return null;
+        }
+        String conversationPrefix = Const.AI_ASSISTANT_CONVERSATION + userId + "_";
+        if (!validatedConversationId.startsWith(conversationPrefix)) {
+            log.warn("[streamChatAndSave.method] 传入的会话ID {} 无效或不属于当前用户 {}，将作为新会话处理。", validatedConversationId, userId);
+            return null;
+        }
+        return validatedConversationId;
     }
 
-//    public Flux<String> streamChatAndSave(String userId, String question, String conversationId) {
-//        log.info("[streamChatAndSave.method]发送问题,question = {},user ID = {},conversation ID = {}", question, userId, conversationId);
-//        /*// 1. 调用AI模型，获取内容的响应式流
-//        Flux<String> contentStream = chatClient.prompt()
-//                .user(question)
-//                .stream()
-//                .content();
-//
-//        // 2.【核心】创建一个在后台执行的保存任务。
-//        //    我们使用 .collect(Collectors.joining()) 来等待所有数据块都到达并拼接成一个完整字符串。
-//        //    这个操作会返回一个 Mono<String>，代表未来的那个完整AI回答。
-//        Mono<String> fullResponseMono = contentStream.collect(Collectors.joining());
-//
-//        // 3. 订阅这个Mono，当它完成时（即AI回答完整时），执行保存逻辑。
-//        fullResponseMono.flatMap(aiResponse ->
-//                saveAiChatMessages(userId, question, aiResponse, conversationId)
-//        ).subscribe( // .subscribe() 是“即发即忘”的关键，它会启动这个后台任务而不会阻塞主流程
-//                savedConvId -> log.info("后台对话记录保存成功，会话ID: {}", savedConvId), // 成功时的回调
-//                error -> log.error("后台保存对话记录时发生错误", error)       // 【关键】错误时的回调
-//        );
-//
-//        // 4.【重要】立即返回原始的、未经处理的 contentStream，确保前端能实时收到数据。
-//        return contentStream;*/
-//        /*--------------------------------------------------------------------------*/
-//        // 1. 使用 .publish().autoConnect(1) 或 .cache() 让流可以被多次订阅
-//        // .cache() 会缓存并重放所有元素给后续的订阅者
-//        Flux<String> contentStream = chatClient.prompt()
-//                .user(question)
-//
-//                .stream()
-//                .content()
-//                .cache(); // 使用 cache() 缓存流的结果
-//
-//        // 2. 创建保存操作的 Mono，它现在订阅的是缓存后的流
-//        //    使用 .then() 将 Mono<String> 转换成 Mono<Void>，表示我们只关心它是否完成
-//        Mono<Void> saveOperation = contentStream
-//                .collect(Collectors.joining())
-//                .flatMap(aiResponse ->
-//                        saveAiChatMessages(userId, question, aiResponse, conversationId)
-//                )
-//                .then(); // 忽略成功结果，只保留完成或错误信号
-//
-//        // 3.【关键】使用 concatWith 将内容流和保存操作链接起来
-//        //    concatWith 会先返回 contentStream 的所有元素。
-//        //    当 contentStream 完成后，它会自动订阅并执行 saveOperation。
-//        //    saveOperation.then(Mono.empty()) 确保保存操作完成后不会发出任何元素，只发出完成信号。
-//        return contentStream.concatWith(saveOperation.then(Mono.empty()));
-//
-//    }
+    /**
+     * 构建默认运行时策略。
+     *
+     * @return 默认策略
+     */
+    private AiRuntimeStrategy defaultRuntimeStrategy() {
+        return new AiRuntimeStrategy()
+                .setId(AiRuntimeStrategy.DEFAULT_ID)
+                .setReviewEnabled(aiGovernanceProperties.getReview().isEnabled())
+                .setBlockedKeywords(aiGovernanceProperties.getReview().getBlockedKeywords())
+                .setReviewKeywords(aiGovernanceProperties.getReview().getReviewKeywords())
+                .setMaxAttempts(Math.max(aiGovernanceProperties.getRetry().getMaxAttempts(), 1))
+                .setFallbackPlatforms(aiGovernanceProperties.getRetry().getFallbackPlatforms());
+    }
 
-    @Getter
-    @Setter
-    // 定义结果类
-    private static class ChatMessageResult {
-        private final String conversationId;
-        private final String aiMessageId;
+    /**
+     * 构建默认配额策略。
+     *
+     * @return 默认配额策略
+     */
+    private AiQuotaPolicy defaultQuotaPolicy(String userRole) {
+        AIGovernanceProperties.Quota quota = aiGovernanceProperties.getQuota();
+        AiQuotaPolicy policy = new AiQuotaPolicy()
+                .setScopeType(AiQuotaPolicy.ScopeType.GLOBAL)
+                .setScopeValue("default")
+                .setEnabled(true);
+        switch (userRole) {
+            case Const.ROLE_ADMIN -> {
+                policy.setDailyLimit(quota.getAdminDailyLimit());
+                policy.setHourlyLimit(quota.getAdminHourlyLimit());
+            }
+            case Const.ROLE_TEACHER -> {
+                policy.setDailyLimit(quota.getTeacherDailyLimit());
+                policy.setHourlyLimit(quota.getTeacherHourlyLimit());
+            }
+            case Const.ROLE_STUDENT -> {
+                policy.setDailyLimit(quota.getStudentDailyLimit());
+                policy.setHourlyLimit(quota.getStudentHourlyLimit());
+            }
+            default -> {
+                policy.setDailyLimit(quota.getGlobalDailyLimit());
+                policy.setHourlyLimit(quota.getGlobalHourlyLimit());
+            }
+        }
+        return policy;
+    }
 
-        public ChatMessageResult(String conversationId, String aiMessageId) {
-            this.conversationId = conversationId;
-            this.aiMessageId = aiMessageId;
+    /**
+     * 标准化角色。
+     *
+     * @return 标准化后的角色
+     */
+    private String normalizeRole(String userRole) {
+        if (userRole == null || userRole.isBlank()) {
+            return "unknown";
+        }
+        return userRole.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 标准化平台。
+     *
+     * @return 标准化后的平台名
+     */
+    private String normalizePlatform(String platform) {
+        if (platform == null || platform.isBlank()) {
+            return "openai";
+        }
+        String normalized = platform.toLowerCase(Locale.ROOT);
+        if (List.of("openai", "deepseek", "qwen").contains(normalized)) {
+            return normalized;
+        }
+        return "openai";
+    }
+
+    /**
+     * 解析最终模型名。
+     *
+     * @return 最终模型名
+     */
+    private String resolveModel(String platform, String requestedModel) {
+        if (requestedModel != null && !requestedModel.isBlank()) {
+            return requestedModel;
+        }
+        return switch (platform) {
+            case "deepseek" -> "deepseek-chat";
+            case "qwen" -> "qwen3-max-preview";
+            default -> "default";
+        };
+    }
+
+    /**
+     * 查找首个命中的关键字。
+     *
+     * @return 命中的关键字，不存在时返回 null
+     */
+    private String findMatchedKeyword(String text, List<String> keywords) {
+        if (text == null || keywords == null || keywords.isEmpty()) {
+            return null;
+        }
+        String normalizedText = text.toLowerCase(Locale.ROOT);
+        return keywords.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(keyword -> !keyword.isBlank())
+                .filter(keyword -> normalizedText.contains(keyword.toLowerCase(Locale.ROOT)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 将文本拆分为多个片段，继续保持 SSE 输出语义。
+     *
+     * @return 文本片段列表
+     */
+    private List<String> splitContent(String content, int chunkSize) {
+        if (content == null || content.isBlank()) {
+            return List.of("");
+        }
+        List<String> chunks = new ArrayList<>();
+        for (int start = 0; start < content.length(); start += chunkSize) {
+            int end = Math.min(start + chunkSize, content.length());
+            chunks.add(content.substring(start, end));
+        }
+        return chunks;
+    }
+
+    /**
+     * 字符串空白归一化。
+     *
+     * @return 去空格后的字符串，若为空白则返回 null
+     */
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
+    }
+
+    /**
+     * 读取当前计数值。
+     *
+     * @return 当前计数值
+     */
+    private int currentCounter(String key) {
+        String value = stringRedisTemplate.opsForValue().get(key);
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException exception) {
+            log.warn("[currentCounter.method] Redis 计数值解析失败, key={}, value={}", key, value);
+            return 0;
+        }
+    }
+
+    /**
+     * 递增计数器并设置过期时间。
+     *
+     * @return 递增后的值
+     */
+    private int incrementCounter(String key, long ttlSecond) {
+        Long value = stringRedisTemplate.opsForValue().increment(key);
+        if (value != null && value == 1L) {
+            stringRedisTemplate.expire(key, Duration.ofSeconds(Math.max(ttlSecond, 1)));
+        }
+        return value == null ? 0 : value.intValue();
+    }
+
+    /**
+     * 计算距离次日零点的秒数。
+     *
+     * @return 秒数
+     */
+    private long secondsUntilTomorrow() {
+        return Math.max(Duration.between(LocalDateTime.now(), LocalDate.now().plusDays(1).atStartOfDay()).getSeconds(), 1);
+    }
+
+    /**
+     * 计算距离下一小时整点的秒数。
+     *
+     * @return 秒数
+     */
+    private long secondsUntilNextHour() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nextHour = now.withMinute(0).withSecond(0).withNano(0).plusHours(1);
+        return Math.max(Duration.between(now, nextHour).getSeconds(), 1);
+    }
+
+    /**
+     * 文本审查结果。
+     */
+    private record ModerationResult(boolean blocked, AiCallRecord.ReviewStatus reviewStatus, String reason) {
+    }
+
+    /**
+     * 执行成功结果。
+     */
+    private record ExecutionOutcome(String platform, String model, String content, int attemptCount, boolean degraded) {
+    }
+
+    /**
+     * 额度快照。
+     */
+    private record QuotaSnapshot(Integer dailyLimit, Integer dailyUsed, Integer hourlyLimit,
+                                 Integer hourlyUsed, boolean allowed, String rejectReason) {
+
+        /**
+         * 构建无限制快照。
+         *
+         * @return 无限额快照
+         */
+        static QuotaSnapshot unlimited() {
+            return new QuotaSnapshot(null, 0, null, 0, true, null);
+        }
+
+        /**
+         * 从策略对象构建初始快照。
+         *
+         * @param policy 配额策略
+         * @return 初始快照
+         */
+        static QuotaSnapshot fromPolicy(AiQuotaPolicy policy) {
+            if (policy == null) {
+                return unlimited();
+            }
+            return new QuotaSnapshot(policy.getDailyLimit(), 0, policy.getHourlyLimit(), 0, true, null);
         }
     }
 }

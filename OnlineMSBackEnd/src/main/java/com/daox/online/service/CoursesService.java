@@ -4,8 +4,12 @@ import com.daox.online.entity.mysql.CourseMaterials;
 import com.daox.online.entity.mysql.Courses;
 import com.daox.online.entity.dto.CourseCoreInfoDto;
 import com.daox.online.entity.dto.CourseOutlineDto;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryDeleteRequestVO;
+import com.daox.online.entity.views.requestVO.admin.AdminCategoryMigrationRequestVO;
 import com.daox.online.entity.views.requestVO.teacher.CoursePropertiesVo;
 import com.daox.online.entity.views.requestVO.teacher.TeacherCourseVo;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryDeleteResultVO;
+import com.daox.online.entity.views.responseVO.admin.AdminCategoryOperationPreviewVO;
 import com.daox.online.entity.views.responseVO.*;
 import com.daox.online.entity.views.responseVO.course.*;
 import com.daox.online.entity.views.responseVO.user.UserCoursesVo;
@@ -257,6 +261,54 @@ public interface CoursesService {
      */
     //TODO: 2025/7/27 删除课程分类 逻辑待完善
     boolean deleteCourseCategory(String id);
+
+    /**
+     * 预览分类删除影响范围。
+     *
+     * @param categoryId 分类ID
+     * @return 预览信息
+     */
+    AdminCategoryOperationPreviewVO previewDeleteCourseCategory(String categoryId);
+
+    /**
+     * 执行紧急删除。
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    删除请求
+     * @return 删除结果
+     */
+    AdminCategoryDeleteResultVO emergencyDeleteCourseCategory(String operatorId, AdminCategoryDeleteRequestVO request);
+
+    /**
+     * 提交常规删除申请。
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    删除请求
+     * @return 删除结果
+     */
+    AdminCategoryDeleteResultVO regularDeleteCourseCategory(String operatorId, AdminCategoryDeleteRequestVO request);
+
+    /**
+     * 预览分类迁移影响范围。
+     *
+     * @param categoryId 分类ID
+     * @return 预览信息
+     */
+    AdminCategoryOperationPreviewVO previewCategoryMigration(String categoryId);
+
+    /**
+     * 执行分类迁移。
+     *
+     * @param operatorId 当前管理员ID
+     * @param request    迁移请求
+     * @return 迁移结果
+     */
+    AdminCategoryDeleteResultVO migrateCategoryCourses(String operatorId, AdminCategoryMigrationRequestVO request);
+
+    /**
+     * 处理 Redis 中待完成的常规删除任务。
+     */
+    void processPendingCategoryDeletionTasks();
 
     /**
      * 获取课程统计

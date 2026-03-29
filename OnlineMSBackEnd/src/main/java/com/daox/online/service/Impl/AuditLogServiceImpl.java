@@ -34,6 +34,8 @@ import java.util.Map;
 @Slf4j
 public class AuditLogServiceImpl implements AuditLogService {
 
+    private static final int AUDIT_ACTION_MAX_LENGTH = 32;
+
     @Resource
     private AuditLogsMapper auditLogsMapper;
 
@@ -62,12 +64,14 @@ public class AuditLogServiceImpl implements AuditLogService {
             HttpServletRequest request = getCurrentRequest();
             String operatorId = request == null ? null : UserUtils.getCurrentUserId(request);
             Users operator = operatorId == null ? null : sysUserService.findUserById(operatorId);
+            String normalizedAction = normalizeAction(action);
+            String normalizedStatus = normalizeStatus(status);
             AuditLogs auditLog = new AuditLogs()
                     .setId(hybridIdGenerator.generateId())
-                    .setAction(action)
+                    .setAction(normalizedAction)
                     .setResourceType(resourceType)
                     .setResourceId(resourceId)
-                    .setStatus(status)
+                    .setStatus(normalizedStatus)
                     .setMessage(message)
                     .setOperatorId(operatorId)
                     .setOperatorIdentifier(operator == null ? null : operator.getIdentifier())
@@ -172,6 +176,38 @@ public class AuditLogServiceImpl implements AuditLogService {
             return sanitized;
         }
         return value;
+    }
+
+    /**
+     * 规范化审计动作编码，避免超出数据库字段长度。
+     *
+     * @param action 原始动作编码
+     * @return 规范化后的动作编码
+     */
+    private String normalizeAction(String action) {
+        if (action == null) {
+            return null;
+        }
+        String normalized = action.trim();
+        if (normalized.length() <= AUDIT_ACTION_MAX_LENGTH) {
+            return normalized;
+        }
+        String shortened = normalized.substring(0, AUDIT_ACTION_MAX_LENGTH);
+        log.warn("[AuditLogServiceImpl.normalizeAction] 审计动作过长，已截断: original={}, shortened={}", normalized, shortened);
+        return shortened;
+    }
+
+    /**
+     * 规范化执行状态，统一为大写格式。
+     *
+     * @param status 原始状态
+     * @return 大写状态
+     */
+    private String normalizeStatus(String status) {
+        if (status == null) {
+            return null;
+        }
+        return status.trim().toUpperCase(Locale.ROOT);
     }
 
     private boolean isSensitiveKey(String key) {

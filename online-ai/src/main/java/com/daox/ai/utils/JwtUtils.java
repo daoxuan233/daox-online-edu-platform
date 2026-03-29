@@ -172,4 +172,16 @@ public class JwtUtils {
         Map<String, Claim> claim = jwt.getClaims();
         return claim.get("id").asString();
     }
+
+    /**
+     * 解析 JWT 中的角色信息。
+     *
+     * @param jwt 已解析的 Jwt 对象
+     * @return 用户角色，缺失时返回 {@code null}
+     */
+    public String toRole(DecodedJWT jwt) {
+        Map<String, Claim> claim = jwt.getClaims();
+        Claim roleClaim = claim.get("role");
+        return roleClaim == null ? null : roleClaim.asString();
+    }
 }

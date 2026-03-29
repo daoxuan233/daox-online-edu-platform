@@ -323,6 +323,7 @@ import {getFriendList, getHistoryList, getHistoryDetail, getTeacherProfile} from
 import {fetchConversationList, fetchMessagesForConversation, deleteConversationById,getAIChatResponseObject} from '@/api/teacher/TeacherAIChatAPI.js'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import markdownRender from '@/components/markdownRender/Index.vue'
+import gsap from 'gsap'
 
 // 聊天类型
 const chatTypes = {
@@ -1486,6 +1487,20 @@ onMounted(async () => {
     loadChatHistory(),
     loadAIConversationList() // 添加AI会话列表加载
   ])
+
+  // gsap 动画: 卡片模块入场
+  gsap.fromTo('.chat-sidebar',
+    { x: -30, opacity: 0 },
+    { x: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
+  )
+  gsap.fromTo('.conversation-list',
+    { y: 20, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out', delay: 0.1 }
+  )
+  gsap.fromTo('.chat-content',
+    { scale: 0.98, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.5, ease: 'power2.out', delay: 0.2 }
+  )
 
   // 添加事件监听器
   document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -2683,3 +2698,4 @@ onUnmounted(() => {
   }
 }
 </style>
+

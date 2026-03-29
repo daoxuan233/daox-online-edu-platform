@@ -44,6 +44,12 @@
               <span>审计日志</span>
             </router-link>
           </li>
+          <li class="nav-item">
+            <router-link to="/admin/ai-governance" class="nav-link" active-class="active">
+              <font-awesome-icon :icon="['fas', 'microchip']" />
+              <span>AI 治理</span>
+            </router-link>
+          </li>
         </ul>
       </nav>
     </aside>
@@ -167,7 +173,8 @@ const pageTitles = {
   'AdminDashboard': '数据概览',
   'UserManagement': '用户管理',
   'CategoryManagement': '分类管理',
-  'AuditLogs': '审计日志'
+  'AuditLogs': '审计日志',
+  'AiGovernance': 'AI 治理'
 }
 
 const currentPageTitle = computed(() => {

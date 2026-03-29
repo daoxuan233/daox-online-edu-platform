@@ -2,6 +2,7 @@ package com.daox.ai.service;
 
 import com.daox.ai.entity.dto.ConversationSummaryDTO;
 import com.daox.ai.entity.mongodb.ChatMessage;
+import com.daox.ai.entity.request.ModelPlatformOptions;
 import com.daox.ai.entity.response.AIResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -10,41 +11,19 @@ import java.util.List;
 
 public interface AIChatService {
     /**
-     * 主方法：处理AI流式对话并异步保存记录。 [default -- OpenAI]
-     * 这是Controller层应该调用的方法。
+     * 统一的 AI 对话入口。
+     * <p>
+     * 该方法会在一次调用中串联额度检查、内容审查、重试降级、结果落库与审计记录写入。
      *
      * @param userId         发起请求的用户ID
+     * @param userRole       发起请求的用户角色
      * @param question       用户的问题
      * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
+     * @param options        模型平台与模型参数
+     * @return 返回给前端的流式响应
      */
-    Flux<AIResponse> streamChatAndSave(String userId, String question, String conversationId);
-
-    /**
-     * 主方法：处理AI流式对话并异步保存记录。 [deepseek]
-     * 这是Controller层应该调用的方法。
-     *
-     * @param userId         发起请求的用户ID
-     * @param question       用户的问题
-     * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
-     */
-    Flux<String> streamChatAndSaveDeepSeek(String userId, String question, String conversationId);
-
-    Flux<AIResponse> streamChatAndSaveDeepSeekRes(String userId, String question, String conversationId);
-
-    /**
-     * 主方法：处理AI流式对话并异步保存记录。 [qwen]
-     * 这是Controller层应该调用的方法。
-     *
-     * @param userId         发起请求的用户ID
-     * @param question       用户的问题
-     * @param conversationId 继续对话，则传入之前的会话ID 否则就是新会话ID
-     * @return 返回给前端的实时内容流 (Flux<String>)
-     */
-    Flux<String> streamChatAndSaveQwen(String userId, String question, String conversationId);
-
-    Flux<AIResponse> streamChatAndSaveQwenRes(String userId, String question, String conversationId);
+    Flux<AIResponse> streamChatAndSave(String userId, String userRole, String question,
+                                       String conversationId, ModelPlatformOptions options);
 
     /**
      * 获取会话历史记录列表

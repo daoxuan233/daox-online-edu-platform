@@ -317,6 +317,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMyCourseList } from '@/api/teacher/teacherAPI.js'
+import gsap from 'gsap'
 
 const router = useRouter()
 
@@ -688,6 +689,20 @@ const handleCurrentChange = (page) => {
 onMounted(() => {
   // 页面加载时加载课程列表
   loadCourseList()
+
+  // gsap 动画: 增加科技感入场效果
+  gsap.fromTo('.page-header',
+    { y: -20, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
+  )
+  gsap.fromTo('.stat-card',
+    { y: 20, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out', delay: 0.2 }
+  )
+  gsap.fromTo('.filter-section',
+    { opacity: 0 },
+    { opacity: 1, duration: 0.4, ease: 'power2.out', delay: 0.4 }
+  )
 })
 </script>
 

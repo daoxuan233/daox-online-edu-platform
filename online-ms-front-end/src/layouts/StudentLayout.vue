@@ -96,6 +96,17 @@
               </router-link>
             </el-tooltip>
           </li>
+          <li class="nav-item">
+            <el-tooltip content="通知中心" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/notifications" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'bell']" />
+                </div>
+                <span class="nav-text">通知中心</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
+          </li>
         </ul>
       </nav>
     </aside>
@@ -188,21 +199,28 @@
 </template>
 
 <script setup>
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, onUnmounted, nextTick} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {getUsername, getIdentifier} from "@/utils/tokenAnalysis.js";
 import { getStudentProfile } from '@/api/students/stuAPI.js';
 import { logout } from '@/api/index.js';
 import { ElMessage } from 'element-plus';
+import { getUnreadNotificationCount } from '@/api/notifications.js'
+import gsap from 'gsap'
 
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
 const isCollapsed = ref(false)
-const unreadNotifications = ref(3)
+const unreadNotifications = ref(0)
 const unreadMessages = ref(1)
 const userName = ref('')
 const userAvatar = ref(null)
+
+/**
+ * 学生端布局动画时间线。
+ */
+let layoutTimeline = null
 
 // 页面标题映射
 const pageTitles = {
@@ -215,7 +233,17 @@ const pageTitles = {
   'Exam': '在线考试',
   'Notes': '学习笔记',
   'Profile': '个人中心',
-  'StudentChat': '在线交流'
+  'StudentChat': '在线交流',
+  'StudentNotifications': '通知中心'
+}
+
+/**
+ * 响应通知中心页面发出的未读数同步事件。
+ *
+ * @param {CustomEvent} event 通知事件对象
+ */
+const handleUnreadNotificationUpdate = (event) => {
+  unreadNotifications.value = Number(event?.detail?.unreadCount || 0)
 }
 
 const currentPageTitle = computed(() => {
@@ -235,8 +263,7 @@ const closeSidebar = () => {
 }
 
 const toggleNotifications = () => {
-  // 跳转到聊天页面
-  router.push('/index/chat')
+  router.push('/index/notifications')
 }
 
 const toggleMessages = () => {
@@ -301,7 +328,43 @@ const loadUserAvatar = () => {
   );
 }
 
+/**
+ * 获取学生端未读通知数量。
+ *
+ * @returns {Promise<void>} 异步结果
+ */
+const loadUnreadNotifications = async () => {
+  try {
+    const data = await getUnreadNotificationCount()
+    unreadNotifications.value = Number(data?.unreadCount || 0)
+  } catch (error) {
+    console.error('获取学生未读通知数失败:', error)
+  }
+}
+
+/**
+ * 执行学生布局入场动画。
+ */
+const runLayoutAnimation = async () => {
+  await nextTick()
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.set(['.modern-sidebar', '.modern-navbar', '.page-content'], { opacity: 1, x: 0, y: 0 })
+    return
+  }
+
+  layoutTimeline?.kill()
+  layoutTimeline = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  layoutTimeline
+    .fromTo('.modern-sidebar', { x: -36, opacity: 0 }, { x: 0, opacity: 1, duration: 0.55 })
+    .fromTo('.modern-navbar', { y: -18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42 }, '-=0.22')
+    .fromTo('.page-content', { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.46 }, '-=0.16')
+}
+
 onMounted(async () => {
+  loadUnreadNotifications()
+  runLayoutAnimation()
+  window.addEventListener('notification-unread-updated', handleUnreadNotificationUpdate)
+
   // 页面加载动画或其他初始化逻辑
   try {
     userName.value = await getUsername();
@@ -311,6 +374,15 @@ onMounted(async () => {
     console.error('获取用户名失败:', error);
     ElMessage.error('获取用户名失败，请重新登录');
   }
+})
+
+watch(() => route.fullPath, () => {
+  loadUnreadNotifications()
+})
+
+onUnmounted(() => {
+  layoutTimeline?.kill()
+  window.removeEventListener('notification-unread-updated', handleUnreadNotificationUpdate)
 })
 </script>
 

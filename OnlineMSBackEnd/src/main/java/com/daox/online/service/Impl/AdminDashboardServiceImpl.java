@@ -34,6 +34,36 @@ import java.util.Map;
 public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     private static final DateTimeFormatter TREND_LABEL_FORMATTER = DateTimeFormatter.ofPattern("MM-dd");
+    private static final Map<String, String> AUDIT_ICON_MAP = Map.ofEntries(
+            Map.entry("COURSE_DELETE", "fas fa-book"),
+            Map.entry("USER_PASSWORD_RESET", "fas fa-key"),
+            Map.entry("QUESTION_VECTOR_SYNC_TRIGGER", "fas fa-arrows-rotate"),
+            Map.entry("ADMIN_CAT_DEL_EM", "fas fa-bolt"),
+            Map.entry("ADMIN_CAT_DEL_RG", "fas fa-calendar-days"),
+            Map.entry("ADMIN_CAT_MIG", "fas fa-right-left"),
+            Map.entry("ADMIN_CAT_DEL_EM_REQ", "fas fa-triangle-exclamation"),
+            Map.entry("ADMIN_CAT_DEL_EM_DONE", "fas fa-trash-can"),
+            Map.entry("ADMIN_CAT_DEL_RG_REQ", "fas fa-hourglass-half"),
+            Map.entry("ADMIN_CAT_DEL_RG_WAIT", "fas fa-clock"),
+            Map.entry("ADMIN_CAT_DEL_RG_DONE", "fas fa-check-double"),
+            Map.entry("ADMIN_CAT_MIG_REQ", "fas fa-route"),
+            Map.entry("ADMIN_CAT_MIG_DONE", "fas fa-shuffle")
+    );
+    private static final Map<String, String> AUDIT_TITLE_MAP = Map.ofEntries(
+            Map.entry("COURSE_DELETE", "删除课程"),
+            Map.entry("USER_PASSWORD_RESET", "密码重置"),
+            Map.entry("QUESTION_VECTOR_SYNC_TRIGGER", "同步触发"),
+            Map.entry("ADMIN_CAT_DEL_EM", "紧急删除分类"),
+            Map.entry("ADMIN_CAT_DEL_RG", "常规删除分类"),
+            Map.entry("ADMIN_CAT_MIG", "分类迁移"),
+            Map.entry("ADMIN_CAT_DEL_EM_REQ", "紧急删除申请"),
+            Map.entry("ADMIN_CAT_DEL_EM_DONE", "紧急删除完成"),
+            Map.entry("ADMIN_CAT_DEL_RG_REQ", "常规删除申请"),
+            Map.entry("ADMIN_CAT_DEL_RG_WAIT", "常规删除保留中"),
+            Map.entry("ADMIN_CAT_DEL_RG_DONE", "常规删除完成"),
+            Map.entry("ADMIN_CAT_MIG_REQ", "分类迁移申请"),
+            Map.entry("ADMIN_CAT_MIG_DONE", "分类迁移完成")
+    );
 
     @Resource
     private UsersService usersService;
@@ -178,7 +208,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .map(log -> new AdminDashboardOverviewVO.ActivityItem()
                         .setId(log.getId())
                         .setIcon(resolveAuditIcon(log.getAction()))
-                        .setTitle(log.getMessage() == null || log.getMessage().isBlank() ? log.getAction() : log.getMessage())
+                        .setTitle(buildAuditDisplayText(log.getAction(), log.getMessage()))
                         .setDescription((log.getOperatorName() == null || log.getOperatorName().isBlank() ? "系统任务" : log.getOperatorName())
                                 + " · "
                                 + (log.getResourceId() == null || log.getResourceId().isBlank() ? "未记录资源ID" : log.getResourceId()))
@@ -211,7 +241,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .forEach(log -> tasks.add(new AdminDashboardOverviewVO.PendingTaskItem()
                         .setId("audit-" + log.getId())
                         .setTitle("审计异常待复核")
-                        .setDescription(log.getMessage() == null || log.getMessage().isBlank() ? log.getAction() : log.getMessage())
+                        .setDescription(buildAuditDisplayText(log.getAction(), log.getMessage()))
                         .setTime(formatDateTime(log.getCreatedAt()))
                         .setPriority("medium")
                         .setActionType("audit")));
@@ -281,16 +311,23 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     private String resolveAuditIcon(String action) {
-        if ("COURSE_DELETE".equals(action)) {
-            return "fas fa-book";
+        return AUDIT_ICON_MAP.getOrDefault(action, "fas fa-shield-halved");
+    }
+
+    private String resolveAuditTitle(String action) {
+        return AUDIT_TITLE_MAP.getOrDefault(action, action == null || action.isBlank() ? "未知动作" : action);
+    }
+
+    private String buildAuditDisplayText(String action, String message) {
+        String auditTitle = resolveAuditTitle(action);
+        if (message == null || message.isBlank()) {
+            return auditTitle;
         }
-        if ("USER_PASSWORD_RESET".equals(action)) {
-            return "fas fa-key";
+        String normalizedMessage = message.trim();
+        if (normalizedMessage.startsWith(auditTitle)) {
+            return normalizedMessage;
         }
-        if ("QUESTION_VECTOR_SYNC_TRIGGER".equals(action)) {
-            return "fas fa-arrows-rotate";
-        }
-        return "fas fa-shield-halved";
+        return auditTitle + " · " + normalizedMessage;
     }
 
     private String resolveAuditStatus(String status) {

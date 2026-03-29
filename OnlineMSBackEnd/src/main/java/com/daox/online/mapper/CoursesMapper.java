@@ -400,6 +400,16 @@ public interface CoursesMapper {
     List<CourseCategories> getSubCategories(String parentId);
 
     /**
+     * 按名称查询分类。
+     *
+     * @param name 分类名称
+     * @return 分类信息
+     */
+    @Select("SELECT * FROM course_categories WHERE name = #{name} LIMIT 1")
+    @Results({@Result(column = "id", property = "id"), @Result(column = "name", property = "name"), @Result(column = "parent_id", property = "parentId"), @Result(column = "order_index", property = "orderIndex")})
+    CourseCategories getCategoryByName(String name);
+
+    /**
      * 创建分类
      *
      * @param courseCategories 分类
@@ -427,6 +437,23 @@ public interface CoursesMapper {
     int deleteCategory(String id);
 
     /**
+     * 批量删除分类。
+     *
+     * @param ids 分类ID列表
+     * @return 删除数量
+     */
+    @Delete("""
+            <script>
+            DELETE FROM course_categories
+            WHERE id IN
+            <foreach collection='ids' item='id' open='(' separator=',' close=')'>
+                #{id}
+            </foreach>
+            </script>
+            """)
+    int batchDeleteCategories(@Param("ids") List<String> ids);
+
+    /**
      * 统计指定分类下的直接子分类数量。
      *
      * @param parentId 父分类ID
@@ -443,6 +470,47 @@ public interface CoursesMapper {
      */
     @Select("SELECT COUNT(*) FROM courses WHERE category_id = #{categoryId} AND COALESCE(is_deleted, 0) = 0")
     int countCoursesByCategoryId(String categoryId);
+
+    /**
+     * 查询多个分类下的有效课程。
+     *
+     * @param categoryIds 分类ID列表
+     * @return 课程列表
+     */
+    @Select("""
+            <script>
+            SELECT *
+            FROM courses
+            WHERE COALESCE(is_deleted, 0) = 0
+              AND category_id IN
+              <foreach collection='categoryIds' item='categoryId' open='(' separator=',' close=')'>
+                  #{categoryId}
+              </foreach>
+            ORDER BY updated_at DESC, created_at DESC
+            </script>
+            """)
+    List<Courses> listCoursesByCategoryIds(@Param("categoryIds") List<String> categoryIds);
+
+    /**
+     * 批量迁移课程分类。
+     *
+     * @param targetCategoryId 目标分类ID
+     * @param courseIds        课程ID列表
+     * @return 更新数量
+     */
+    @Update("""
+            <script>
+            UPDATE courses
+            SET category_id = #{targetCategoryId},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id IN
+            <foreach collection='courseIds' item='courseId' open='(' separator=',' close=')'>
+                #{courseId}
+            </foreach>
+            </script>
+            """)
+    int batchUpdateCourseCategory(@Param("targetCategoryId") String targetCategoryId,
+                                  @Param("courseIds") List<String> courseIds);
 
     /**
      * 获取课程统计 - 有效数量

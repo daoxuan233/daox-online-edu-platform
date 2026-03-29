@@ -332,10 +332,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {getIdentifier} from '@/utils/tokenAnalysis.js'
+import gsap from 'gsap'
 import {
   getTeacherProfile,
   getMyCourseList,
   getTeacherTodoList,
+  getTeacherWeeklyOverview,
   createTeacherTodo,
   updateTeacherTodo,
   deleteTeacherTodo
@@ -549,6 +551,38 @@ const loadTodoData = async () => {
   }
 }
 
+/**
+ * 将后端返回的评分值统一格式化为 1 位小数字符串。
+ * 这样可以保证页面展示风格稳定，不会因为整数或空值导致 UI 抖动。
+ *
+ * @param {number|string|null|undefined} value - 原始评分值
+ * @returns {string} 规范化后的评分展示值
+ */
+const formatWeeklyAverageRating = (value) => {
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue.toFixed(1) : '0.0'
+}
+
+/**
+ * 加载教师工作台“本周概览”数据。
+ * 后端会统一聚合本周新增学生、课程完成、作业提交和平均评分，
+ * 前端只负责做轻量格式化与兜底展示。
+ */
+const loadWeeklyOverview = async () => {
+  try {
+    const data = await getTeacherWeeklyOverview()
+    weeklyStats.value = {
+      newStudents: Number(data?.newStudents ?? 0),
+      completedLessons: Number(data?.completedLessons ?? 0),
+      submittedAssignments: Number(data?.submittedAssignments ?? 0),
+      averageRating: formatWeeklyAverageRating(data?.averageRating)
+    }
+  } catch (error) {
+    console.error('获取本周概览失败:', error)
+    ElMessage.error(error.message || '获取本周概览失败，请稍后重试')
+  }
+}
+
 const normalizeTodoDate = (dateValue) => {
   if (!dateValue) return null
   const parsedDate = dateValue instanceof Date ? dateValue : new Date(dateValue)
@@ -661,10 +695,10 @@ const recentFeedback = ref([
 
 // 本周统计
 const weeklyStats = ref({
-  newStudents: 45,
-  completedLessons: 128,
-  submittedAssignments: 67,
-  averageRating: 4.7
+  newStudents: 0,
+  completedLessons: 0,
+  submittedAssignments: 0,
+  averageRating: '0.0'
 })
 
 // 快速操作
@@ -799,6 +833,21 @@ onMounted(() => {
   loadUserProfile()
   loadCourseData()
   loadTodoData()
+  loadWeeklyOverview()
+
+  // gsap 动画: 卡片式布局进入动画
+  gsap.fromTo('.welcome-hero',
+    { y: 20, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
+  )
+  gsap.fromTo('.stat-card',
+    { y: 30, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out', delay: 0.2 }
+  )
+  gsap.fromTo('.dashboard-card',
+    { y: 30, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.6, stagger: 0.15, ease: 'power3.out', delay: 0.4 }
+  )
 })
 </script>
 

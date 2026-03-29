@@ -25,6 +25,34 @@ spring:
         prefetch: 1
 
   ai:
+    governance:
+      quota:
+        global-daily-limit: 120
+        global-hourly-limit: 20
+        student-daily-limit: 40
+        student-hourly-limit: 8
+        teacher-daily-limit: 100
+        teacher-hourly-limit: 20
+        admin-daily-limit: 300
+        admin-hourly-limit: 60
+      review:
+        enabled: true
+        blocked-keywords:
+          - 刷单
+          - 赌博
+          - 外挂
+          - 爆破
+        review-keywords:
+          - 代写
+          - 绕过检测
+          - 破解
+          - 批量注册
+      retry:
+        max-attempts: 3
+        fallback-platforms:
+          - openai
+          - deepseek
+          - qwen
     openai:
       api-key: sk-b54de805d4f643249373a194e3df8d86
       base-url: https://api.deepseek.com

@@ -29,5 +29,32 @@ public class UserUtils {
         log.error("无法获取当前用户ID，请求属性无有效信息");
         return null;
     }
+
+    /**
+     * 获取当前用户角色。
+     *
+     * @param request 当前 HTTP 请求对象
+     * @return 当前用户角色，获取不到时返回 {@code null}
+     */
+    public static String getCurrentUserRole(HttpServletRequest request) {
+        if (request != null) {
+            Object userRole = request.getAttribute(Const.ATTR_USER_ROLE);
+            if (userRole != null) {
+                return userRole.toString();
+            }
+        }
+        log.warn("无法获取当前用户角色，请求属性无有效信息");
+        return null;
+    }
+
+    /**
+     * 判断当前请求是否来自管理员。
+     *
+     * @param request 当前 HTTP 请求对象
+     * @return true 表示管理员，false 表示非管理员
+     */
+    public static boolean isAdmin(HttpServletRequest request) {
+        return Const.ROLE_ADMIN.equalsIgnoreCase(getCurrentUserRole(request));
+    }
 }
 

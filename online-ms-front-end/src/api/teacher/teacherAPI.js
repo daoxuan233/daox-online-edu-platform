@@ -59,6 +59,23 @@ export const getTeacherTodoList = () => {
 }
 
 /**
+ * 获取教师工作台本周概览数据
+ * @returns {Promise<object>} - Promise对象，返回本周概览统计结果
+ */
+export const getTeacherWeeklyOverview = () => {
+    return new Promise((resolve, reject) => {
+        API_get('/teacher/dashboard/weekly-overview',
+            (data) => {
+                resolve(data)
+            },
+            (message, code) => {
+                reject(new Error(message))
+            }
+        )
+    })
+}
+
+/**
  * 新增教师待办事项
  * @param {object} todoData - 待办事项数据
  * @returns {Promise<object>} - Promise对象，返回新增后的待办事项

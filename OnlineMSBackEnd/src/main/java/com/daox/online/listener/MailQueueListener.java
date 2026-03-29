@@ -30,10 +30,11 @@ public class MailQueueListener {
     @RabbitHandler
     public void sendMailMessage(Map<String, Object> data) {
         String email = data.get("email").toString();
-        String code = data.get("code").toString();
-        SimpleMailMessage message = switch (data.get("type").toString()) {
+        String type = data.get("type").toString();
+        String code = data.get("code") == null ? "" : data.get("code").toString();
+        SimpleMailMessage message = switch (type) {
             case "register" ->
-                    createMessage("欢迎注册DaoX银行",
+                    createMessage("欢迎注册DaoX教育",
                             "您的邮件注册验证码为: "+code+"，有效时间3分钟，为了保障您的账户安全，请勿向他人泄露验证码信息。注册成功后请前往DaoX银行网站进行后的资料完善激活账户哦。",
                             email);
             case "reset" ->
@@ -43,6 +44,10 @@ public class MailQueueListener {
             case "activate" ->
                     createMessage("DaoX银行账户激活邮件",
                             "您的账户激活码："+code+"，有效时间3分钟，如非本人操作，请无视。填写之后您可以使用DaoX银行提供的服务了。",
+                            email);
+            case "custom" ->
+                    createMessage(String.valueOf(data.getOrDefault("subject", "系统通知")),
+                            String.valueOf(data.getOrDefault("content", "")),
                             email);
             default -> null;
         };

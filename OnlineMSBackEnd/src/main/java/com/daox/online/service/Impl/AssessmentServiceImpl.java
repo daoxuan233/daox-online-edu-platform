@@ -23,11 +23,14 @@ import com.daox.online.repository.mongodb.QuestionRepository;
 import com.daox.online.repository.mongodb.StudentAnswerRepository;
 import com.daox.online.repository.redis.AssessmentSessionRepository;
 import com.daox.online.service.AssessmentService;
+import com.daox.online.service.NotificationCenterService;
+import com.daox.online.service.SysUserService;
 import com.daox.online.service.UsersService;
 import com.daox.online.uilts.DateUtils;
 import com.daox.online.uilts.HybridIdGenerator;
 import com.daox.online.uilts.constant.AssessmentType;
 import com.daox.online.uilts.constant.Const;
+import com.daox.online.entity.mysql.Users;
 import com.daox.online.uilts.SecondaryHybridIdGenerator;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +74,12 @@ public class AssessmentServiceImpl implements AssessmentService {
 
     @Resource
     private HybridIdGenerator hybridIdGenerator;
+
+    @Resource
+    private SysUserService sysUserService;
+
+    @Resource
+    private NotificationCenterService notificationCenterService;
 
     @Resource
     private PaperRepository paperRepository;
@@ -742,7 +751,15 @@ public class AssessmentServiceImpl implements AssessmentService {
         int update = assessmentsMapper.updateAssessment(assessments);
         if (update > 0) {
             log.info("[updateAssessment.method] 更新测评成功: userId={}, assessmentId={}, title={}, duration={}, startTime={}, endTime={}, isPublished={}", userId, assessmentId, title, duration, startTime, endTime, isPublished);
-            return assessmentsMapper.getAssessmentById(assessmentId);
+            Assessments updatedAssessment = assessmentsMapper.getAssessmentById(assessmentId);
+            if (updatedAssessment != null
+                    && !Objects.equals(assessmentById.getIsPublished(), Const.IS_PUBLISHED_TRUE)
+                    && Objects.equals(updatedAssessment.getIsPublished(), Const.IS_PUBLISHED_TRUE)) {
+                Courses course = coursesMapper.getCourseById(updatedAssessment.getCourseId());
+                Users actor = sysUserService.findUserById(userId);
+                notificationCenterService.notifyAssessmentPublished(updatedAssessment, course, actor);
+            }
+            return updatedAssessment;
         }
         return null;
     }
@@ -800,9 +817,16 @@ public class AssessmentServiceImpl implements AssessmentService {
             log.warn("[publishAssessment.method] 用户无权发布该测评: userId={}, assessmentId={}", userId, assessmentId);
             return false;
         }
+        if (Objects.equals(assessmentById.getIsPublished(), Const.IS_PUBLISHED_TRUE)) {
+            log.info("[publishAssessment.method] 测评已是发布状态，无需重复发布: assessmentId={}", assessmentId);
+            return true;
+        }
         int publish = assessmentsMapper.publishAssessment(assessmentId);
         if (publish > 0) {
             log.info("[publishAssessment.method] 发布测评成功: userId={}, assessmentId={}", userId, assessmentId);
+            Courses course = coursesMapper.getCourseById(assessmentById.getCourseId());
+            Users actor = sysUserService.findUserById(userId);
+            notificationCenterService.notifyAssessmentPublished(assessmentById, course, actor);
             return true;
         }
         return false;

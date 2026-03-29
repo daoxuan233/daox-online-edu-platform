@@ -15,6 +15,8 @@ import com.daox.online.mapper.UserMapper;
 import com.daox.online.repository.mongodb.PaperRepository;
 import com.daox.online.repository.mongodb.QuestionRepository;
 import com.daox.online.repository.mongodb.StudentAnswerRepository;
+import com.daox.online.service.NotificationCenterService;
+import com.daox.online.service.SysUserService;
 import com.mongodb.client.result.UpdateResult;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -51,6 +53,8 @@ public class TeacherGradingService {
     private final AssessmentsMapper assessmentsMapper;
     private final CourseMapper courseMapper;
     private final UserMapper userMapper;
+        private final SysUserService sysUserService;
+        private final NotificationCenterService notificationCenterService;
 
     /**
      * 获取指定教师的待批阅任务列表
@@ -459,8 +463,10 @@ public class TeacherGradingService {
         }
 
         // --- 步骤 3: (Java) 遍历并校验，筛选出真正完成批改的答卷 ID ---
-        List<String> idsToFinalize = pendingSubmissions.stream()
+        List<StudentAnswer> finalizedSubmissions = pendingSubmissions.stream()
                 .filter(submission -> isFullyGraded(submission, subjectiveQuestionIds))
+                .collect(Collectors.toList());
+        List<String> idsToFinalize = finalizedSubmissions.stream()
                 .map(StudentAnswer::getId)
                 .collect(Collectors.toList());
 
@@ -475,6 +481,17 @@ public class TeacherGradingService {
             UpdateResult result = mongoTemplate.updateMulti(query, update, StudentAnswer.class);
             finalizedCount = result.getModifiedCount();
             log.info("[finalizeGrading] 成功归档 {} 份答卷", finalizedCount);
+                        if (finalizedCount > 0) {
+                                Assessments assessment = assessmentsMapper.getAssessmentById(assessmentId);
+                                Courses course = assessment == null ? null : courseMapper.selectByPrimaryKey(assessment.getCourseId());
+                                Users actor = assessment == null ? null : sysUserService.findUserById(assessment.getCreatorId());
+                                notificationCenterService.notifyGradingCompleted(
+                                                assessment,
+                                                course,
+                                                actor,
+                                                finalizedSubmissions.stream().map(StudentAnswer::getUserId).distinct().toList()
+                                );
+                        }
         }
 
         // --- 步骤 5: (Java) 构建“部分成功”的响应 ---

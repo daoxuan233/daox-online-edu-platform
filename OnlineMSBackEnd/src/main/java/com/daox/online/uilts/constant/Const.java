@@ -180,6 +180,21 @@ public final class Const {
     public static final String COURSE_INFO_KEY = "course:info:";
 
     /**
+     * redis key - 分类常规删除索引集合
+     */
+    public static final String CATEGORY_PENDING_DELETE_INDEX_KEY = "category:delete:pending:index";
+
+    /**
+     * redis key - 分类常规删除详情前缀
+     */
+    public static final String CATEGORY_PENDING_DELETE_PREFIX = "category:delete:pending:";
+
+    /**
+     * 系统保留分类名称
+     */
+    public static final String CATEGORY_SYSTEM_FALLBACK_NAME = "待重新分类";
+
+    /**
      * 统计数据缓存时间 - 1小时缓存
      */
     public static final long CACHE_TTL = 3600; // 时间单位 秒
