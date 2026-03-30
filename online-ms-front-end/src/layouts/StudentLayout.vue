@@ -185,7 +185,11 @@
       
       <!-- 页面内容 -->
       <main class="page-content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
     
@@ -414,10 +418,10 @@ onUnmounted(() => {
 /* 侧边栏样式 */
 .sidebar {
   width: 240px;
-  background: rgba(240, 240, 243, 0.25);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   top: 0;
@@ -425,8 +429,8 @@ onUnmounted(() => {
   height: 100vh;
   z-index: 1000;
   box-shadow: 
-    8px 0 32px rgba(0, 47, 167, 0.1),
-    inset 1px 0 0 rgba(255, 255, 255, 0.2);
+    8px 0 24px rgba(0, 47, 167, 0.05),
+    inset -1px 0 0 rgba(255, 255, 255, 0.3);
 }
 
 .modern-sidebar {
@@ -670,7 +674,7 @@ onUnmounted(() => {
 .main-content {
   flex: 1;
   margin-left: 240px;
-  padding-top: 90px;
+  padding-top: 110px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 1;
@@ -681,21 +685,25 @@ onUnmounted(() => {
 /* 顶部导航栏样式 */
 .navbar {
   height: 80px;
-  padding: 0 0.75rem;
-  margin: 0.5rem;
-  background: rgba(240, 240, 243, 0.25);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 0 1.5rem;
+  margin: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 8px 32px rgba(0, 47, 167, 0.08);
+  box-shadow:
+    8px 8px 16px rgba(209, 209, 212, 0.4),
+    -8px -8px 16px rgba(255, 255, 255, 0.8);
   position: fixed;
   top: 0;
   left: 240px;
   right: 0;
   z-index: 999;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navbar::before {
@@ -984,11 +992,25 @@ onUnmounted(() => {
 
 /* 页面内容样式 */
 .page-content {
-  padding: 0.75rem;
+  padding: 1.5rem;
   min-height: calc(100vh - 80px);
   background: transparent;
   position: relative;
   z-index: 1;
+}
+
+/* 页面切换动画 */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
 /* 遮罩层样式 */
@@ -1132,6 +1154,10 @@ onUnmounted(() => {
   
   .navbar {
     padding: 0 1rem;
+    left: 0;
+    margin: 1rem;
+    width: auto;
+    right: 0;
   }
   
   .sidebar-overlay {
@@ -1156,6 +1182,7 @@ onUnmounted(() => {
   .navbar {
     height: 64px;
     padding: 0 0.75rem;
+    margin: 0.5rem;
   }
   
   .action-btn {

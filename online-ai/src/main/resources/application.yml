@@ -1,9 +1,11 @@
 spring:
   application:
     name: online-ai
+  profiles:
+    active: local
   security:
     jwt:
-      key: 'q1w2e3r0r9t7y.k8z0o2p3z4m5d6f7k5g7c'
+      key: ${SPRING_SECURITY_JWT_KEY}
       expire: 24
       limit:
         base: 60
@@ -12,11 +14,11 @@ spring:
 
   rabbitmq:
     # addresses: 192.168.116.128
-    addresses: 192.168.15.128
-    port: 5672
-    username: admin
-    password: admin
-    virtual-host: /educate
+    addresses: ${SPRING_RABBITMQ_ADDRESSES}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USERNAME}
+    password: ${SPRING_RABBITMQ_PASSWORD}
+    virtual-host: ${SPRING_RABBITMQ_VIRTUAL_HOST}
     listener:
       simple:
         acknowledge-mode: auto
@@ -54,8 +56,8 @@ spring:
           - deepseek
           - qwen
     openai:
-      api-key: sk-b54de805d4f643249373a194e3df8d86
-      base-url: https://api.deepseek.com
+      api-key: ${SPRING_AI_OPENAI_API_KEY}
+      base-url: ${SPRING_AI_OPENAI_BASE_URL}
       chat:
         options:
           model: deepseek-chat
@@ -64,31 +66,31 @@ spring:
           model: text-embedding-v4
           dimensions: 1536
     dashscope:
-      api-key: sk-f91acc5b3d254753bfe3e1833d4c2214
+      api-key: ${SPRING_AI_DASHSCOPE_API_KEY}
       chat:
         options:
           model: qwen-plus
           temperature: 0.7
     deepseek:
-      api-key: sk-b54de805d4f643249373a194e3df8d86
-      base-url: https://api.deepseek.com
+      api-key: ${SPRING_AI_DEEPSEEK_API_KEY}
+      base-url: ${SPRING_AI_DEEPSEEK_BASE_URL}
       chat:
         options:
           model: deepseek-chat
 
   data:
     redis:
-      host: 101.126.19.83
-      port: 6380
-      password: another_strong_password_DaoXuanAdmin_redis2
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
     mongodb:
-      host: 101.126.19.83
-      port: 27018
-      database: online_educate
-      username: your_mongo2_user
-      password: your_super_strong_password_for_mongo2
-      authentication-database: admin
-      uri: mongodb://your_mongo2_user:your_super_strong_password_for_mongo2@101.126.19.83:27018/online_educate?authSource=admin&socketTimeoutMS=60000&connectTimeoutMS=10000
+      host: ${SPRING_DATA_MONGODB_HOST}
+      port: ${SPRING_DATA_MONGODB_PORT}
+      database: ${SPRING_DATA_MONGODB_DATABASE}
+      username: ${SPRING_DATA_MONGODB_USERNAME}
+      password: ${SPRING_DATA_MONGODB_PASSWORD}
+      authentication-database: ${SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE}
+      uri: ${SPRING_DATA_MONGODB_URI}
 
 server:
   port: 8088

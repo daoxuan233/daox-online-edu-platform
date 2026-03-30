@@ -20,7 +20,6 @@
     <modules>
         <module>OnlineMSBackEnd</module>
         <module>online-ai</module>
-        <module>online-ai-ppt</module>
     </modules>
     <properties>
         <!-- JDK版本 -->

@@ -10,20 +10,20 @@
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-            <charset>${CONSOLE_LOG_CHARSET}</charset>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <encoder>
             <pattern>${FILE_LOG_PATTERN}</pattern>
-            <charset>${FILE_LOG_CHARSET}</charset>
+            <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <FileNamePattern>log/online-ai/%d{yyyy-MM-dd}-spring-%i.log</FileNamePattern>
+            <FileNamePattern>log/online-ms-backend/%d{yyyy-MM-dd}spring-%i.log</FileNamePattern>
             <cleanHistoryOnStart>true</cleanHistoryOnStart>
             <maxHistory>365</maxHistory>
-            <maxFileSize>3072KB</maxFileSize>
+            <maxFileSize>50MB</maxFileSize>
         </rollingPolicy>
     </appender>
 

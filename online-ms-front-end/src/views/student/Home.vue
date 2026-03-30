@@ -338,6 +338,7 @@ import { ElMessage } from 'element-plus'
 import {getUsername} from "@/utils/tokenAnalysis.js";
 import { getCompletedCoursesCount, getTotalLearningTime, getOverallProgress, getMyCourseList } from '@/api/students/stuAPI.js';
 import markdownRender from '@/components/markdownRender/NotAIShow.vue'
+import gsap from 'gsap';
 
 const router = useRouter()
 
@@ -674,12 +675,39 @@ async function loadMyCourseList() {
 }
 
 onMounted(async () => {
-  // 页面加载动画或其他初始化逻辑
+  // 页面数据加载
   await stuName();
   await loadCompletedCoursesCount();
   await loadTotalLearningTime();
   await loadOverallProgress();
   await loadMyCourseList();
+
+  // 添加全局页面入场动画 (GSAP)
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+    // 首屏区域入场
+    tl.fromTo('.hero-text > *',
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, stagger: 0.1 }
+    )
+    .fromTo('.hero-visual',
+      { scale: 0.9, opacity: 0, rotation: 5 },
+      { scale: 1, opacity: 1, rotation: 0, duration: 1, ease: 'back.out(1.7)' },
+      '-=0.6'
+    )
+    .fromTo('.floating-elements .floating-icon',
+      { y: 20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, stagger: 0.1 },
+      '-=0.4'
+    );
+
+    // 下方卡片区域滚动入场逻辑 (简单延迟或者使用 ScrollTrigger，这里用基础延迟显示)
+    gsap.fromTo('.my-courses-section, .features-section, .news-section',
+      { y: 40, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, stagger: 0.2, delay: 0.5 }
+    );
+  }
 })
 </script>
 
@@ -736,10 +764,19 @@ onMounted(async () => {
 }
 
 .hero-section {
-  padding: var(--spacing-4xl) 0 var(--spacing-4xl);
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  margin: var(--spacing-lg);
+  border-radius: 24px;
   position: relative;
   overflow: hidden;
   z-index: 1;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    8px 8px 16px #d1d1d4,
+    -8px -8px 16px #ffffff;
 }
 
 .hero-background {
@@ -1425,8 +1462,17 @@ onMounted(async () => {
 }
 
 .my-courses-section {
-  padding: var(--spacing-4xl) 0;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  margin: var(--spacing-lg);
+  border-radius: 24px;
   position: relative;
+  background: rgba(240, 240, 243, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    8px 8px 16px #d1d1d4,
+    -8px -8px 16px #ffffff;
 }
 
 .my-courses-section::before {
@@ -1858,8 +1904,17 @@ onMounted(async () => {
 }
 
 .features-section {
-  padding: var(--spacing-4xl) 0;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  margin: var(--spacing-lg);
+  border-radius: 24px;
   position: relative;
+  background: rgba(240, 240, 243, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    8px 8px 16px #d1d1d4,
+    -8px -8px 16px #ffffff;
 }
 
 .features-section::before {
@@ -1926,8 +1981,17 @@ onMounted(async () => {
 }
 
 .news-section {
-  padding: var(--spacing-4xl) 0;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  margin: var(--spacing-lg);
+  border-radius: 24px;
   position: relative;
+  background: rgba(240, 240, 243, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    8px 8px 16px #d1d1d4,
+    -8px -8px 16px #ffffff;
 }
 
 .news-section::before {

@@ -1,6 +1,8 @@
 spring:
   application:
     name: OnlineMSBackEnd
+  profiles:
+    active: local
 
   servlet:
     multipart:
@@ -9,11 +11,11 @@ spring:
       enabled: true
   rabbitmq:
     # addresses: 192.168.116.128
-    addresses: 192.168.15.128
-    port: 5672
-    username: admin
-    password: admin
-    virtual-host: /educate
+    addresses: ${SPRING_RABBITMQ_ADDRESSES}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USERNAME}
+    password: ${SPRING_RABBITMQ_PASSWORD}
+    virtual-host: ${SPRING_RABBITMQ_VIRTUAL_HOST}
     publisher-confirm-type: correlated
     publisher-returns: true
   datasource:
@@ -23,31 +25,31 @@ spring:
     # 2) 后端当前时间模型包含 java.util.Date（瞬时时间），会经过JDBC时区换算
     # 3) 若此处配置为 UTC，会出现“前端00:00，数据库落16:00(前一天)”的问题
     # 因此将 serverTimezone 调整为 Asia/Shanghai，保证写入与读取都按业务时区一致
-    url: jdbc:mysql://localhost:3306/online_educate?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8
-    username: root
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: 101.126.19.83
-      port: 6379
-      password: my_super_strong_password_DaoXuanAdmin_redis1
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
     mongodb:
-      host: 101.126.19.83
-      port: 27017
-      database: online_educate
-      username: daoxuanadmin
-      password: DaoXuanAdmin
-      authentication-database: admin
-      uri: mongodb://daoxuanadmin:DaoXuanAdmin@101.126.19.83:27017/online_educate?authSource=admin&socketTimeoutMS=60000&connectTimeoutMS=10000
+      host: ${SPRING_DATA_MONGODB_HOST}
+      port: ${SPRING_DATA_MONGODB_PORT}
+      database: ${SPRING_DATA_MONGODB_DATABASE}
+      username: ${SPRING_DATA_MONGODB_USERNAME}
+      password: ${SPRING_DATA_MONGODB_PASSWORD}
+      authentication-database: ${SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE}
+      uri: ${SPRING_DATA_MONGODB_URI}
   mail:
-    host: smtp.163.com
-    username: daoxuan5117@163.com
-    password: NC3WnkKRRKU6q6NQ
+    host: ${SPRING_MAIL_HOST}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
     default-encoding: utf-8
   security:
     jwt:
-      key: 'q1w2e3r0r9t7y.k8z0o2p3z4m5d6f7k5g7c'
+      key: ${SPRING_SECURITY_JWT_KEY}
       expire: 72
       limit:
         base: 10
@@ -75,10 +77,10 @@ app:
   file-storage:
     minio:
       # endpoint: http://192.168.116.128:9000
-      endpoint: http://192.168.15.128:9000
-      accessKey: daoxuanAdmin
-      secretKey: daoxuanAdmin
-      bucketName: educate
+      endpoint: ${APP_FILE_STORAGE_MINIO_ENDPOINT}
+      accessKey: ${APP_FILE_STORAGE_MINIO_ACCESS_KEY}
+      secretKey: ${APP_FILE_STORAGE_MINIO_SECRET_KEY}
+      bucketName: ${APP_FILE_STORAGE_MINIO_BUCKET_NAME}
   id-generator:
     enable-uuid-fallback: true
     append-uuid: false

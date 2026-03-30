@@ -11,7 +11,7 @@
 /.agents/
 /.venv/
 /log/
-/sql/
+
 
 
 # IDE相关文件
@@ -33,7 +33,6 @@ Thumbs.db
 
 /design-doc/
 # 排除文档文件夹
-/docs/
 /doc/
 
 # 排除所有markdown文件
@@ -49,6 +48,9 @@ OnlineMSBackEnd/docs/
 # mvnm文件
 OnlineMSBackEnd/.mvnw
 OnlineMSBackEnd/.mvnw.cmd
+# log目录
+OnlineMSBackEnd/log/
+
 
 # 排除online-ai下内容
 #.mvn目录
@@ -67,6 +69,7 @@ online-ai/.mvnw.cmd
 .env
 .env.local
 .env.*.local
+**/application-local.yml
 
 # 其他临时文件
 *.tmp

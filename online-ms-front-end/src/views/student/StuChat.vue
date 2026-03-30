@@ -740,7 +740,8 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted, onUnmounted, nextTick} from 'vue'
+import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
+import gsap from 'gsap'
 import {createWebSocket} from '@/utils/websocket'
 import {getCurrentUserId, parseTokenPayload} from '@/api/index'
 import {getFriendList, getHistoryList, getHistoryDetail, getStudentProfile, queryFriend, addFriend, getPendingFriendRequestsCount, getPendingFriendRequests, confirmFriendRequest} from '@/api/students/stuAPI.js'
@@ -1408,6 +1409,14 @@ const switchChatType = async (type) => {
   if (type === chatTypes.AI) {
     await loadAIConversationList()
   }
+
+  // 列表切场动画
+  nextTick(() => {
+    gsap.fromTo('.conversation-item',
+      { opacity: 0, x: -20 },
+      { opacity: 1, x: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out' }
+    )
+  })
 }
 
 // 选择对话
@@ -1417,6 +1426,14 @@ const selectConversation = async (conversation) => {
 
   // 清空当前消息列表
   currentMessages.value = []
+
+  // 对话框进场动画
+  nextTick(() => {
+    gsap.fromTo('.chat-active',
+      { opacity: 0, scale: 0.98 },
+      { opacity: 1, scale: 1, duration: 0.4, ease: 'power2.out' }
+    )
+  })
 
   // 清除未读计数
   if (unreadCounts.value[conversation.id]) {
@@ -2664,6 +2681,25 @@ onMounted(async () => {
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
   document.addEventListener('msfullscreenchange', handleFullscreenChange)
   document.addEventListener('click', handleClickOutside)
+
+  // GSAP 动画 - 页面加载时执行教育科技感进场动画
+  nextTick(() => {
+    const tl = gsap.timeline()
+    tl.fromTo('.chat-sidebar',
+      { x: -50, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
+    )
+    .fromTo('.conversation-list',
+      { x: -30, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
+      '-=0.4'
+    )
+    .fromTo('.chat-content',
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
+      '-=0.4'
+    )
+  })
 })
 
 onUnmounted(() => {
@@ -2701,16 +2737,19 @@ onUnmounted(() => {
   justify-content: flex-start;
 }
 
-/* 新拟态卡片基础样式 */
+/* 新拟态卡片基础样式 - 结合科技感磨砂玻璃 */
 .neumorphism-card {
-  background: #f0f0f3;
-  box-shadow: 8px 8px 16px #d1d1d4,
-  -8px -8px 16px #ffffff;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 8px 32px rgba(0, 47, 167, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .neumorphism-card::before {
@@ -2721,9 +2760,9 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg,
-  rgba(255, 255, 255, 0.1) 0%,
-  rgba(255, 255, 255, 0.05) 50%,
-  rgba(0, 0, 0, 0.02) 100%);
+  rgba(255, 255, 255, 0.4) 0%,
+  rgba(255, 255, 255, 0.1) 50%,
+  rgba(0, 47, 167, 0.02) 100%);
   pointer-events: none;
 }
 
@@ -2768,8 +2807,9 @@ onUnmounted(() => {
   align-items: center;
   gap: 1.25rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 16px;
   color: #4a5568;
   font-weight: 500;
@@ -2777,24 +2817,24 @@ onUnmounted(() => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 4px 4px 8px rgba(0, 47, 167, 0.1),
-  -2px -2px 4px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px rgba(0, 47, 167, 0.05),
+  inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .chat-type-btn:hover {
-  background: rgba(0, 47, 167, 0.05);
+  background: rgba(255, 255, 255, 0.8);
   color: #002FA7;
   transform: translateY(-2px);
-  box-shadow: 6px 6px 12px rgba(0, 47, 167, 0.15),
-  -3px -3px 6px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 15px rgba(0, 47, 167, 0.1),
+  inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .chat-type-btn.active {
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.1) 0%, rgba(81, 123, 77, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 240, 245, 0.9) 100%);
   color: #002FA7;
   font-weight: 600;
-  box-shadow: inset 4px 4px 8px rgba(0, 47, 167, 0.1),
-  inset -2px -2px 4px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 47, 167, 0.1),
+  inset 2px 2px 5px rgba(255, 255, 255, 1);
 }
 
 .chat-type-btn.active .tab-indicator {
@@ -2850,8 +2890,8 @@ onUnmounted(() => {
 .action-btn {
   width: 36px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   color: #517B4D;
   cursor: pointer;
@@ -2859,14 +2899,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 2px 2px 4px rgba(0, 47, 167, 0.1),
-  -1px -1px 2px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 47, 167, 0.05);
 }
 
 .action-btn:hover {
-  background: rgba(81, 123, 77, 0.1);
+  background: rgba(255, 255, 255, 0.9);
   color: #517B4D;
   transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 47, 167, 0.1);
 }
 
 .create-new-btn {
@@ -2879,14 +2919,16 @@ onUnmounted(() => {
   color: white;
   font-weight: 500;
   font-size: 0.875rem;
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 10px rgba(0, 47, 167, 0.2);
 }
 
 .create-new-btn:hover {
   background: linear-gradient(135deg, #001f75 0%, #3d5c39 100%);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 4px 4px 12px rgba(0, 47, 167, 0.3),
-  -2px -2px 6px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 15px rgba(0, 47, 167, 0.3);
 }
 
 .btn-text {
@@ -2905,8 +2947,8 @@ onUnmounted(() => {
   gap: 8px;
   padding: 8px 10px;
   margin-bottom: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2916,16 +2958,15 @@ onUnmounted(() => {
 }
 
 .conversation-item:hover {
-  background: rgba(0, 47, 167, 0.05);
+  background: rgba(255, 255, 255, 0.8);
   transform: translateX(4px);
-  box-shadow: 4px 4px 8px rgba(0, 47, 167, 0.1),
-  -2px -2px 4px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 47, 167, 0.08);
 }
 
 .conversation-item.active {
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.1) 0%, rgba(81, 123, 77, 0.05) 100%);
-  box-shadow: inset 2px 2px 4px rgba(0, 47, 167, 0.1),
-  inset -1px -1px 2px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 245, 255, 0.9) 100%);
+  border-left: 4px solid #002FA7;
+  box-shadow: 0 4px 12px rgba(0, 47, 167, 0.1);
 }
 
 .conversation-avatar {
@@ -3136,6 +3177,8 @@ onUnmounted(() => {
   justify-content: center;
   text-align: center;
   padding: 2rem;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
 }
 
 .empty-icon {
@@ -3149,8 +3192,7 @@ onUnmounted(() => {
   color: white;
   font-size: 2rem;
   margin-bottom: 1.5rem;
-  box-shadow: 8px 8px 16px rgba(0, 47, 167, 0.2),
-  -4px -4px 8px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 47, 167, 0.2);
 }
 
 .empty-title {
@@ -3172,6 +3214,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 /* 聊天头部 */
@@ -3180,8 +3225,11 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 47, 167, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 10;
 }
 
 .chat-info {
@@ -3229,8 +3277,8 @@ onUnmounted(() => {
 .header-action-btn {
   width: 40px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   color: #517B4D;
   cursor: pointer;
@@ -3238,14 +3286,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 2px 2px 4px rgba(0, 47, 167, 0.1),
-  -1px -1px 2px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 47, 167, 0.05);
 }
 
 .header-action-btn:hover {
-  background: rgba(81, 123, 77, 0.1);
-  color: #517B4D;
+  background: rgba(255, 255, 255, 0.9);
+  color: #002FA7;
   transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 47, 167, 0.1);
 }
 
 /* 消息容器 */
@@ -3351,25 +3399,24 @@ onUnmounted(() => {
 }
 
 .message-bubble {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 18px; /* 圆角效果 */
-  /*padding: 0.75rem 1rem;*/
-  box-shadow: 4px 4px 8px rgba(0, 47, 167, 0.05),
-  -2px -2px 4px rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 1);
+  border-radius: 18px;
+  box-shadow: 0 4px 12px rgba(0, 47, 167, 0.05);
   position: relative;
   backdrop-filter: blur(10px);
-  /*max-width: 50%;*/ /* 设置最大宽度，防止过长的消息占据整个屏幕 */
-  display: inline-block; /* 使气泡宽度由内容决定 */
-  word-wrap: break-word; /* 允许长单词或 URL 地址换行 */
-  margin-bottom: 8px; /* 消息间的间距 */
+  display: inline-block;
+  word-wrap: break-word;
+  margin-bottom: 8px;
   padding: 10px 15px;
   max-width: 100%;
 }
 
 .sender-message .message-bubble {
-  background: linear-gradient(135deg, #517B4D 0%, #002FA7 100%);
+  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
   margin-left: auto;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 47, 167, 0.15);
 }
 
 .sender-message .message-text {
@@ -3377,13 +3424,18 @@ onUnmounted(() => {
 }
 
 .receiver-message .message-bubble {
-  background-color: #f1f0f0;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.9);
 }
 
-
 .own-message .message-bubble {
-  background: linear-gradient(135deg, rgba(0, 47, 167, 0.1) 0%, rgba(81, 123, 77, 0.05) 100%);
-  border-color: rgba(0, 47, 167, 0.2);
+  background: linear-gradient(135deg, #002FA7 0%, #517B4D 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.own-message .message-text {
+  color: white;
 }
 
 .message-text {
@@ -3399,8 +3451,10 @@ onUnmounted(() => {
 .message-input-area {
   position: relative;
   padding: 1rem 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(0, 47, 167, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  z-index: 10;
 }
 
 .input-toolbar {
@@ -3412,8 +3466,8 @@ onUnmounted(() => {
 .toolbar-btn {
   width: 36px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   color: #64748b;
   cursor: pointer;
@@ -3421,14 +3475,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 2px 2px 4px rgba(0, 47, 167, 0.1),
-  -1px -1px 2px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 47, 167, 0.05);
 }
 
 .toolbar-btn:hover {
-  background: rgba(0, 47, 167, 0.05);
+  background: rgba(255, 255, 255, 0.9);
   color: #002FA7;
   transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 47, 167, 0.1);
 }
 
 .input-container {
@@ -3442,16 +3496,15 @@ onUnmounted(() => {
   min-height: 44px;
   max-height: 120px;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 47, 167, 0.1);
   border-radius: 22px;
   font-size: 0.95rem;
   color: #1e293b;
   resize: none;
   outline: none;
   transition: all 0.3s ease;
-  box-shadow: inset 2px 2px 4px rgba(0, 47, 167, 0.05),
-  inset -1px -1px 2px rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 2px 4px rgba(0, 47, 167, 0.02);
   backdrop-filter: blur(10px);
 }
 
@@ -3461,10 +3514,8 @@ onUnmounted(() => {
 
 .message-textarea:focus {
   border-color: rgba(0, 47, 167, 0.3);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: inset 1px 1px 2px rgba(0, 47, 167, 0.1),
-  inset -0.5px -0.5px 1px rgba(255, 255, 255, 0.3),
-  0 0 0 2px rgba(0, 47, 167, 0.1);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 47, 167, 0.1);
 }
 
 .send-btn {
@@ -3480,14 +3531,12 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  box-shadow: 4px 4px 8px rgba(0, 47, 167, 0.3),
-  -2px -2px 4px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 47, 167, 0.2);
 }
 
 .send-btn:hover:not(:disabled) {
   transform: scale(1.05) translateY(-2px);
-  box-shadow: 6px 6px 12px rgba(0, 47, 167, 0.4),
-  -3px -3px 6px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 15px rgba(0, 47, 167, 0.3);
 }
 
 .send-btn:active {
@@ -3698,21 +3747,19 @@ onUnmounted(() => {
   top: calc(100% + 8px);
   right: 0;
   min-width: 220px;
-  background: #f0f0f3;
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 16px;
   padding: 1rem;
   z-index: 1000;
-  box-shadow: 0 8px 32px rgba(0, 47, 167, 0.15),
-              inset 2px 2px 4px rgba(255, 255, 255, 0.8),
-              inset -2px -2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 47, 167, 0.1);
+  border: 1px solid rgba(255, 255, 255, 1);
+  backdrop-filter: blur(20px);
 }
 
 .mode-menu-header {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(0, 47, 167, 0.1);
+  border-bottom: 1px solid rgba(0, 47, 167, 0.08);
 }
 
 .mode-menu-header span {
@@ -3732,21 +3779,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1),
-              inset 1px 1px 2px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 47, 167, 0.05);
 }
 
 .mode-option:hover {
-  background: rgba(0, 47, 167, 0.05);
+  background: rgba(255, 255, 255, 1);
   border-color: rgba(0, 47, 167, 0.2);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 47, 167, 0.15),
-              inset 1px 1px 2px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 10px rgba(0, 47, 167, 0.12);
 }
 
 .mode-icon {
@@ -3917,26 +3962,18 @@ onUnmounted(() => {
 .tool-card {
   width: 100%;
   max-width: 600px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.85);
   border-radius: 20px;
   padding: 2rem;
-  box-shadow: 
-    8px 8px 16px rgba(0, 47, 167, 0.1),
-    -8px -8px 16px rgba(255, 255, 255, 0.9),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.8),
-    inset -2px -2px 4px rgba(0, 47, 167, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 32px rgba(0, 47, 167, 0.08);
+  border: 1px solid rgba(255, 255, 255, 1);
+  backdrop-filter: blur(20px);
   transition: all 0.3s ease;
 }
 
 .tool-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    12px 12px 24px rgba(0, 47, 167, 0.15),
-    -12px -12px 24px rgba(255, 255, 255, 0.95),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
-    inset -2px -2px 4px rgba(0, 47, 167, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 47, 167, 0.12);
 }
 
 .tool-header {
@@ -4112,17 +4149,19 @@ onUnmounted(() => {
 }
 
 .ppt-modal {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 
-    0 20px 40px rgba(0, 47, 167, 0.15),
-    0 8px 16px rgba(0, 47, 167, 0.1),
+    0 24px 48px rgba(0, 47, 167, 0.12),
+    0 8px 16px rgba(0, 47, 167, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  animation: modalSlideIn 0.3s ease-out;
+  animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modalSlideIn {
@@ -4138,12 +4177,11 @@ onUnmounted(() => {
 
 .ppt-modal-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(0, 47, 167, 0.1);
+  border-bottom: 1px solid rgba(0, 47, 167, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 16px 16px 0 0;
+  background: transparent;
 }
 
 .ppt-modal-header h3 {
