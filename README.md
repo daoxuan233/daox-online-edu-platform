@@ -1,32 +1,29 @@
-<div align="center">
-	<img src="./online-ms-front-end/public/DaoX_C7-Center_Logo.svg" width="128" alt="DaoX Logo" />
+<p align="center">
+  <img src="./online-ms-front-end/public/DaoX_C7-Center_Logo.svg" width="128" alt="DaoX Logo" />
+</p>
 
-	<h1>Online Education</h1>
+# Online Education
 
-	<p><strong>基于 Spring Boot 3.5 + Vue 3 的在线教育平台聚合工程</strong></p>
-	<p>覆盖学生端、教师端、管理端，以及独立的 AI 对话与治理服务。</p>
+**基于 Spring Boot 3.5 + Vue 3 的在线教育平台聚合工程**
 
-	<p>
-		<img src="https://img.shields.io/badge/Java-21-0f766e?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21" />
-		<img src="https://img.shields.io/badge/Spring%20Boot-3.5.0-3f8f3f?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.5.0" />
-		<img src="https://img.shields.io/badge/Maven-Multi--Module-c2410c?style=for-the-badge&logo=apachemaven&logoColor=white" alt="Maven Multi Module" />
-		<img src="https://img.shields.io/badge/Vue-3.5.13-42b883?style=for-the-badge&logo=vuedotjs&logoColor=white" alt="Vue 3.5.13" />
-		<img src="https://img.shields.io/badge/Vite-6.2.4-646cff?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 6.2.4" />
-		<img src="https://img.shields.io/badge/Element%20Plus-2.10.2-409eff?style=for-the-badge" alt="Element Plus 2.10.2" />
-	</p>
+覆盖学生端、教师端、管理端，以及独立的 AI 对话与治理服务。
 
-	<p>
-		<img src="https://img.shields.io/badge/MyBatis-3.0.4-1f2937?style=flat-square" alt="MyBatis 3.0.4" />
-		<img src="https://img.shields.io/badge/Spring%20AI-1.0.0-0f172a?style=flat-square" alt="Spring AI 1.0.0" />
-		<img src="https://img.shields.io/badge/MySQL-8+-1d4ed8?style=flat-square&logo=mysql&logoColor=white" alt="MySQL" />
-		<img src="https://img.shields.io/badge/Redis-Cache-dc2626?style=flat-square&logo=redis&logoColor=white" alt="Redis" />
-		<img src="https://img.shields.io/badge/MongoDB-Document-166534?style=flat-square&logo=mongodb&logoColor=white" alt="MongoDB" />
-		<img src="https://img.shields.io/badge/RabbitMQ-Message%20Queue-f97316?style=flat-square&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
-		<img src="https://img.shields.io/badge/MinIO-Object%20Storage-b91c1c?style=flat-square" alt="MinIO" />
-		<img src="https://img.shields.io/badge/SSE-Streaming-0891b2?style=flat-square" alt="SSE Streaming" />
-		<img src="https://img.shields.io/badge/AI%20Governance-Quota%20%26%20Review-7c3aed?style=flat-square" alt="AI Governance" />
-	</p>
-</div>
+![Java 21](https://img.shields.io/badge/Java-21-0f766e?style=for-the-badge&logo=openjdk&logoColor=white)
+![Spring Boot 3.5.0](https://img.shields.io/badge/Spring%20Boot-3.5.0-3f8f3f?style=for-the-badge&logo=springboot&logoColor=white)
+![Maven Multi Module](https://img.shields.io/badge/Maven-Multi--Module-c2410c?style=for-the-badge&logo=apachemaven&logoColor=white)
+![Vue 3.5.13](https://img.shields.io/badge/Vue-3.5.13-42b883?style=for-the-badge&logo=vuedotjs&logoColor=white)
+![Vite 6.2.4](https://img.shields.io/badge/Vite-6.2.4-646cff?style=for-the-badge&logo=vite&logoColor=white)
+![Element Plus 2.10.2](https://img.shields.io/badge/Element%20Plus-2.10.2-409eff?style=for-the-badge)
+
+![MyBatis 3.0.4](https://img.shields.io/badge/MyBatis-3.0.4-1f2937?style=flat-square)
+![Spring AI 1.0.0](https://img.shields.io/badge/Spring%20AI-1.0.0-0f172a?style=flat-square)
+![MySQL](https://img.shields.io/badge/MySQL-8+-1d4ed8?style=flat-square&logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-Cache-dc2626?style=flat-square&logo=redis&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Document-166534?style=flat-square&logo=mongodb&logoColor=white)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Message%20Queue-f97316?style=flat-square&logo=rabbitmq&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-Object%20Storage-b91c1c?style=flat-square)
+![SSE Streaming](https://img.shields.io/badge/SSE-Streaming-0891b2?style=flat-square)
+![AI Governance](https://img.shields.io/badge/AI%20Governance-Quota%20%26%20Review-7c3aed?style=flat-square)
 
 ---
 
