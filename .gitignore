@@ -38,6 +38,12 @@ Thumbs.db
 # 排除所有markdown文件
 **/*.md
 
+# 公开仓库需要保留的说明文档
+!README.md
+!docs/
+!docs/public/
+!docs/public/*.md
+
 # 排除OnlineMSBackEnd下内容
 # .mvn目录
 OnlineMSBackEnd/.mvn/
