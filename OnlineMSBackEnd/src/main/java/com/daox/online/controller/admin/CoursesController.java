@@ -5,6 +5,7 @@ import com.daox.online.entity.RestBean;
 import com.daox.online.entity.views.requestVO.admin.AdminCategoryDeleteRequestVO;
 import com.daox.online.entity.views.requestVO.admin.AdminCategoryMigrationRequestVO;
 import com.daox.online.entity.views.requestVO.admin.AdminCategorySaveVO;
+import com.daox.online.entity.views.requestVO.admin.AdminCourseWorkflowRequestVO;
 import com.daox.online.entity.views.responseVO.admin.AdminCategoryDeleteResultVO;
 import com.daox.online.entity.views.responseVO.admin.AdminCategoryOperationPreviewVO;
 import com.daox.online.entity.views.responseVO.course.CourseCategoriesVo;
@@ -47,6 +48,106 @@ public class CoursesController {
             return RestBean.failure(404, "课程列表为空");
         }
         return RestBean.success(courseListAll);
+    }
+
+    /**
+     * 获取全部待审核课程。
+     *
+     * @return 待审核课程列表
+     */
+    @GetMapping("/review/pending")
+    public RestBean<List<Courses>> listPendingReviewCourses() {
+        return RestBean.success(coursesService.listPendingReviewCourses());
+    }
+
+    /**
+     * 审核通过课程。
+     *
+     * @param request 审核请求体
+     * @param httpServletRequest HTTP请求
+     * @return 响应结果
+     */
+    @PostMapping("/review/approve")
+    public RestBean<String> approveCourseReview(@Valid @RequestBody AdminCourseWorkflowRequestVO request,
+                                                HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        coursesService.approveCourseReview(operatorId, request.getCourseId());
+        return RestBean.success("课程审核通过");
+    }
+
+    /**
+     * 驳回课程审核。
+     *
+     * @param request 审核请求体
+     * @param httpServletRequest HTTP请求
+     * @return 响应结果
+     */
+    @PostMapping("/review/reject")
+    public RestBean<String> rejectCourseReview(@Valid @RequestBody AdminCourseWorkflowRequestVO request,
+                                               HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        coursesService.rejectCourseReview(operatorId, request.getCourseId(), request.getComment());
+        return RestBean.success("课程已驳回并退回草稿");
+    }
+
+    /**
+     * 下架已发布课程。
+     *
+     * @param request 状态流转请求体
+     * @param httpServletRequest HTTP请求
+     * @return 响应结果
+     */
+    @PostMapping("/take-down")
+    public RestBean<String> takeDownCourse(@Valid @RequestBody AdminCourseWorkflowRequestVO request,
+                                           HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        coursesService.takeDownCourse(operatorId, request.getCourseId(), request.getComment());
+        return RestBean.success("课程下架成功");
+    }
+
+    /**
+     * 重新上架已下架课程。
+     *
+     * @param request 状态流转请求体
+     * @param httpServletRequest HTTP请求
+     * @return 响应结果
+     */
+    @PostMapping("/republish")
+    public RestBean<String> republishCourse(@Valid @RequestBody AdminCourseWorkflowRequestVO request,
+                                            HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        coursesService.republishCourse(operatorId, request.getCourseId());
+        return RestBean.success("课程重新上架成功");
+    }
+
+    /**
+     * 归档已下架课程。
+     *
+     * @param request 状态流转请求体
+     * @param httpServletRequest HTTP请求
+     * @return 响应结果
+     */
+    @PostMapping("/archive")
+    public RestBean<String> archiveCourse(@Valid @RequestBody AdminCourseWorkflowRequestVO request,
+                                          HttpServletRequest httpServletRequest) {
+        String operatorId = UserUtils.getCurrentUserId(httpServletRequest);
+        if (operatorId == null) {
+            return RestBean.failure(401, "用户未认证");
+        }
+        coursesService.archiveCourseByAdmin(operatorId, request.getCourseId(), request.getComment());
+        return RestBean.success("课程归档成功");
     }
 
     /**

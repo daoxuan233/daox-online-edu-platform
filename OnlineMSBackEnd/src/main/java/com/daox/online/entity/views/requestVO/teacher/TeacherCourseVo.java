@@ -26,6 +26,12 @@ public class TeacherCourseVo implements Serializable {
     private String coverImageUrl;
     private String teacherId;
     private String categoryId;
+    /**
+     * 课程状态。
+     * <p>
+     * 该字段仅用于页面展示回传，普通更新接口不会直接据此修改课程状态。
+     * </p>
+     */
     private String status;
     private Integer enrollmentCount;
     private Integer isDeleted;

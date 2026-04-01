@@ -75,6 +75,11 @@ const router = createRouter({
           component: () => import('../views/student/StuChat.vue')
         },
         {
+          path: 'group-chat',
+          name: 'StudentGroupChat',
+          component: () => import('../views/student/StudentGroupChat.vue')
+        },
+        {
           path: 'notifications',
           name: 'StudentNotifications',
           component: () => import('../views/shared/NotificationCenter.vue')
@@ -101,6 +106,11 @@ const router = createRouter({
           path: 'chat',
           name: 'TeacherChat',
           component: () => import('../views/teacher/TeacherChat.vue')
+        },
+        {
+          path: 'group-chat',
+          name: 'TeacherGroupChat',
+          component: () => import('../views/teacher/TeacherGroupChat.vue')
         },
         {
           path: 'notifications',
@@ -189,6 +199,11 @@ const router = createRouter({
           path: 'categories',
           name: 'CategoryManagement',
           component: () => import('../views/admin/CategoryManagement.vue')
+        },
+        {
+          path: 'course-review',
+          name: 'AdminCourseReview',
+          component: () => import('../views/admin/CourseReviewWorkbench.vue')
         },
         {
           path: 'audit-logs',

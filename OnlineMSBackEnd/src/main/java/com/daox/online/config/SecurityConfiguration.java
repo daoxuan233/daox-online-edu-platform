@@ -47,6 +47,7 @@ public class SecurityConfiguration {
                                 "/api/public/**",
                                 "/ws/**",
                                 "/single", // <--- 在这里添加对 /single 端点的放行
+                                "/group/**",
                                 "/favicon.ico", // 忽略 favicon.ico 请求 favicon.ico 是浏览器用来请求网站图标
                                 "/api/student/learning/files/**"
 

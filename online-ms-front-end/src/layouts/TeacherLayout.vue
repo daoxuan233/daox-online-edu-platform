@@ -32,6 +32,22 @@
             </router-link>
           </li>
           <li class="nav-item">
+            <router-link to="/teacher/chat" class="nav-link" exact-active-class="active">
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'comments']"/>
+              </div>
+              <span class="nav-text">对话中心</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/teacher/group-chat" class="nav-link" exact-active-class="active">
+              <div class="icon-wrapper">
+                <font-awesome-icon :icon="['fas', 'chalkboard-user']"/>
+              </div>
+              <span class="nav-text">课程群聊</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
             <router-link to="/teacher/questions" class="nav-link" exact-active-class="active">
               <div class="icon-wrapper">
                 <font-awesome-icon :icon="['fas', 'question-circle']"/>
@@ -180,6 +196,8 @@ const teacherInfo = ref({
 const pageTitles = {
   'TeacherDashboard': '教师工作台',
   'TeacherCourses': '课程管理',
+  'TeacherChat': '对话中心',
+  'TeacherGroupChat': '课程群聊',
   'CourseEdit': '编辑课程',
   'QuestionBank': '题库管理',
   'AssessmentManagement': '考试管理',

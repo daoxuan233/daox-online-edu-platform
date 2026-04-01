@@ -75,12 +75,13 @@ public class TeacherCoursesController {
      * @return 创建结果
      */
     @PostMapping
-    public RestBean<Courses> createCourse(@RequestBody CourseCoreInfoDto courseCoreInfo) {
-        Courses createdCourse = coursesService.createCourse(courseCoreInfo);
-        if (createdCourse != null) {
-            return RestBean.success(createdCourse);
+    public RestBean<Courses> createCourse(@RequestBody CourseCoreInfoDto courseCoreInfo, HttpServletRequest request) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) {
+            log.warn("[createCourse.method]用户未认证");
+            return RestBean.failure(401, "用户未认证");
         }
-        return RestBean.failure(500, "创建课程失败");
+        return RestBean.success(coursesService.createCourse(userId, courseCoreInfo));
     }
 
     /**
@@ -91,15 +92,15 @@ public class TeacherCoursesController {
      * @return 返回更新后的课程信息
      */
     @PostMapping("/{courseId}")
-    public RestBean<?> updateCourseCoreInfo(@PathVariable String courseId, @RequestBody CourseCoreInfoDto courseCoreInfo) {
-        try {
-            Courses updatedCourse = coursesService.updateCourseCoreInfo(courseId, courseCoreInfo);
-            return RestBean.success(updatedCourse);
-        } catch (RuntimeException re) { // 捕获 Service 层抛出的特定异常，如未找到资源
-            return RestBean.failure(500, re.getMessage());
-        } catch (Exception e) {
-            return RestBean.failure(500, "课程更新失败: " + e.getMessage());
+    public RestBean<?> updateCourseCoreInfo(@PathVariable String courseId,
+                                            @RequestBody CourseCoreInfoDto courseCoreInfo,
+                                            HttpServletRequest request) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) {
+            log.warn("[updateCourseCoreInfo.method]用户未认证");
+            return RestBean.failure(401, "用户未认证");
         }
+        return RestBean.success(coursesService.updateCourseCoreInfo(userId, courseId, courseCoreInfo));
     }
 
     /**
@@ -111,15 +112,16 @@ public class TeacherCoursesController {
      * @return 返回操作成功的消息
      */
     @PostMapping("/{courseId}/outline")
-    public RestBean<?> updateCourseOutline(@PathVariable String courseId, @RequestBody CourseOutlineDto outlineDto) {
-        try {
-            coursesService.updateCourseOutline(courseId, outlineDto);
-            return RestBean.success("更新课程大纲成功！");
-        } catch (RuntimeException re) {
-            return RestBean.failure(500, re.getMessage());
-        } catch (Exception e) {
-            return RestBean.failure(500, "课程大纲更新失败: " + e.getMessage());
+    public RestBean<?> updateCourseOutline(@PathVariable String courseId,
+                                           @RequestBody CourseOutlineDto outlineDto,
+                                           HttpServletRequest request) {
+        String userId = UserUtils.getCurrentUserId(request);
+        if (userId == null) {
+            log.warn("[updateCourseOutline.method]用户未认证");
+            return RestBean.failure(401, "用户未认证");
         }
+        coursesService.updateCourseOutline(userId, courseId, outlineDto);
+        return RestBean.success("更新课程大纲成功！");
     }
 
     /**
@@ -217,30 +219,30 @@ public class TeacherCoursesController {
     }
 
     /**
-     * 发布课程
+     * 提交课程审核。
+     * <p>
+     * 保留旧的 /course/publish 路径作为兼容入口，但其语义已调整为“提交审核”，
+     * 不再允许教师直接把课程改为已发布。
+     * </p>
      *
      * @param courseId 课程ID
      * @param request  请求
      * @return 响应
      */
-    @PostMapping("/course/publish")
-    public RestBean<String> publishCourse(@RequestParam("courseId") String courseId, HttpServletRequest request) {
+    @PostMapping({"/course/review/submit", "/course/publish"})
+    public RestBean<String> submitCourseForReview(@RequestParam("courseId") String courseId, HttpServletRequest request) {
         String userId = UserUtils.getCurrentUserId(request);
         if (userId == null) {
-            log.warn("[publishCourse.method]用户未认证");
+            log.warn("[submitCourseForReview.method]用户未认证");
             return RestBean.failure(401, "用户未认证");
         }
-        if (coursesService.publishCourse(userId, courseId)) {
-            log.info("[publishCourse.method]发布课程成功: userId={}, courseId={}", userId, courseId);
-            return RestBean.success("发布课程成功");
-        } else {
-            log.warn("[publishCourse.method]发布课程失败: userId={}, courseId={}", userId, courseId);
-            return RestBean.failure(500, "发布课程失败");
-        }
+        coursesService.submitCourseForReview(userId, courseId);
+        log.info("[submitCourseForReview.method]提交课程审核成功: userId={}, courseId={}", userId, courseId);
+        return RestBean.success("课程已提交审核");
     }
 
     /**
-     * 归档课程
+     * 教师归档草稿课程。
      *
      * @param courseId 课程ID
      * @param request  请求
@@ -253,7 +255,8 @@ public class TeacherCoursesController {
             log.warn("[archiveCourse.method]用户未认证");
             return RestBean.failure(401, "用户未认证");
         }
-        return coursesService.archiveCourse(userId, courseId) ? RestBean.success("归档课程成功") : RestBean.failure(500, "归档课程失败");
+        coursesService.archiveCourseByTeacher(userId, courseId);
+        return RestBean.success("归档课程成功");
     }
 
     /**

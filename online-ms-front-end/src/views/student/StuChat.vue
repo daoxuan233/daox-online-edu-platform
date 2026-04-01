@@ -18,6 +18,9 @@
         >
           <font-awesome-icon :icon="['fas', 'user-friends']" class="tab-icon"/>
           <span class="tab-text">好友</span>
+          <span v-if="getChatTypeUnreadCount(chatTypes.FRIEND) > 0" class="tab-unread-badge">
+            {{ formatUnreadCount(getChatTypeUnreadCount(chatTypes.FRIEND)) }}
+          </span>
           <div class="tab-indicator"></div>
         </button>
 
@@ -28,6 +31,9 @@
         >
           <font-awesome-icon :icon="['fas', 'tools']" class="tab-icon"/>
           <span class="tab-text">工具</span>
+          <span v-if="getChatTypeUnreadCount(chatTypes.TOOLS) > 0" class="tab-unread-badge">
+            {{ formatUnreadCount(getChatTypeUnreadCount(chatTypes.TOOLS)) }}
+          </span>
           <div class="tab-indicator"></div>
         </button>
 
@@ -38,6 +44,9 @@
         >
           <font-awesome-icon :icon="['fas', 'robot']" class="tab-icon"/>
           <span class="tab-text">AI助手</span>
+          <span v-if="getChatTypeUnreadCount(chatTypes.AI) > 0" class="tab-unread-badge">
+            {{ formatUnreadCount(getChatTypeUnreadCount(chatTypes.AI)) }}
+          </span>
           <div class="tab-indicator"></div>
         </button>
       </div>
@@ -119,8 +128,8 @@
                   <font-awesome-icon :icon="['fas', 'users']"/>
                   {{ conversation.memberCount }}
                 </span>
-                <span v-if="conversation.unreadCount > 0" class="unread-badge">
-                  {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                <span v-if="getConversationUnreadCount(conversation) > 0" class="unread-badge">
+                  {{ formatUnreadCount(getConversationUnreadCount(conversation)) }}
                 </span>
               </div>
             </div>
@@ -1067,6 +1076,217 @@ const isFullscreenMode = ref(false)
 const modeMenuButton = ref(null)
 const modeMenu = ref(null)
 
+/**
+ * 将未读数归一化为非负整数。
+ *
+ * @param {number|string|null|undefined} unreadCount 原始未读数。
+ * @returns {number} 归一化后的未读数。
+ */
+const normalizeUnreadCount = (unreadCount) => {
+  const numericCount = Number(unreadCount || 0)
+  return Number.isFinite(numericCount) && numericCount > 0 ? Math.trunc(numericCount) : 0
+}
+
+/**
+ * 统一格式化未读徽标显示文本。
+ *
+ * @param {number|string|null|undefined} unreadCount 未读数。
+ * @returns {string} 徽标文案，超过 99 条时显示 99+。
+ */
+const formatUnreadCount = (unreadCount) => {
+  const normalizedCount = normalizeUnreadCount(unreadCount)
+  return normalizedCount > 99 ? '99+' : String(normalizedCount)
+}
+
+/**
+ * 获取会话未读数在前端缓存中的统一键。
+ * 好友私聊统一优先使用 friendId 或 id，避免与后端 conversationId 混用后导致红点无法正确回显。
+ *
+ * @param {Object|null|undefined} conversation 会话对象。
+ * @returns {string|undefined} 未读数缓存键。
+ */
+const getUnreadCountKey = (conversation) => {
+  if (!conversation) {
+    return undefined
+  }
+
+  return conversation.friendId || conversation.id || conversation.conversationId
+}
+
+/**
+ * 获取会话当前应展示的未读数。
+ * 优先读取响应式未读映射，避免列表对象与实时消息状态不同步。
+ *
+ * @param {Object} conversation 会话对象。
+ * @returns {number} 当前会话未读数。
+ */
+const getConversationUnreadCount = (conversation) => {
+  if (!conversation) {
+    return 0
+  }
+
+  const conversationKey = getUnreadCountKey(conversation)
+  const mappedUnreadCount = unreadCounts.value[conversationKey]
+
+  if (mappedUnreadCount !== undefined) {
+    return normalizeUnreadCount(mappedUnreadCount)
+  }
+
+  return normalizeUnreadCount(conversation.unreadCount)
+}
+
+/**
+ * 根据聊天类型汇总顶部标签的未读数。
+ *
+ * @param {string} chatType 聊天类型。
+ * @returns {number} 对应分类下的未读总数。
+ */
+const getChatTypeUnreadCount = (chatType) => {
+  const conversationMap = {
+    [chatTypes.FRIEND]: friends.value,
+    [chatTypes.TOOLS]: tools.value,
+    [chatTypes.AI]: aiChats.value
+  }
+
+  return (conversationMap[chatType] || []).reduce((totalUnreadCount, conversation) => {
+    return totalUnreadCount + getConversationUnreadCount(conversation)
+  }, 0)
+}
+
+/**
+ * 将未读计数同步回当前列表对象，确保视图与实时状态一致。
+ *
+ * @param {string} conversationId 会话 ID。
+ * @param {number} unreadCount 最新未读数。
+ */
+const syncConversationUnreadCount = (conversationId, unreadCount) => {
+  const normalizedCount = normalizeUnreadCount(unreadCount)
+  const conversationLists = [friends.value, tools.value, aiChats.value, chatHistory.value]
+
+  conversationLists.forEach((conversationList) => {
+    const targetConversation = conversationList.find((conversation) => {
+      return getUnreadCountKey(conversation) === conversationId || conversation.conversationId === conversationId
+    })
+
+    if (targetConversation) {
+      targetConversation.unreadCount = normalizedCount
+    }
+  })
+
+  if (
+    currentConversation.value &&
+    (getUnreadCountKey(currentConversation.value) === conversationId || currentConversation.value.conversationId === conversationId)
+  ) {
+    currentConversation.value.unreadCount = normalizedCount
+  }
+}
+
+/**
+ * 设置指定会话的未读数。
+ *
+ * @param {string} conversationId 会话 ID。
+ * @param {number} unreadCount 未读条数。
+ */
+const setUnreadCount = (conversationId, unreadCount) => {
+  if (!conversationId) {
+    return
+  }
+
+  const normalizedCount = normalizeUnreadCount(unreadCount)
+  unreadCounts.value = {
+    ...unreadCounts.value,
+    [conversationId]: normalizedCount
+  }
+
+  syncConversationUnreadCount(conversationId, normalizedCount)
+}
+
+/**
+ * 使用后端会话历史中的未读数初始化前端未读缓存。
+ * 这样首次进入页面时，好友列表与顶部标签即可直接显示真实未读条数。
+ *
+ * @param {Array<Object>} conversationHistoryList 会话历史列表。
+ */
+const hydrateUnreadCountsFromHistory = (conversationHistoryList) => {
+  const nextUnreadCounts = (conversationHistoryList || []).reduce((unreadCountMap, conversation) => {
+    const conversationKey = getUnreadCountKey(conversation)
+
+    if (conversationKey) {
+      unreadCountMap[conversationKey] = normalizeUnreadCount(conversation.unreadCount)
+    }
+
+    return unreadCountMap
+  }, {})
+
+  unreadCounts.value = {
+    ...unreadCounts.value,
+    ...nextUnreadCounts
+  }
+}
+
+/**
+ * 将会话历史摘要合并到好友列表中。
+ * 当前界面渲染的是好友列表而非原始会话列表，因此需要把最后一条消息、最后时间和未读数同步过去。
+ */
+const syncFriendConversationsWithHistory = () => {
+  if (!friends.value.length) {
+    return
+  }
+
+  const historyByFriendId = new Map(
+    chatHistory.value
+      .map((conversation) => [conversation.friendId || conversation.id, conversation])
+      .filter(([friendId]) => Boolean(friendId))
+  )
+
+  const mergedFriendIds = new Set()
+
+  const mergedFriends = friends.value.map((friend) => {
+    const historyConversation = historyByFriendId.get(friend.id)
+
+    if (!historyConversation) {
+      return friend
+    }
+
+    mergedFriendIds.add(friend.id)
+
+    return {
+      ...friend,
+      conversationId: historyConversation.conversationId || friend.conversationId,
+      friendInfo: historyConversation.friendInfo || friend.friendInfo,
+      lastMessage: historyConversation.lastMessage || friend.lastMessage,
+      lastTime: historyConversation.lastTime || friend.lastTime,
+      lastMessageTime: historyConversation.lastMessageTime || friend.lastMessageTime,
+      unreadCount: getConversationUnreadCount(historyConversation)
+    }
+  })
+
+  const historyOnlyFriends = chatHistory.value
+    .filter((conversation) => {
+      const friendId = conversation.friendId || conversation.id
+      return friendId && !mergedFriendIds.has(friendId)
+    })
+    .map((conversation) => ({
+      id: conversation.friendId || conversation.id,
+      friendId: conversation.friendId || conversation.id,
+      conversationId: conversation.conversationId,
+      name: conversation.name,
+      avatar: conversation.avatar,
+      lastMessage: conversation.lastMessage,
+      lastTime: conversation.lastTime,
+      lastMessageTime: conversation.lastMessageTime,
+      unreadCount: getConversationUnreadCount(conversation),
+      online: false,
+      friendInfo: conversation.friendInfo,
+      role: conversation.friendInfo?.role,
+      remark: conversation.friendInfo?.remark
+    }))
+
+  friends.value = [...mergedFriends, ...historyOnlyFriends].sort((leftConversation, rightConversation) => {
+    return Number(rightConversation.lastMessageTime || 0) - Number(leftConversation.lastMessageTime || 0)
+  })
+}
+
 // 计算属性：截断对话标题
 const truncatedConversationName = computed(() => {
   if (!currentConversation.value || !currentConversation.value.name) {
@@ -1150,6 +1370,7 @@ const loadFriendsList = async () => {
     // 将后端数据映射为前端需要的格式
     friends.value = friendsData.map(friend => ({
       id: friend.friendId,
+      friendId: friend.friendId,
       name: friend.remark || friend.userName,
       avatar: friend.avatarUrl || `https://via.placeholder.com/40/4CAF50/FFFFFF?text=${friend.userName.charAt(0)}`,
       lastMessage: '点击开始聊天',
@@ -1159,6 +1380,8 @@ const loadFriendsList = async () => {
       remark: friend.remark,
       unreadCount: unreadCounts.value[friend.friendId] || 0
     }))
+
+    syncFriendConversationsWithHistory()
 
     console.log('好友列表加载成功:', friends.value)
     ElMessage.success(`成功加载 ${friends.value.length} 个好友`)
@@ -1197,17 +1420,23 @@ const loadChatHistory = async () => {
       const friendId = friendInfo.friendId
 
       return {
-        id: chat.conversationId || chat.chatId || chat.id,
+        id: friendId || chat.conversationId || chat.chatId || chat.id,
+        friendId: friendId || chat.friendId,
+        conversationId: chat.conversationId || chat.chatId || chat.id,
         name: chatName,
         avatar: avatarUrl || `https://via.placeholder.com/40/4CAF50/FFFFFF?text=${chatName.charAt(0)}`,
         type: chat.chatType || chat.type || 'friend',
         lastMessage: chat.lastMessageContent || chat.lastMessage || '暂无消息',
         lastMessageTime: chat.timestamp ? new Date(chat.timestamp).getTime() : (chat.lastMessageTime || Date.now()),
-        unreadCount: friendId ? (unreadCounts.value[friendId] || chat.unreadCount || 0) : (chat.unreadCount || 0),
+        lastTime: chat.timestamp ? formatTime(chat.timestamp) : (chat.lastTime || '刚刚'),
+        unreadCount: normalizeUnreadCount(chat.unreadCount),
         // 保存原始好友信息，用于后续聊天
         friendInfo: friendInfo
       }
     }).sort((a, b) => b.lastMessageTime - a.lastMessageTime) // 按最后消息时间倒序排列
+
+    hydrateUnreadCountsFromHistory(chatHistory.value)
+    syncFriendConversationsWithHistory()
 
     console.log('聊天历史加载成功:', chatHistory.value)
     ElMessage.success(`成功加载 ${chatHistory.value.length} 条聊天记录`)
@@ -1278,23 +1507,27 @@ const handleSocketMessage = (data) => {
 
 // 更新未读消息计数
 const updateUnreadCount = (senderId, increment) => {
-  if (unreadCounts.value[senderId]) {
-    unreadCounts.value[senderId] += increment
-  } else {
-    unreadCounts.value[senderId] = increment
-  }
+  const nextUnreadCount = getConversationUnreadCount({ id: senderId }) + normalizeUnreadCount(increment)
+  setUnreadCount(senderId, nextUnreadCount)
 }
 
 // 更新聊天历史记录
 const updateChatHistory = (messageData) => {
-  const chatIndex = chatHistory.value.findIndex(chat => chat.id === messageData.senderId)
+  const relatedFriendId = messageData.senderId === currentUserId.value ? messageData.receiverId : messageData.senderId
+  const chatIndex = chatHistory.value.findIndex(chat => {
+    return chat.friendId === relatedFriendId || chat.id === relatedFriendId || chat.conversationId === messageData.conversationId
+  })
+
   if (chatIndex !== -1) {
     chatHistory.value[chatIndex].lastMessage = messageData.content
     chatHistory.value[chatIndex].lastMessageTime = messageData.timestamp
+    chatHistory.value[chatIndex].lastTime = formatTime(messageData.timestamp)
 
     // 重新按最后消息时间倒序排列
     chatHistory.value.sort((a, b) => b.lastMessageTime - a.lastMessageTime)
   }
+
+  syncFriendConversationsWithHistory()
 }
 
 // 滚动到底部
@@ -1436,9 +1669,7 @@ const selectConversation = async (conversation) => {
   })
 
   // 清除未读计数
-  if (unreadCounts.value[conversation.id]) {
-    unreadCounts.value[conversation.id] = 0
-  }
+  setUnreadCount(getUnreadCountKey(conversation), 0)
 
   // 根据聊天类型加载不同的消息
   if (currentChatType.value === chatTypes.AI) {
@@ -2856,6 +3087,21 @@ onUnmounted(() => {
   font-size: 0.95rem;
 }
 
+.tab-unread-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
 /* 中间对话列表栏 */
 .conversation-list {
   width: 320px;
@@ -3153,9 +3399,14 @@ onUnmounted(() => {
   font-weight: 600;
   padding: 0.125rem 0.5rem;
   border-radius: 10px;
-  min-width: 20px;
+  min-width: 22px;
+  height: 20px;
+  line-height: 20px;
   text-align: center;
   box-shadow: 0 2px 4px rgba(245, 108, 108, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 右侧聊天内容区域 */

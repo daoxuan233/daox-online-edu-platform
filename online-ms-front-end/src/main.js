@@ -8,6 +8,7 @@ import App from './App.vue'
 import router from './router'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import './styles/group-chat-dialog.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 // FontAwesome imports

@@ -53,9 +53,26 @@ public final class Const {
     public final static String LEARNING_STATUS_START_EXPIRED = "start_expired"; // 已过期
 
     // course status
-    public final static String COURSE_STATUS_DRAFT = "draft"; // 草稿
-    public final static String COURSE_STATUS_PUBLISHED = "published"; // 发布
-    public final static String COURSE_STATUS_ARCHIVED = "archived"; // 归档
+    /**
+     * 课程状态 - 草稿。
+     */
+    public final static String COURSE_STATUS_DRAFT = "draft";
+    /**
+     * 课程状态 - 待审核。
+     */
+    public final static String COURSE_STATUS_PENDING = "pending";
+    /**
+     * 课程状态 - 已发布。
+     */
+    public final static String COURSE_STATUS_PUBLISHED = "published";
+    /**
+     * 课程状态 - 已下架。
+     */
+    public final static String COURSE_STATUS_TAKEN_DOWN = "taken_down";
+    /**
+     * 课程状态 - 已归档。
+     */
+    public final static String COURSE_STATUS_ARCHIVED = "archived";
 
     // order index 值越小越靠前
     public final static Integer ORDER_INDEX_DEFAULT = 0;

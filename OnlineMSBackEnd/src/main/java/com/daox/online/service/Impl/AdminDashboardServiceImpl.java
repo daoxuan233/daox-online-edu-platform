@@ -109,13 +109,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         int teachers = usersService.getTeacherCountValid();
         int fallbackTotalCourses = countValidCourses(allCourses);
         int fallbackPublishedCourses = countCoursesByStatus(allCourses, "published");
-        int fallbackDraftCourses = countCoursesByStatus(allCourses, "draft");
+        int pendingCourses = countCoursesByStatus(allCourses, "pending");
         int totalCourses = courseStatistics == null || courseStatistics.getTotalCourses() == null || courseStatistics.getTotalCourses() == 0
                 ? fallbackTotalCourses : courseStatistics.getTotalCourses();
         int publishedCourses = courseStatistics == null || courseStatistics.getPublishedCourses() == null
                 ? fallbackPublishedCourses : courseStatistics.getPublishedCourses();
-        int draftCourses = courseStatistics == null || courseStatistics.getDraftCourses() == null
-                ? fallbackDraftCourses : courseStatistics.getDraftCourses();
         long disabledUsers = allUsers.stream().filter(user -> user.getIsDeleted() != null && user.getIsDeleted() == 1).count();
         long failedAuditCount = auditLogs.stream().filter(log -> "FAILED".equals(log.getStatus())).count();
 
@@ -126,7 +124,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .setUserGrowth(calculateRatio(totalUsers - disabledUsers, totalUsers))
                 .setTotalCourses(totalCourses)
                 .setActiveCourses(publishedCourses)
-                .setPendingCourses(draftCourses)
+                .setPendingCourses(pendingCourses)
                 .setCourseGrowth(calculateRatio(publishedCourses, totalCourses))
                 .setStorageUsage(calculateRatio(failedAuditCount, auditLogs.size()))
                 .setUptime(notices.isEmpty() ? "暂无公告" : notices.getFirst().getTitle());
@@ -169,9 +167,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         long disabledUsers = allUsers.stream().filter(user -> user.getIsDeleted() != null && user.getIsDeleted() == 1).count();
         long failedAuditCount = auditLogs.stream().filter(log -> "FAILED".equals(log.getStatus())).count();
         int activeNoticeCount = (int) notices.stream().filter(item -> item.getIsActive() != null && item.getIsActive() == 0).count();
-        int draftCourses = courseStatistics == null || courseStatistics.getDraftCourses() == null
-                ? countCoursesByStatus(allCourses, "draft")
-                : courseStatistics.getDraftCourses();
+        int pendingCourses = countCoursesByStatus(allCourses, "pending");
 
         return List.of(
                 new AdminDashboardOverviewVO.SystemStatusItem()
@@ -183,9 +179,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 new AdminDashboardOverviewVO.SystemStatusItem()
                         .setCode("course")
                         .setLabel("课程审核")
-                        .setStatus(draftCourses > 0 ? "warning" : "success")
-                        .setValue(draftCourses + " 门待处理")
-                        .setDescription("待审核或待发布课程数量"),
+                    .setStatus(pendingCourses > 0 ? "warning" : "success")
+                    .setValue(pendingCourses + " 门待审核")
+                    .setDescription("当前待管理员审核的课程数量"),
                 new AdminDashboardOverviewVO.SystemStatusItem()
                         .setCode("audit")
                         .setLabel("审计链路")
@@ -223,13 +219,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         List<AdminDashboardOverviewVO.PendingTaskItem> tasks = new ArrayList<>();
 
         allCourses.stream()
-                .filter(course -> "draft".equals(course.getStatus()))
+            .filter(course -> "pending".equals(course.getStatus()))
                 .sorted(Comparator.comparing(Courses::getUpdatedAt, Comparator.nullsLast(Date::compareTo)).reversed())
                 .limit(3)
                 .forEach(course -> tasks.add(new AdminDashboardOverviewVO.PendingTaskItem()
                         .setId("course-" + course.getId())
                         .setTitle("课程待处理")
-                        .setDescription(course.getTitle() + " 当前仍为草稿状态")
+                .setDescription(course.getTitle() + " 当前待管理员审核")
                         .setTime(formatDateTime(course.getUpdatedAt() == null ? course.getCreatedAt() : course.getUpdatedAt()))
                         .setPriority("high")
                         .setActionType("course")));

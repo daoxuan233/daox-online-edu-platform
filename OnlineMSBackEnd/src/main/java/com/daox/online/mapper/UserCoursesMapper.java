@@ -18,6 +18,24 @@ public interface UserCoursesMapper {
     Integer findByUserIdAndCourseId(@Param("userId") String userId, @Param("courseId") String courseId);
 
     /**
+     * 获取指定用户参与的全部课程ID。
+     *
+     * @param userId 用户ID
+     * @return 课程ID列表
+     */
+    @Select("SELECT course_id FROM user_courses WHERE user_id = #{userId}")
+    List<String> findCourseIdsByUserId(@Param("userId") String userId);
+
+    /**
+     * 统计课程内的学生人数。
+     *
+     * @param courseId 课程ID
+     * @return 学生人数
+     */
+    @Select("SELECT COUNT(*) FROM user_courses WHERE course_id = #{courseId}")
+    long countByCourseId(@Param("courseId") String courseId);
+
+    /**
      * 获取课程下全部选课用户ID。
      *
      * @param courseId 课程ID

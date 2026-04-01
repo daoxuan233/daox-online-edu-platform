@@ -176,7 +176,7 @@ export const getHistoryList = () => {
  */
 export const getFriendList = () => {
     return new Promise((resolve, reject) => {
-        API_get('/student/chat/friend',
+        API_get('/teacher/chat/friend',
             (data) => {
                 resolve(data)
             },
@@ -194,7 +194,7 @@ export const getFriendList = () => {
  */
 export const getHistoryDetail = (friendId) => {
     return new Promise((resolve, reject) => {
-        API_get(`/student/chat/history/detail?friendId=${friendId}`,
+        API_get(`/teacher/chat/history/detail?friendId=${friendId}`,
             (data) => {
                 resolve(data)
             },
@@ -214,7 +214,7 @@ export const markAsRead = (friendId) => {
     return new Promise((resolve, reject) => {
         const params = new URLSearchParams()
         params.append('friendId', friendId)
-        API_post('/student/chat/read',
+        API_post('/teacher/chat/read',
             params,
             (data) => {
                 resolve(data)
@@ -899,6 +899,35 @@ export const finalizeGrading = (assessmentId) => {
             (message, code) => {
                 reject(new Error(message));
             }
+        );
+    });
+};
+/**
+ * 教师提交课程审核（替代直接发布）
+ * @param {string} courseId 课程ID
+ */
+export const submitCourseReview = (courseId) => {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('courseId', courseId);
+        API_post(`/teacher/courses/course/review/submit`, formData,
+            (data) => resolve(data),
+            (message) => reject(new Error(message))
+        );
+    });
+};
+
+/**
+ * 教师下架或归档课程
+ * @param {string} courseId 课程ID
+ */
+export const archiveTeacherCourse = (courseId) => {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('courseId', courseId);
+        API_post(`/teacher/courses/course/archive`, formData,
+            (data) => resolve(data),
+            (message) => reject(new Error(message))
         );
     });
 };

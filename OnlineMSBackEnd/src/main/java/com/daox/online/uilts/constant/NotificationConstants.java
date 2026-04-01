@@ -9,6 +9,7 @@ public final class NotificationConstants {
     public static final String TYPE_ASSESSMENT_PUBLISHED = "assessment_published";
     public static final String TYPE_GRADING_COMPLETED = "grading_completed";
     public static final String TYPE_COURSE_CHANGED = "course_changed";
+    public static final String TYPE_COURSE_REVIEW_RESULT = "course_review_result";
 
     public static final String SOURCE_ANNOUNCEMENT = "announcement";
     public static final String SOURCE_ASSESSMENT = "assessment";
@@ -22,5 +23,9 @@ public final class NotificationConstants {
     public static final String COURSE_ACTION_INFO_UPDATED = "info_updated";
     public static final String COURSE_ACTION_OUTLINE_UPDATED = "outline_updated";
     public static final String COURSE_ACTION_PUBLISHED = "published";
+    public static final String COURSE_ACTION_REVIEW_APPROVED = "review_approved";
+    public static final String COURSE_ACTION_REVIEW_REJECTED = "review_rejected";
+    public static final String COURSE_ACTION_TAKEN_DOWN = "taken_down";
+    public static final String COURSE_ACTION_REPUBLISHED = "republished";
     public static final String COURSE_ACTION_ARCHIVED = "archived";
 }

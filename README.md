@@ -48,6 +48,7 @@
 - 测评列表、考试作答、考试开始校验与试卷获取
 - 学习笔记、收纳箱、课程维度笔记归档
 - 课程讨论区、提问、回复、点赞与置顶内容浏览
+- 课程群聊列表、历史消息、成员查看与群消息已读处理
 - 学生聊天、好友相关接口与统一通知中心页面
 - 学生 AI 对话、流式返回、历史会话与消息分页
 
@@ -58,6 +59,7 @@
 - 课程大纲、章节与小节管理、课程资料上传与文件下载
 - 题库管理、试卷中心、考试管理、结果汇总
 - 阅卷任务、题目级批改、沉浸式阅卷页面
+- 教师课程群聊、公告发布、禁言、踢人等群管理能力
 - 教师资料页、设置页、数据分析页、教师聊天与通知中心
 - 教师 AI 助手、优化助手、需求补充问答与历史会话
 - 教师待办接口
@@ -222,13 +224,15 @@ npm run dev
 | 学生业务 | `/api/student` |
 | 学生课程与学习 | `/api/student/course`、`/api/student/learning` |
 | 学生测评与讨论 | `/api/student/assessments`、`/api/student/discussions` |
-| 学生聊天 | `/api/student/chat` |
+| 学生聊天 | `/api/student/chat`、`/api/student/group-chat` |
 | 教师业务 | `/api/teacher` |
 | 教师课程与阅卷 | `/api/teacher/courses`、`/api/teacher/grading` |
 | 教师题库与试卷 | `/api/teacher/questions`、`/api/teacher/paper` |
+| 教师工作台与聊天 | `/api/teacher/dashboard`、`/api/teacher/chat`、`/api/teacher/group-chat` |
 | 教师待办 | `/api/teacher/todos` |
 | 统一通知中心 | `/api/notifications` |
-| 管理后台 | `/api/admin` |
+| 管理后台 | `/api/admin`、`/api/admin/dashboard` |
+| 管理端课程与统计 | `/api/admin/course`、`/api/admin/statistics`、`/api/admin/sys`、`/api/admin/sync` |
 | 管理端 AI 治理 | `/api/admin/ai/governance` |
 | 学生 AI | `/api/students/ai` |
 | 学生 AI 工具 | `/api/students/ai/tool` |
@@ -236,8 +240,8 @@ npm run dev
 
 当前公开仓库中的接口文档已经按服务拆分：
 
-- 主业务后端接口文档对应 `OnlineMSBackEnd`，默认示例地址为 `http://localhost:8080`
-- AI 服务与治理接口文档对应 `online-ai`，默认示例地址为 `http://localhost:8088`
+- 主业务后端接口文档对应 `OnlineMSBackEnd`，默认示例地址为 `http://localhost:8080`，内容按公共接口、学生端、教师端、管理端与通知中心分组整理
+- AI 服务与治理接口文档对应 `online-ai`，默认示例地址为 `http://localhost:8088`，内容按治理、学生 AI、教师 AI 与工具接口分组整理
 
 ## 公开资料
 

@@ -86,6 +86,17 @@
             </el-tooltip>
           </li>
           <li class="nav-item">
+            <el-tooltip content="课程群聊" placement="right" :disabled="!isCollapsed">
+              <router-link to="/index/group-chat" class="nav-link" active-class="active">
+                <div class="nav-icon">
+                  <font-awesome-icon :icon="['fas', 'people-group']" />
+                </div>
+                <span class="nav-text">课程群聊</span>
+                <div class="nav-indicator"></div>
+              </router-link>
+            </el-tooltip>
+          </li>
+          <li class="nav-item">
             <el-tooltip content="个人中心" placement="right" :disabled="!isCollapsed">
               <router-link to="/index/profile" class="nav-link" active-class="active">
                 <div class="nav-icon">
@@ -238,6 +249,7 @@ const pageTitles = {
   'Notes': '学习笔记',
   'Profile': '个人中心',
   'StudentChat': '在线交流',
+  'StudentGroupChat': '课程群聊',
   'StudentNotifications': '通知中心'
 }
 

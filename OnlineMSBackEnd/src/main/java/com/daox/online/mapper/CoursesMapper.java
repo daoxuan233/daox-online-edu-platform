@@ -73,6 +73,15 @@ public interface CoursesMapper {
     })
     Courses getCourseById(String courseId);
 
+        /**
+         * 在事务内锁定课程记录。
+         *
+         * @param courseId 课程ID
+         * @return 课程实体
+         */
+        @Select("SELECT * FROM courses WHERE id = #{courseId} AND COALESCE(is_deleted, 0) = 0 FOR UPDATE")
+        Courses getCourseByIdForUpdate(@Param("courseId") String courseId);
+
     /**
      * 获取课程分类 - 树形结构
      *
@@ -305,15 +314,6 @@ public interface CoursesMapper {
     int deleteUserCourses(String courseId);
 
     /**
-     * 发布课程
-     *
-     * @param courseId 课程id
-     * @return 影响行数
-     */
-    @Update("UPDATE courses SET status = 'published' WHERE id = #{courseId}")
-    int publishCourse(String courseId);
-
-    /**
      * 检查课程是否存在
      *
      * @param courseId 课程id
@@ -323,14 +323,23 @@ public interface CoursesMapper {
     boolean checkCourseExists(String courseId);
 
     /**
-     * 归档课程
+     * 按预期状态更新课程状态。
      *
-     * @param courseId  课程id
-     * @param teacherId 教师id
-     * @return 受影响行数
+     * @param courseId   课程ID
+     * @param fromStatus 变更前状态
+     * @param toStatus   变更后状态
+     * @param updatedAt  更新时间
+     * @return 影响行数
      */
-    @Update("UPDATE courses SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE id = #{courseId} AND teacher_id = #{teacherId} AND status = 'published'")
-    int archiveCourse(String courseId, String teacherId);
+    @Update("UPDATE courses " +
+            "SET status = #{toStatus}, updated_at = #{updatedAt} " +
+            "WHERE id = #{courseId} " +
+            "AND status = #{fromStatus} " +
+            "AND COALESCE(is_deleted, 0) = 0")
+    int updateCourseStatus(@Param("courseId") String courseId,
+                           @Param("fromStatus") String fromStatus,
+                           @Param("toStatus") String toStatus,
+                           @Param("updatedAt") Date updatedAt);
 
     /**
      * 获取选课学生列表
@@ -369,6 +378,14 @@ public interface CoursesMapper {
      */
     @Select("SELECT * FROM courses")
     List<Courses> getCourseListAll();
+
+        /**
+         * 查询全部待审核课程。
+         *
+         * @return 待审核课程列表
+         */
+        @Select("SELECT * FROM courses WHERE status = 'pending' AND COALESCE(is_deleted, 0) = 0 ORDER BY updated_at DESC, created_at DESC")
+        List<Courses> listPendingReviewCourses();
 
     /**
      * 获取课程分类信息 - 通过id查询
@@ -442,15 +459,13 @@ public interface CoursesMapper {
      * @param ids 分类ID列表
      * @return 删除数量
      */
-    @Delete("""
-            <script>
-            DELETE FROM course_categories
-            WHERE id IN
-            <foreach collection='ids' item='id' open='(' separator=',' close=')'>
-                #{id}
-            </foreach>
-            </script>
-            """)
+    @Delete("<script> " +
+            "DELETE FROM course_categories " +
+            "WHERE id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'> " +
+            "#{id} " +
+            "</foreach> " +
+            "</script>")
     int batchDeleteCategories(@Param("ids") List<String> ids);
 
     /**
@@ -477,18 +492,16 @@ public interface CoursesMapper {
      * @param categoryIds 分类ID列表
      * @return 课程列表
      */
-    @Select("""
-            <script>
-            SELECT *
-            FROM courses
-            WHERE COALESCE(is_deleted, 0) = 0
-              AND category_id IN
-              <foreach collection='categoryIds' item='categoryId' open='(' separator=',' close=')'>
-                  #{categoryId}
-              </foreach>
-            ORDER BY updated_at DESC, created_at DESC
-            </script>
-            """)
+    @Select("<script> " +
+            "SELECT * " +
+            "FROM courses " +
+            "WHERE COALESCE(is_deleted, 0) = 0 " +
+            "AND category_id IN " +
+            "<foreach collection='categoryIds' item='categoryId' open='(' separator=',' close=')'> " +
+            "#{categoryId} " +
+            "</foreach> " +
+            "ORDER BY updated_at DESC, created_at DESC " +
+            "</script>")
     List<Courses> listCoursesByCategoryIds(@Param("categoryIds") List<String> categoryIds);
 
     /**
@@ -498,17 +511,15 @@ public interface CoursesMapper {
      * @param courseIds        课程ID列表
      * @return 更新数量
      */
-    @Update("""
-            <script>
-            UPDATE courses
-            SET category_id = #{targetCategoryId},
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id IN
-            <foreach collection='courseIds' item='courseId' open='(' separator=',' close=')'>
-                #{courseId}
-            </foreach>
-            </script>
-            """)
+        @Update("<script> " +
+                        "UPDATE courses " +
+                        "SET category_id = #{targetCategoryId}, " +
+                        "updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id IN " +
+                        "<foreach collection='courseIds' item='courseId' open='(' separator=',' close=')'> " +
+                        "#{courseId} " +
+                        "</foreach> " +
+                        "</script>")
     int batchUpdateCourseCategory(@Param("targetCategoryId") String targetCategoryId,
                                   @Param("courseIds") List<String> courseIds);
 

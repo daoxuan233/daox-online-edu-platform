@@ -33,6 +33,12 @@
             </router-link>
           </li>
           <li class="nav-item">
+            <router-link to="/admin/course-review" class="nav-link" active-class="active">
+              <font-awesome-icon :icon="['fas', 'clipboard-check']" />
+              <span>课程审核台</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
             <div class="nav-section-title">
               <span class="text-muted text-sm">系统管理</span>
             </div>
@@ -173,6 +179,7 @@ const pageTitles = {
   'AdminDashboard': '数据概览',
   'UserManagement': '用户管理',
   'CategoryManagement': '分类管理',
+  'AdminCourseReview': '课程审核台',
   'AuditLogs': '审计日志',
   'AiGovernance': 'AI 治理'
 }

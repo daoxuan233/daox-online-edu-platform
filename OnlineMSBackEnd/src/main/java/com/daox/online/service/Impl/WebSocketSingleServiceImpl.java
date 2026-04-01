@@ -22,6 +22,7 @@ import jakarta.annotation.Resource;
 import jakarta.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.stream.Collectors;
 
@@ -44,15 +45,18 @@ public class WebSocketSingleServiceImpl implements WebSocketSingleService {
     /**
      * 添加单聊信息
      *
-     * @param message 消息
+     * @param message             客户端发送的消息载荷
+     * @param authenticatedUserId 当前已认证的发送方用户ID
      * @return 添加后的消息
      */
     @Override
-    public ChatMessage addSingleMessage(ChatMessage message) {
+    public ChatMessage addSingleMessage(ChatMessage message, String authenticatedUserId) {
+        validatePrivateMessage(message, authenticatedUserId);
         log.info("[addSingleMessage.method] 接收到的消息对象: senderId={}, receiverId={}, content={}, messageType={}",
                 message.getSenderId(), message.getReceiverId(), message.getContent(), message.getMessageType());
-        // 获取发送者 & 接收者id
-        String senderId = message.getSenderId();
+
+        // 服务端以握手认证身份为准，避免客户端伪造 senderId。
+        String senderId = authenticatedUserId;
         String receiverIdFromRequest = message.getReceiverId();
         log.info("[addSingleMessage.method] 提取的senderId={}, 原始receiverId字段值={}", senderId, receiverIdFromRequest);
 
@@ -112,6 +116,10 @@ public class WebSocketSingleServiceImpl implements WebSocketSingleService {
         message.setConversationId(conversationId);
         message.setSenderId(senderId);
         message.setReceiverId(receiverId);
+        message.setMessageType(ChatMessage.MessageType.PRIVATE);
+        message.setContentType(message.getContentType() == null ? ChatMessage.ContentType.TEXT : message.getContentType());
+        message.setStatus(message.getStatus() == null ? ChatMessage.MessageStatus.SENT : message.getStatus());
+        message.setTimestamp(message.getTimestamp() == null ? java.time.LocalDateTime.now() : message.getTimestamp());
 
         log.info("[addSingleMessage.method] 添加单聊信息: {}", message);
         ChatMessage chatMessage = chatMessageRepository.save(message);
@@ -183,9 +191,10 @@ public class WebSocketSingleServiceImpl implements WebSocketSingleService {
             vo.setTimestamp(msg.getTimestamp());
             vo.setStatus(msg.getStatus());
             vo.setFriendInfo(friendInfo);
-            // 计算未读消息数，只要不是READ状态都算未读
+
+                // 按真实会话ID统计当前用户未读消息，避免误用最后一条消息的主键。
             long unreadCount = chatMessageRepository.countByConversationIdAndReceiverIdAndStatusNot(
-                    msg.getId(),
+                    msg.getConversationId(),
                     currentUserId,
                     ChatMessage.MessageStatus.READ
             );
@@ -256,5 +265,29 @@ public class WebSocketSingleServiceImpl implements WebSocketSingleService {
         long count = chatMessageRepository.countByReceiverIdAndStatusNot(userId, ChatMessage.MessageStatus.READ);
         log.info("[getTotalUnreadCount] 用户 {} 的未读消息总数为: {}", userId, count);
         return count;
+    }
+
+    /**
+     * 校验私聊消息的关键字段。
+     *
+     * @param message             客户端发送的消息载荷
+     * @param authenticatedUserId 当前认证用户ID
+     */
+    private void validatePrivateMessage(ChatMessage message, String authenticatedUserId) {
+        if (message == null) {
+            throw new BusinessException("400", "消息体不能为空");
+        }
+        if (!StringUtils.hasText(authenticatedUserId)) {
+            throw new BusinessException("401", "WebSocket连接未认证，无法发送消息");
+        }
+        if (!StringUtils.hasText(message.getReceiverId())) {
+            throw new BusinessException("400", "接收方不能为空");
+        }
+        if (!StringUtils.hasText(message.getContent())) {
+            throw new BusinessException("400", "消息内容不能为空");
+        }
+        if (authenticatedUserId.equals(message.getReceiverId())) {
+            throw new BusinessException("400", "不支持给自己发送单聊消息");
+        }
     }
 }

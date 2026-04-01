@@ -211,3 +211,47 @@ export const migrateAdminCategoryCourses = (payload) => requestPost('/admin/cour
  * @returns {Promise<any>} 管理员首页概览数据
  */
 export const getAdminDashboardOverview = (params = {}) => requestGet(`/admin/dashboard/overview${buildQueryString(params)}`)
+
+/**
+ * 获取全部待审核课程。
+ * @returns {Promise<any[]>} 待审核课程列表
+ */
+export const getAdminPendingReviewCourses = () => requestGet('/admin/course/review/pending')
+
+/**
+ * 审核通过课程。
+ * @param {string} courseId 课程ID
+ * @returns {Promise<string>} 成功提示
+ */
+export const approveAdminCourseReview = (courseId) => requestPost('/admin/course/review/approve', { courseId })
+
+/**
+ * 驳回课程审核。
+ * @param {string} courseId 课程ID
+ * @param {string} comment 驳回理由
+ * @returns {Promise<string>} 成功提示
+ */
+export const rejectAdminCourseReview = (courseId, comment) => requestPost('/admin/course/review/reject', { courseId, comment })
+
+/**
+ * 下架课程。
+ * @param {string} courseId 课程ID
+ * @param {string} comment 下架理由
+ * @returns {Promise<string>} 成功提示
+ */
+export const takeDownAdminCourse = (courseId, comment) => requestPost('/admin/course/take-down', { courseId, comment })
+
+/**
+ * 重新上架课程。
+ * @param {string} courseId 课程ID
+ * @returns {Promise<string>} 成功提示
+ */
+export const republishAdminCourse = (courseId) => requestPost('/admin/course/republish', { courseId })
+
+/**
+ * 归档课程。
+ * @param {string} courseId 课程ID
+ * @param {string} comment 归档理由
+ * @returns {Promise<string>} 成功提示
+ */
+export const archiveAdminCourse = (courseId, comment) => requestPost('/admin/course/archive', { courseId, comment })

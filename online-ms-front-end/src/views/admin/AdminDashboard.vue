@@ -294,6 +294,13 @@
                 </div>
                 <div class="action-title">管理分类</div>
               </div>
+
+              <div class="quick-action-item tech-btn-card" @click="navigateTo('/admin/course-review')">
+                <div class="action-icon">
+                  <font-awesome-icon :icon="['fas', 'clipboard-check']" />
+                </div>
+                <div class="action-title">课程审核台</div>
+              </div>
               
               <div class="quick-action-item tech-btn-card" @click="showSystemSettings">
                 <div class="action-icon">
@@ -498,7 +505,7 @@ const getPriorityName = (priority) => {
 
 const handleTask = (task) => {
   if (task.actionType === 'course') {
-    navigateTo('/admin')
+    navigateTo('/admin/course-review')
     return
   }
   if (task.actionType === 'audit') {

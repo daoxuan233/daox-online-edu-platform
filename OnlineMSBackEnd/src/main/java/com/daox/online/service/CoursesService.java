@@ -124,27 +124,30 @@ public interface CoursesService {
     /**
      * 创建课程
      *
+     * @param operatorId 当前教师ID
      * @param courseDto 课程信息
      * @return 创建结果
      */
-    Courses createCourse(CourseCoreInfoDto courseDto);
+    Courses createCourse(String operatorId, CourseCoreInfoDto courseDto);
 
     /**
      * 更新核心课程 信息
      *
-     * @param courseId  课程id
-     * @param courseDto 课程信息
+     * @param operatorId 当前教师ID
+     * @param courseId   课程id
+     * @param courseDto  课程信息
      * @return 更新结果
      */
-    Courses updateCourseCoreInfo(String courseId, CourseCoreInfoDto courseDto);
+    Courses updateCourseCoreInfo(String operatorId, String courseId, CourseCoreInfoDto courseDto);
 
     /**
      * 全量更新课程大纲 --> 更新为: 增量更新课程大纲
      *
+     * @param operatorId 当前教师ID
      * @param courseId   课程id
      * @param outlineDto 课程大纲
      */
-    void updateCourseOutline(String courseId, CourseOutlineDto outlineDto);
+    void updateCourseOutline(String operatorId, String courseId, CourseOutlineDto outlineDto);
 
     /**
      * 获取课程大纲
@@ -175,22 +178,20 @@ public interface CoursesService {
     boolean deleteCourse(String userId, String courseId);
 
     /**
-     * 发布课程
+     * 教师提交课程审核。
      *
-     * @param userId   用户ID
-     * @param courseId 课程ID
-     * @return 发布结果 true：成功，false：失败
+     * @param teacherId 教师ID
+     * @param courseId  课程ID
      */
-    boolean publishCourse(String userId, String courseId);
+    void submitCourseForReview(String teacherId, String courseId);
 
     /**
-     * 归档课程
+     * 教师归档草稿课程。
      *
-     * @param userId   用户ID
-     * @param courseId 课程ID
-     * @return 归档结果 true：成功，false：失败
+     * @param teacherId 教师ID
+     * @param courseId  课程ID
      */
-    boolean archiveCourse(String userId, String courseId);
+    void archiveCourseByTeacher(String teacherId, String courseId);
 
     /**
      * 获取选课学生
@@ -207,6 +208,56 @@ public interface CoursesService {
      * @return 课程列表
      */
     List<Courses> getCourseListAll();
+
+    /**
+     * 获取全部待审核课程。
+     *
+     * @return 待审核课程列表
+     */
+    List<Courses> listPendingReviewCourses();
+
+    /**
+     * 管理员审核通过课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     */
+    void approveCourseReview(String adminId, String courseId);
+
+    /**
+     * 管理员驳回课程审核。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  审核意见
+     */
+    void rejectCourseReview(String adminId, String courseId, String comment);
+
+    /**
+     * 管理员下架已发布课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  下架说明
+     */
+    void takeDownCourse(String adminId, String courseId, String comment);
+
+    /**
+     * 管理员重新上架课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     */
+    void republishCourse(String adminId, String courseId);
+
+    /**
+     * 管理员归档已下架课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  归档说明
+     */
+    void archiveCourseByAdmin(String adminId, String courseId, String comment);
 
     /**
      * 删除课程 - 管理员

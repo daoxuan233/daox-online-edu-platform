@@ -102,6 +102,7 @@ public class ChatMessage {
      * 好友标签
      * 好友对话：friend
      * 临时对话：temporary
+        * 课程群聊：teacher / student
      */
     @Field("tag")
     private String tag;

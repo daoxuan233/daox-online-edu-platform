@@ -30,6 +30,7 @@ import com.daox.online.service.SystemAnnouncementsService;
 import com.daox.online.service.TeacherTodoService;
 import com.daox.online.service.UsersService;
 import com.daox.online.uilts.constant.CourseLevel;
+import com.daox.online.uilts.constant.CourseStatusFlow;
 import com.daox.online.uilts.constant.Const;
 import com.daox.online.uilts.constant.NotificationConstants;
 import com.daox.online.uilts.HybridIdGenerator;
@@ -108,6 +109,9 @@ public class CoursesServiceImpl implements CoursesService {
     private TeacherTodosMapper teacherTodosMapper;
     @Resource
     private SysUsersMapper sysUsersMapper;
+
+    @Resource
+    private CourseReviewLogMapper courseReviewLogMapper;
 
     @Resource
     private NotificationCenterService notificationCenterService;
@@ -614,7 +618,11 @@ public class CoursesServiceImpl implements CoursesService {
      */
     @Transactional
     @Override
-    public Courses createCourse(CourseCoreInfoDto courseDto) {
+    public Courses createCourse(String operatorId, CourseCoreInfoDto courseDto) {
+        requireTeacherOperator(operatorId);
+        if (courseDto == null) {
+            throw new BusinessException("400", "课程信息不能为空");
+        }
         // 1. 创建并保存 Course 实体
         Courses course = new Courses();
         String courseId = hybridIdGenerator.generateId(); // 在业务层生成唯一ID
@@ -622,13 +630,14 @@ public class CoursesServiceImpl implements CoursesService {
         course.setTitle(courseDto.getTitle());
         course.setDescription(courseDto.getDescription());
         course.setCoverImageUrl(courseDto.getCoverImageUrl());
-        course.setTeacherId(courseDto.getTeacherId());
+        course.setTeacherId(operatorId);
         course.setCategoryId(courseDto.getCategoryId());
-        course.setStatus(courseDto.getStatus());
+        course.setStatus(Const.COURSE_STATUS_DRAFT);
         course.setIsPrivate(courseDto.isPrivateCourse() ? 1 : 0);
         course.setEnrollmentCount(0);
         course.setCreatedAt(new Date());
         course.setUpdatedAt(new Date());
+        course.setIsDeleted(0);
         // 使用 insertSelective 更为健壮
         courseMapper.insertSelective(course);
         // 2. 如果 DTO 中包含属性信息，则创建并保存 CourseProperties 实体
@@ -646,7 +655,7 @@ public class CoursesServiceImpl implements CoursesService {
             properties.setIsNew(1);
             coursePropertiesMapper.insertSelective(properties);
         }
-        refreshTeacherCourseCache(course.getTeacherId());
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
         return course;
     }
 
@@ -664,38 +673,55 @@ public class CoursesServiceImpl implements CoursesService {
     }
 
     /**
+     * 在事务成功提交后刷新教师课程缓存，避免缓存先于事务提交生效。
+     *
+     * @param teacherId 教师ID
+     */
+    private void refreshTeacherCourseCacheAfterCommit(String teacherId) {
+        if (!StringUtils.hasText(teacherId)) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            refreshTeacherCourseCache(teacherId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                refreshTeacherCourseCache(teacherId);
+            }
+        });
+    }
+
+    /**
      * 更新核心课程 信息
      * {@code @Transactional} 保证数据一致性。
      *
-     * @param courseId  课程id
-     * @param courseDto 课程信息
+     * @param operatorId 当前教师ID
+     * @param courseId   课程id
+     * @param courseDto  课程信息
      * @return 更新结果
      */
     @Override
     @Transactional
-    public Courses updateCourseCoreInfo(String courseId, CourseCoreInfoDto courseDto) {
-        // 1. 校验课程是否存在
-        Courses course = courseMapper.selectByPrimaryKey(courseId);
-        if (course == null) {
-            throw new RuntimeException("操作失败：ID为 " + courseId + " 的课程不存在。");
+    public Courses updateCourseCoreInfo(String operatorId, String courseId, CourseCoreInfoDto courseDto) {
+        requireTeacherOperator(operatorId);
+        if (courseDto == null) {
+            throw new BusinessException("400", "课程信息不能为空");
         }
-        String operatorId = course.getTeacherId();
+        Courses course = requireTeacherOwnedCourse(operatorId, courseId, false);
         CourseProperties existingProperties = coursePropertiesMapper.selectByCourseId(courseId);
         boolean coreChanged = !Objects.equals(course.getTitle(), courseDto.getTitle())
                 || !Objects.equals(course.getDescription(), courseDto.getDescription())
                 || !Objects.equals(course.getCoverImageUrl(), courseDto.getCoverImageUrl())
-                || !Objects.equals(course.getTeacherId(), courseDto.getTeacherId())
                 || !Objects.equals(course.getCategoryId(), courseDto.getCategoryId())
-                || !Objects.equals(course.getStatus(), courseDto.getStatus())
                 || !Objects.equals(course.getIsPrivate(), courseDto.isPrivateCourse() ? 1 : 0);
 
         // 2. 更新 Course 表
         course.setTitle(courseDto.getTitle());
         course.setDescription(courseDto.getDescription());
         course.setCoverImageUrl(courseDto.getCoverImageUrl());
-        course.setTeacherId(courseDto.getTeacherId());
         course.setCategoryId(courseDto.getCategoryId());
-        course.setStatus(courseDto.getStatus());
         course.setUpdatedAt(new Date());
         course.setIsPrivate(courseDto.isPrivateCourse() ? 1 : 0);
         course.setIsDeleted(0);
@@ -738,6 +764,7 @@ public class CoursesServiceImpl implements CoursesService {
                     sysUserService.findUserById(operatorId),
                     NotificationConstants.COURSE_ACTION_INFO_UPDATED
             );
+            refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
         }
         return course;
     }
@@ -745,12 +772,14 @@ public class CoursesServiceImpl implements CoursesService {
     /**
      * 全量更新课程大纲 --> 更新为: 增量更新课程大纲
      *
+     * @param operatorId 当前教师ID
      * @param courseId   课程id
      * @param outlineDto 课程大纲
      */
     @Transactional
     @Override
-    public void updateCourseOutline(String courseId, CourseOutlineDto outlineDto) {
+    public void updateCourseOutline(String operatorId, String courseId, CourseOutlineDto outlineDto) {
+        requireTeacherOwnedCourse(operatorId, courseId, false);
         // 1. 获取数据库中的旧数据，并转为Map以便快速查找
         Map<String, Chapters> oldChaptersMap = chapterMapper.findByCourseId(courseId).stream()
                 .collect(Collectors.toMap(Chapters::getId, Function.identity()));
@@ -928,81 +957,94 @@ public class CoursesServiceImpl implements CoursesService {
      * @param courseId           课程ID
      * @param courseVo           课程信息
      * @param coursePropertiesVo 课程属性信息
-     * @return 创建结果 true：成功，false：失败
+     * @return 更新结果提示
      */
     @Override
+    @Transactional
     public String updateCourse(String userId, String courseId, TeacherCourseVo courseVo, CoursePropertiesVo coursePropertiesVo) {
-        // 参数校验
-        if (userId == null || userId.isEmpty() || courseId == null || courseId.isEmpty()) {
-            log.warn("[updateCourse.method] 参数错误: userId={}, courseId={}", userId, courseId);
-            return "更新失败，请检查参数，输入是否正确";
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(courseId)) {
+            throw new BusinessException("400", "课程ID不能为空");
         }
         if (courseVo == null) {
-            log.warn("[updateCourse.method] 课程信息错误: userId={}, courseId={}, courseVo=null", userId, courseId);
-            return "课程信息错误";
+            throw new BusinessException("400", "课程信息不能为空");
         }
         if (coursePropertiesVo == null) {
-            log.warn("[updateCourse.method] 课程属性信息错误: userId={}, courseId={}, coursePropertiesVo=null", userId, courseId);
-            return "课程属性信息错误";
+            throw new BusinessException("400", "课程属性信息不能为空");
         }
-        if (!usersService.isTeacher(userId)) {
-            log.warn("[updateCourse.method] 用户不是教师: userId={}", userId);
-            return "用户不是教师";
+        requireTeacherOperator(userId);
+
+        Courses currentCourse = requireTeacherOwnedCourse(userId, courseId, false);
+        CourseProperties existingProperties = coursesMapper.getCoursePropertiesById(courseId);
+        Integer nextIsPrivate = courseVo.getIsPrivate() == null ? currentCourse.getIsPrivate() : courseVo.getIsPrivate();
+
+        boolean courseChanged = !Objects.equals(currentCourse.getTitle(), courseVo.getTitle())
+                || !Objects.equals(currentCourse.getDescription(), courseVo.getDescription())
+                || !Objects.equals(currentCourse.getCoverImageUrl(), courseVo.getCoverImageUrl())
+                || !Objects.equals(currentCourse.getCategoryId(), courseVo.getCategoryId())
+                || !Objects.equals(currentCourse.getIsPrivate(), nextIsPrivate);
+
+        if (courseChanged) {
+            currentCourse.setTitle(courseVo.getTitle());
+            currentCourse.setDescription(courseVo.getDescription());
+            currentCourse.setCoverImageUrl(courseVo.getCoverImageUrl());
+            currentCourse.setCategoryId(courseVo.getCategoryId());
+            currentCourse.setIsPrivate(nextIsPrivate);
+            currentCourse.setUpdatedAt(new Date());
+            int courseUpdated = coursesMapper.updateCourse(currentCourse);
+            if (courseUpdated <= 0) {
+                throw new BusinessException("500", "课程更新失败，请稍后重试");
+            }
         }
-        if (!coursesMapper.checkCourseExists(courseId)) {
-            log.warn("[updateCourse.method] 课程不存在: userId={}, courseId={}", userId, courseId);
-            return "课程不存在";
-        }
-        // 更新课程
-        int course = coursesMapper.updateCourse(new Courses(courseId, courseVo.getTitle(), courseVo.getDescription(), courseVo.getCoverImageUrl(), courseVo.getTeacherId(), courseVo.getCategoryId(), courseVo.getStatus(), courseVo.getEnrollmentCount(), new Date(), new Date(), courseVo.getIsDeleted(), courseVo.getIsPrivate()));
-        if (course > 0) {
-            log.info("[updateCourse.method] 更新课程成功: userId={}, courseId={}", userId, courseId);
-            // 检查属性信息
-            CourseProperties coursePropertiesById = coursesMapper.getCoursePropertiesById(courseId);
-            if (coursePropertiesById == null) {
-                log.warn("[updateCourse.method] 课程属性不存在: userId={}, courseId={}", userId, courseId);
-                // 创建属性信息
-                int coursePropertiesBool = coursesMapper.createCourseProperties(new CourseProperties(
-                        hybridIdGenerator.generateId(), courseId,
-                        coursePropertiesVo.getLevel(), coursePropertiesVo.getIsNew(),
-                        coursePropertiesVo.getTargetAudience(), coursePropertiesVo.getRequirements(),
-                        coursePropertiesVo.getPrice(), coursePropertiesVo.getOriginalPrice())
+
+        boolean propertiesChanged = existingProperties == null
+                || !Objects.equals(existingProperties.getLevel(), coursePropertiesVo.getLevel())
+                || !Objects.equals(existingProperties.getIsNew(), coursePropertiesVo.getIsNew())
+                || !Objects.equals(existingProperties.getTargetAudience(), coursePropertiesVo.getTargetAudience())
+                || !Objects.equals(existingProperties.getRequirements(), coursePropertiesVo.getRequirements())
+                || !Objects.equals(existingProperties.getPrice(), coursePropertiesVo.getPrice())
+                || !Objects.equals(existingProperties.getOriginalPrice(), coursePropertiesVo.getOriginalPrice());
+
+        if (propertiesChanged) {
+            if (existingProperties == null) {
+                int created = coursesMapper.createCourseProperties(new CourseProperties(
+                        hybridIdGenerator.generateId(),
+                        courseId,
+                        coursePropertiesVo.getLevel(),
+                        coursePropertiesVo.getIsNew(),
+                        coursePropertiesVo.getTargetAudience(),
+                        coursePropertiesVo.getRequirements(),
+                        coursePropertiesVo.getPrice(),
+                        coursePropertiesVo.getOriginalPrice())
                 );
-                if (coursePropertiesBool > 0) {
-                    log.info("[updateCourse.method] 创建课程属性成功: userId={}, courseId={}", userId, courseId);
-                    notificationCenterService.notifyCourseChanged(
-                            coursesMapper.getCourseById(courseId),
-                            sysUserService.findUserById(userId),
-                            NotificationConstants.COURSE_ACTION_INFO_UPDATED
-                    );
-                    return "更新完成";
-                } else {
-                    log.warn("[updateCourse.method] 创建课程属性失败: userId={}, courseId={}", userId, courseId);
+                if (created <= 0) {
+                    throw new BusinessException("500", "课程属性创建失败，请稍后重试");
                 }
             } else {
-                // 更新课程属性
-                int courseProperties = coursesMapper.updateCourseProperties(new CourseProperties()
-                        .setId(coursePropertiesById.getId()).setCourseId(courseId)
-                        .setLevel(coursePropertiesVo.getLevel()).setIsNew(coursePropertiesVo.getIsNew())
-                        .setTargetAudience(coursePropertiesVo.getTargetAudience()).setRequirements(coursePropertiesVo.getRequirements())
-                        .setPrice(coursePropertiesVo.getPrice()).setOriginalPrice(coursePropertiesVo.getOriginalPrice())
+                int updated = coursesMapper.updateCourseProperties(new CourseProperties()
+                        .setId(existingProperties.getId())
+                        .setCourseId(courseId)
+                        .setLevel(coursePropertiesVo.getLevel())
+                        .setIsNew(coursePropertiesVo.getIsNew())
+                        .setTargetAudience(coursePropertiesVo.getTargetAudience())
+                        .setRequirements(coursePropertiesVo.getRequirements())
+                        .setPrice(coursePropertiesVo.getPrice())
+                        .setOriginalPrice(coursePropertiesVo.getOriginalPrice())
                 );
-                if (courseProperties > 0) {
-                    log.info("[updateCourse.method] 更新课程属性成功: userId={}, courseId={}", userId, courseId);
-                    notificationCenterService.notifyCourseChanged(
-                            coursesMapper.getCourseById(courseId),
-                            sysUserService.findUserById(userId),
-                            NotificationConstants.COURSE_ACTION_INFO_UPDATED
-                    );
-                    return "更新完成";
-                } else {
-                    log.warn("[updateCourse.method] 更新课程属性失败: userId={}, courseId={}", userId, courseId);
-                    return "网络超时...更新失败";
+                if (updated <= 0) {
+                    throw new BusinessException("500", "课程属性更新失败，请稍后重试");
                 }
             }
         }
-        log.info("[updateCourse.method] 更新课程失败: userId={}, courseId={}", userId, courseId);
-        return "更新失败";
+
+        if (courseChanged || propertiesChanged) {
+            notificationCenterService.notifyCourseChanged(
+                    coursesMapper.getCourseById(courseId),
+                    sysUserService.findUserById(userId),
+                    NotificationConstants.COURSE_ACTION_INFO_UPDATED
+            );
+            refreshTeacherCourseCacheAfterCommit(currentCourse.getTeacherId());
+        }
+        return "更新完成";
     }
 
 
@@ -1096,60 +1138,125 @@ public class CoursesServiceImpl implements CoursesService {
     }
 
     /**
-     * 发布课程
+     * 教师提交课程审核。
      *
-     * @param userId   用户ID
-     * @param courseId 课程ID
-     * @return 发布结果 true：成功，false：失败
+     * @param teacherId 教师ID
+     * @param courseId  课程ID
      */
     @Override
-    public boolean publishCourse(String userId, String courseId) {
-        if (usersService.isTeacher(userId)) {
-            log.info("[publishCourse.method] 课程发布: userId={}, courseId={}", userId, courseId);
-            // 检查课程是否存在
-            if (!coursesMapper.checkCourseExists(courseId)) {
-                log.warn("[publishCourse.method] 课程不存在: userId={}, courseId={}", userId, courseId);
-                return false;
-            }
-            boolean published = coursesMapper.publishCourse(courseId) > 0;
-            if (published) {
-                refreshTeacherCourseCache(userId);
-                notificationCenterService.notifyCourseChanged(
-                        coursesMapper.getCourseById(courseId),
-                        sysUserService.findUserById(userId),
-                        NotificationConstants.COURSE_ACTION_PUBLISHED
-                );
-            }
-            return published;
-        }
-        return false;
+    @Transactional
+    public void submitCourseForReview(String teacherId, String courseId) {
+        Courses course = requireTeacherOwnedCourse(teacherId, courseId, true);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_SUBMIT_REVIEW, teacherId, Const.ROLE_TEACHERS, null);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
     }
 
     /**
-     * 归档课程
+     * 教师归档草稿课程。
      *
-     * @param userId   用户ID
-     * @param courseId 课程ID
-     * @return 归档结果 true：成功，false：失败
+     * @param teacherId 教师ID
+     * @param courseId  课程ID
      */
     @Override
-    public boolean archiveCourse(String userId, String courseId) {
-        if (usersService.isTeacher(userId)) {
-            if (coursesMapper.checkCourseExists(courseId)) {
-                log.info("[archiveCourse.method] 课程归档: userId={}, courseId={}", userId, courseId);
-                int i = coursesMapper.archiveCourse(courseId, userId);
-                if (i > 0) {
-                    log.info("[archiveCourse.method] 课程归档成功: userId={}, courseId={}", userId, courseId);
-                    notificationCenterService.notifyCourseChanged(
-                            coursesMapper.getCourseById(courseId),
-                            sysUserService.findUserById(userId),
-                            NotificationConstants.COURSE_ACTION_ARCHIVED
-                    );
-                    return true;
-                }
-            }
-        }
-        return false;
+    @Transactional
+    public void archiveCourseByTeacher(String teacherId, String courseId) {
+        Courses course = requireTeacherOwnedCourse(teacherId, courseId, true);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_ARCHIVE, teacherId, Const.ROLE_TEACHERS, null);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
+    }
+
+    /**
+     * 管理员审核通过课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     */
+    @Override
+    @Transactional
+    public void approveCourseReview(String adminId, String courseId) {
+        Courses course = requireCourseForAdmin(adminId, courseId, true);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_APPROVE, adminId, Const.ROLE_ADMIN, null);
+        Users actor = sysUserService.findUserById(adminId);
+        notificationCenterService.notifyCourseReviewResult(course, actor, NotificationConstants.COURSE_ACTION_REVIEW_APPROVED, null);
+        notificationCenterService.notifyCourseChanged(course, actor, NotificationConstants.COURSE_ACTION_PUBLISHED);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
+    }
+
+    /**
+     * 管理员驳回课程审核。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  审核意见
+     */
+    @Override
+    @Transactional
+    public void rejectCourseReview(String adminId, String courseId, String comment) {
+        Courses course = requireCourseForAdmin(adminId, courseId, true);
+        String normalizedComment = normalizeWorkflowComment(comment);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_REJECT, adminId, Const.ROLE_ADMIN, normalizedComment);
+        notificationCenterService.notifyCourseReviewResult(
+                course,
+                sysUserService.findUserById(adminId),
+                NotificationConstants.COURSE_ACTION_REVIEW_REJECTED,
+                normalizedComment
+        );
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
+    }
+
+    /**
+     * 管理员下架课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  下架说明
+     */
+    @Override
+    @Transactional
+    public void takeDownCourse(String adminId, String courseId, String comment) {
+        Courses course = requireCourseForAdmin(adminId, courseId, true);
+        String normalizedComment = normalizeWorkflowComment(comment);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_TAKE_DOWN, adminId, Const.ROLE_ADMIN, normalizedComment);
+        Users actor = sysUserService.findUserById(adminId);
+        notificationCenterService.notifyCourseReviewResult(course, actor, NotificationConstants.COURSE_ACTION_TAKEN_DOWN, normalizedComment);
+        notificationCenterService.notifyCourseChanged(course, actor, NotificationConstants.COURSE_ACTION_TAKEN_DOWN);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
+    }
+
+    /**
+     * 管理员重新上架课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     */
+    @Override
+    @Transactional
+    public void republishCourse(String adminId, String courseId) {
+        Courses course = requireCourseForAdmin(adminId, courseId, true);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_REPUBLISH, adminId, Const.ROLE_ADMIN, null);
+        Users actor = sysUserService.findUserById(adminId);
+        notificationCenterService.notifyCourseReviewResult(course, actor, NotificationConstants.COURSE_ACTION_REPUBLISHED, null);
+        notificationCenterService.notifyCourseChanged(course, actor, NotificationConstants.COURSE_ACTION_REPUBLISHED);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
+    }
+
+    /**
+     * 管理员归档课程。
+     *
+     * @param adminId  管理员ID
+     * @param courseId 课程ID
+     * @param comment  归档说明
+     */
+    @Override
+    @Transactional
+    public void archiveCourseByAdmin(String adminId, String courseId, String comment) {
+        Courses course = requireCourseForAdmin(adminId, courseId, true);
+        String normalizedComment = normalizeWorkflowComment(comment);
+        transitionCourseStatus(course, CourseStatusFlow.ACTION_ARCHIVE, adminId, Const.ROLE_ADMIN, normalizedComment);
+        Users actor = sysUserService.findUserById(adminId);
+        notificationCenterService.notifyCourseReviewResult(course, actor, NotificationConstants.COURSE_ACTION_ARCHIVED, normalizedComment);
+        notificationCenterService.notifyCourseChanged(course, actor, NotificationConstants.COURSE_ACTION_ARCHIVED);
+        refreshTeacherCourseCacheAfterCommit(course.getTeacherId());
     }
 
     /**
@@ -1194,6 +1301,214 @@ public class CoursesServiceImpl implements CoursesService {
             return Collections.emptyList();
         }
         return courseListAll;
+    }
+
+    /**
+     * 获取全部待审核课程。
+     *
+     * @return 待审核课程列表
+     */
+    @Override
+    public List<Courses> listPendingReviewCourses() {
+        List<Courses> pendingCourses = coursesMapper.listPendingReviewCourses();
+        return pendingCourses == null ? Collections.emptyList() : pendingCourses;
+    }
+
+    /**
+     * 校验当前操作者是否为教师。
+     *
+     * @param teacherId 教师ID
+     */
+    private void requireTeacherOperator(String teacherId) {
+        if (!StringUtils.hasText(teacherId)) {
+            throw new BusinessException("401", "用户未认证");
+        }
+        if (!usersService.isTeacher(teacherId)) {
+            throw new BusinessException("403", "当前用户不是教师，无法执行该操作");
+        }
+    }
+
+    /**
+     * 校验当前操作者是否为管理员。
+     *
+     * @param adminId 管理员ID
+     */
+    private void requireAdminOperator(String adminId) {
+        if (!StringUtils.hasText(adminId)) {
+            throw new BusinessException("401", "用户未认证");
+        }
+        if (!usersService.isAdmin(adminId)) {
+            throw new BusinessException("403", "当前用户不是管理员，无法执行该操作");
+        }
+    }
+
+    /**
+     * 加载并校验教师本人课程。
+     *
+     * @param teacherId  教师ID
+     * @param courseId   课程ID
+     * @param lockCourse 是否加锁查询
+     * @return 课程实体
+     */
+    private Courses requireTeacherOwnedCourse(String teacherId, String courseId, boolean lockCourse) {
+        requireTeacherOperator(teacherId);
+        Courses course = loadCourse(courseId, lockCourse);
+        if (!Objects.equals(course.getTeacherId(), teacherId)) {
+            throw new BusinessException("403", "无权操作其他教师的课程");
+        }
+        return course;
+    }
+
+    /**
+     * 加载并校验管理员可操作课程。
+     *
+     * @param adminId    管理员ID
+     * @param courseId   课程ID
+     * @param lockCourse 是否加锁查询
+     * @return 课程实体
+     */
+    private Courses requireCourseForAdmin(String adminId, String courseId, boolean lockCourse) {
+        requireAdminOperator(adminId);
+        return loadCourse(courseId, lockCourse);
+    }
+
+    /**
+     * 读取课程实体。
+     *
+     * @param courseId   课程ID
+     * @param lockCourse 是否加锁查询
+     * @return 课程实体
+     */
+    private Courses loadCourse(String courseId, boolean lockCourse) {
+        if (!StringUtils.hasText(courseId)) {
+            throw new BusinessException("400", "课程ID不能为空");
+        }
+        Courses course = lockCourse ? coursesMapper.getCourseByIdForUpdate(courseId) : coursesMapper.getCourseById(courseId);
+        if (course == null || (course.getIsDeleted() != null && course.getIsDeleted() == 1)) {
+            throw new BusinessException("404", "课程不存在");
+        }
+        return course;
+    }
+
+    /**
+     * 执行课程状态流转，并写入审核日志。
+     *
+     * @param course        课程实体
+     * @param action        流转动作
+     * @param operatorId    操作人ID
+     * @param operatorRole  操作人角色
+     * @param comment       审核说明
+     */
+    private void transitionCourseStatus(Courses course,
+                                        String action,
+                                        String operatorId,
+                                        String operatorRole,
+                                        String comment) {
+        String fromStatus = normalizeCourseStatus(course.getStatus());
+        String nextStatus = CourseStatusFlow.nextStatus(fromStatus, action);
+        if (!StringUtils.hasText(nextStatus)) {
+            throw new BusinessException("400", buildIllegalTransitionMessage(fromStatus, action));
+        }
+
+        String normalizedComment = normalizeWorkflowComment(comment);
+        if (CourseStatusFlow.ACTION_REJECT.equals(action) && !StringUtils.hasText(normalizedComment)) {
+            throw new BusinessException("400", "驳回待审核课程时必须填写审核意见");
+        }
+
+        Date now = new Date();
+        int updated = coursesMapper.updateCourseStatus(course.getId(), fromStatus, nextStatus, now);
+        if (updated <= 0) {
+            throw new BusinessException("409", "课程状态已发生变化，请刷新后重试");
+        }
+
+        int inserted = courseReviewLogMapper.insert(new CourseReviewLog()
+                .setId(hybridIdGenerator.generateId())
+                .setCourseId(course.getId())
+                .setFromStatus(fromStatus)
+                .setToStatus(nextStatus)
+                .setOperatorId(operatorId)
+                .setOperatorRole(operatorRole)
+                .setComment(normalizedComment)
+                .setCreatedAt(now));
+        if (inserted <= 0) {
+            throw new BusinessException("500", "写入课程审核记录失败");
+        }
+
+        course.setStatus(nextStatus);
+        course.setUpdatedAt(now);
+    }
+
+    /**
+     * 规范化课程状态值。
+     *
+     * @param status 原始状态
+     * @return 规范化后的状态
+     */
+    private String normalizeCourseStatus(String status) {
+        return status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 规范化工作流备注。
+     *
+     * @param comment 原始备注
+     * @return 去除空白后的备注，若为空则返回 null
+     */
+    private String normalizeWorkflowComment(String comment) {
+        if (!StringUtils.hasText(comment)) {
+            return null;
+        }
+        String normalizedComment = comment.trim();
+        if (normalizedComment.length() > 500) {
+            throw new BusinessException("400", "审核说明长度不能超过500个字符");
+        }
+        return normalizedComment;
+    }
+
+    /**
+     * 构建非法状态流转提示。
+     *
+     * @param currentStatus 当前状态
+     * @param action        业务动作
+     * @return 错误提示语
+     */
+    private String buildIllegalTransitionMessage(String currentStatus, String action) {
+        Set<String> allowedActions = CourseStatusFlow.getAllowedActions(currentStatus);
+        if (allowedActions.isEmpty()) {
+            return "当前课程状态不允许继续流转";
+        }
+        String allowedActionText = allowedActions.stream()
+                .map(this::resolveCourseActionLabel)
+                .collect(Collectors.joining("、"));
+        return "当前课程状态不支持执行“" + resolveCourseActionLabel(action) + "”，允许的操作为：“" + allowedActionText + "”";
+    }
+
+    /**
+     * 将内部动作编码转换为中文说明。
+     *
+     * @param action 动作编码
+     * @return 中文说明
+     */
+    private String resolveCourseActionLabel(String action) {
+        if (CourseStatusFlow.ACTION_SUBMIT_REVIEW.equals(action)) {
+            return "提交审核";
+        }
+        if (CourseStatusFlow.ACTION_APPROVE.equals(action)) {
+            return "审核通过";
+        }
+        if (CourseStatusFlow.ACTION_REJECT.equals(action)) {
+            return "审核驳回";
+        }
+        if (CourseStatusFlow.ACTION_TAKE_DOWN.equals(action)) {
+            return "下架课程";
+        }
+        if (CourseStatusFlow.ACTION_REPUBLISH.equals(action)) {
+            return "重新上架";
+        }
+        if (CourseStatusFlow.ACTION_ARCHIVE.equals(action)) {
+            return "归档课程";
+        }
+        return action;
     }
 
     /**
@@ -1795,6 +2110,8 @@ public class CoursesServiceImpl implements CoursesService {
                 String statusName = switch (status) {
                     case "published" -> "已发布";
                     case "draft" -> "草稿";
+                    case "pending" -> "待审核";
+                    case "taken_down" -> "已下架";
                     case "archived" -> "已归档";
                     default -> status;
                 };

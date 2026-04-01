@@ -25,7 +25,15 @@ public class CourseCoreInfoDto implements Serializable {
     private String coverImageUrl;
     private String teacherId;
     private String categoryId;
-    private String status; // 'draft', 'published', 'archived'
+    /**
+     * 课程状态字段。
+     * <p>
+     * 合法值包括 draft、pending、published、taken_down、archived。
+     * 普通课程编辑接口不会直接信任前端传入的状态，
+     * 实际状态变更必须经由课程状态机流转接口完成。
+     * </p>
+     */
+    private String status;
     private boolean privateCourse;
 
     // 来自 course_properties 表 (嵌套对象，结构更清晰)

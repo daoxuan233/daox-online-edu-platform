@@ -45,9 +45,26 @@ public class Courses implements Serializable {
     private String categoryId;
     /**
      * 课程状态:<br />
-     * 'draft' : 草案<br />
-     * 'published' : 发表<br />
-     * 'archived' : 存档
+     * draft[草稿] <br />
+     * pending[待审核] <br />
+     * published[已发布] <br />
+     * taken_down[已下架] <br />
+     * archived[已归档]
+     * <p>
+     * 五个状态值和合法跳转关系：<br />
+     * draft       → pending（教师提交审核）<br />
+     * draft       → archived（教师直接放弃）<br />
+     * pending     → published（管理员审核通过）<br />
+     * pending     → draft（管理员拒绝，退回修改）<br />
+     * published   → taken_down（管理员下架）<br />
+     * taken_down  → published（管理员重新上架）<br />
+     * taken_down  → archived（管理员归档）<br />
+     * archived    → （终态，不可跳转）
+    * </p>
+    * <p>
+    * 注意：该字段只能通过课程状态机相关业务接口流转修改，
+    * 不应在普通课程编辑接口中被直接覆盖。
+     * </p>
      */
     private String status;
     /**

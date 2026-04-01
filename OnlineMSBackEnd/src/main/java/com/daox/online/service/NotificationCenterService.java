@@ -72,6 +72,16 @@ public interface NotificationCenterService {
     void notifyCourseChanged(Courses course, Users actor, String changeAction);
 
     /**
+     * 向课程教师发送审核结果或后台状态处理结果通知。
+     *
+     * @param course        课程实体
+     * @param actor         操作人
+     * @param reviewAction  审核/流转动作
+     * @param comment       审核说明或备注
+     */
+    void notifyCourseReviewResult(Courses course, Users actor, String reviewAction, String comment);
+
+    /**
      * 分页查询当前用户的通知列表。
      *
      * @param userId           当前用户 ID

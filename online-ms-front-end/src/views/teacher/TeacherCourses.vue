@@ -1,1363 +1,1420 @@
 <template>
-  <div class="teacher-courses">
-    <!-- 页面头部 -->
-    <div class="page-header glass-card">
-      <div class="header-content">
-        <div class="header-left">
-          <h1 class="page-title">
-            <span class="icon-wrapper">
-              <i class="fas fa-book-open"></i>
-            </span>
-            课程管理
-          </h1>
-          <p class="page-subtitle">管理您的所有课程内容，创建精彩的教学体验</p>
-        </div>
-        <div class="header-actions">
-          <el-button type="primary" class="gradient-btn" @click="createCourse">
+  <div ref="pageRef" class="teacher-review-page">
+    <section ref="heroRef" class="hero-shell">
+      <div class="hero-copy">
+        <p class="eyebrow">Teacher Review Console</p>
+        <h1 class="hero-title">课程提审与状态工作台</h1>
+        <p class="hero-description">
+          教师端不再直接发课。课程必须先处于草稿，再提交审核，后续由管理员负责发布、下架与归档。
+          当前页面直接对接后端课程状态机接口，状态变化会同步反映到通知中心。
+        </p>
+        <div class="hero-actions">
+          <el-button type="primary" class="primary-action" @click="createCourse">
             <font-awesome-icon :icon="['fas', 'plus']" />
-            创建课程
+            新建课程
           </el-button>
-          <el-button class="glass-btn" @click="importCourse">
-            <font-awesome-icon :icon="['fas', 'cloud-upload-alt']" />
-            导入课程
+          <el-button class="ghost-action" :loading="loading" @click="refreshCourses">
+            <font-awesome-icon :icon="['fas', 'arrows-rotate']" />
+            刷新状态
+          </el-button>
+          <el-button class="ghost-action" @click="openNotificationsCenter">
+            <font-awesome-icon :icon="['fas', 'bell']" />
+            审核通知
           </el-button>
         </div>
       </div>
-    </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-section">
-      <div class="stat-card glass-card hover-effect" v-for="stat in courseStats" :key="stat.key">
-        <div class="stat-icon-wrapper" :style="{ background: `linear-gradient(135deg, ${stat.color}20, ${stat.color}40)`, color: stat.color }">
-          <i :class="stat.icon"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-        </div>
-        <div class="stat-decoration" :style="{ background: stat.color }"></div>
-      </div>
-    </div>
-
-    <!-- 筛选和搜索 -->
-    <div class="filter-section glass-card">
-      <div class="filter-row">
-        <div class="search-group">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索课程名称、描述..."
-            class="glass-input"
-            clearable
-            @input="handleSearch"
-          >
-            <template #prefix>
-              <font-awesome-icon :icon="['fas', 'search']" class="search-icon" />
-            </template>
-          </el-input>
-        </div>
-        
-        <div class="filter-group">
-          <el-select v-model="filterStatus" placeholder="状态" class="glass-select" @change="handleFilter" popper-class="glass-dropdown">
-            <el-option label="全部状态" value="" />
-            <el-option label="已发布" value="published" />
-            <el-option label="草稿" value="draft" />
-            <el-option label="已归档" value="archived" />
-          </el-select>
-          
-          <el-select v-model="filterCategory" placeholder="分类" class="glass-select" @change="handleFilter" popper-class="glass-dropdown">
-            <el-option label="全部分类" value="" />
-            <el-option label="前端开发" value="frontend" />
-            <el-option label="后端开发" value="backend" />
-            <el-option label="移动开发" value="mobile" />
-            <el-option label="数据科学" value="data" />
-            <el-option label="设计" value="design" />
-          </el-select>
-          
-          <el-select v-model="sortBy" placeholder="排序" class="glass-select" @change="handleSort" popper-class="glass-dropdown">
-            <el-option label="最新创建" value="created_desc" />
-            <el-option label="最新更新" value="updated_desc" />
-            <el-option label="学生最多" value="students_desc" />
-            <el-option label="评分最高" value="rating_desc" />
-          </el-select>
-        </div>
-        
-        <div class="view-toggle">
-          <el-button-group class="glass-btn-group">
-            <el-button 
-              :class="{ active: viewMode === 'grid' }"
-              @click="viewMode = 'grid'"
-              class="view-btn"
-            >
-              <font-awesome-icon :icon="['fas', 'th-large']" />
-            </el-button>
-            <el-button 
-              :class="{ active: viewMode === 'list' }"
-              @click="viewMode = 'list'"
-              class="view-btn"
-            >
-              <font-awesome-icon :icon="['fas', 'list']" />
-            </el-button>
-          </el-button-group>
+      <div class="hero-focus glass-panel">
+        <span class="focus-label">当前重点</span>
+        <strong class="focus-title">{{ spotlight.title }}</strong>
+        <p class="focus-description">{{ spotlight.description }}</p>
+        <div class="focus-metrics">
+          <div class="focus-metric">
+            <span>课程总数</span>
+            <strong>{{ boardStats.total }}</strong>
+          </div>
+          <div class="focus-metric">
+            <span>待处理草稿</span>
+            <strong>{{ boardStats.draft }}</strong>
+          </div>
+          <div class="focus-metric">
+            <span>审核中</span>
+            <strong>{{ boardStats.pending }}</strong>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 课程列表 -->
-    <div class="courses-section">
-      <!-- 网格视图 -->
-      <transition-group name="list" tag="div" v-if="viewMode === 'grid'" class="courses-grid">
-        <div 
-          v-for="course in filteredCourses" 
-          :key="course.id" 
-          class="course-card glass-card hover-lift"
+    <section ref="workflowRef" class="workflow-shell glass-panel">
+      <div class="section-heading">
+        <div>
+          <p class="section-eyebrow">Workflow</p>
+          <h2>教师侧状态机一览</h2>
+        </div>
+        <span class="section-chip">仅允许通过提审接口变更发布状态</span>
+      </div>
+
+      <div class="workflow-track">
+        <article
+          v-for="(step, index) in COURSE_WORKFLOW_STEPS"
+          :key="step.key"
+          class="workflow-step"
+          :style="{ '--step-accent': getCourseStatusMeta(step.key).accent, '--step-soft': getCourseStatusMeta(step.key).soft }"
         >
-          <div class="course-cover">
-            <img :src="course.cover" :alt="course.title" />
-            <div class="course-overlay"></div>
-            <div class="course-status-badge" :class="course.status">
-              {{ getStatusText(course.status) }}
-            </div>
-            <div class="course-actions-overlay">
-              <el-button circle class="action-btn" @click="editCourse(course.id)">
-                <font-awesome-icon :icon="['fas', 'edit']" />
-              </el-button>
-              <el-button circle class="action-btn" @click="previewCourse(course.id)">
-                <font-awesome-icon :icon="['fas', 'eye']" />
-              </el-button>
-              <el-dropdown @command="handleCourseAction" trigger="click">
-                <el-button circle class="action-btn">
-                  <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu class="glass-dropdown-menu">
-                    <el-dropdown-item :command="{ action: 'duplicate', id: course.id }">
-                      <font-awesome-icon :icon="['fas', 'copy']" /> 复制课程
-                    </el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'export', id: course.id }">
-                      <font-awesome-icon :icon="['fas', 'download']" /> 导出课程
-                    </el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'archive', id: course.id }" v-if="course.status !== 'archived'">
-                      <font-awesome-icon :icon="['fas', 'archive']" /> 归档课程
-                    </el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided class="danger-item">
-                      <font-awesome-icon :icon="['fas', 'trash']" /> 删除课程
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
+          <span class="step-index">0{{ index + 1 }}</span>
+          <div class="step-copy">
+            <strong>{{ step.label }}</strong>
+            <p>{{ step.description }}</p>
           </div>
-          
-          <div class="course-content">
-            <div class="course-category-tag">{{ getCategoryText(course.category) }}</div>
-            <h3 class="course-title" :title="course.title">{{ course.title }}</h3>
-            <p class="course-description">{{ course.description }}</p>
-            
-            <div class="course-meta">
-              <div class="meta-item">
-                <font-awesome-icon :icon="['fas', 'user-graduate']" />
-                <span>{{ course.studentCount }}</span>
-              </div>
-              <div class="meta-item">
-                <font-awesome-icon :icon="['fas', 'star']" class="star-icon" />
-                <span>{{ course.rating }}</span>
-              </div>
-              <div class="meta-item">
-                <font-awesome-icon :icon="['fas', 'clock']" />
-                <span>{{ course.duration }}</span>
-              </div>
-            </div>
-            
-            <div class="course-footer">
-              <div class="course-price">
-                <template v-if="course.price !== null && course.price !== undefined && course.price !== ''">
-                  <span class="currency">¥</span>
-                  <span class="amount">{{ course.price }}</span>
-                </template>
-                <span v-else class="price-unavailable">暂无价格</span>
-              </div>
-              <div class="course-updated">
-                <span>{{ formatRelativeTime(course.updatedAt) }} 更新</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </transition-group>
+        </article>
+      </div>
+    </section>
 
-      <!-- 列表视图 -->
-      <div v-else class="courses-list glass-card">
-        <div class="list-header">
-          <div class="header-cell course-info">课程信息</div>
-          <div class="header-cell">状态</div>
-          <div class="header-cell">学生数</div>
-          <div class="header-cell">评分</div>
-          <div class="header-cell">价格</div>
-          <div class="header-cell">更新时间</div>
-          <div class="header-cell">操作</div>
+    <section ref="statsRef" class="stats-grid">
+      <article
+        v-for="card in summaryCards"
+        :key="card.key"
+        class="stat-card glass-panel"
+        :style="{ '--card-accent': card.accent, '--card-soft': card.soft }"
+      >
+        <div class="stat-icon">
+          <font-awesome-icon :icon="['fas', card.icon]" />
         </div>
-        
-        <transition-group name="list-item">
-          <div 
-            v-for="course in filteredCourses" 
-            :key="course.id" 
-            class="list-item"
+        <div class="stat-copy">
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.description }}</small>
+        </div>
+      </article>
+    </section>
+
+    <section ref="toolbarRef" class="toolbar-shell glass-panel">
+      <el-input
+        v-model.trim="keyword"
+        class="toolbar-input"
+        clearable
+        placeholder="搜索课程标题、简介或分类"
+      >
+        <template #prefix>
+          <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
+        </template>
+      </el-input>
+
+      <el-select v-model="statusFilter" class="toolbar-select" placeholder="全部状态" clearable>
+        <el-option label="全部状态" value="" />
+        <el-option
+          v-for="step in COURSE_WORKFLOW_STEPS"
+          :key="step.key"
+          :label="step.label"
+          :value="step.key"
+        />
+      </el-select>
+
+      <el-select v-model="sortBy" class="toolbar-select" placeholder="排序方式">
+        <el-option label="状态优先" value="workflow" />
+        <el-option label="最近创建" value="created_desc" />
+        <el-option label="标题 A-Z" value="title_asc" />
+      </el-select>
+    </section>
+
+    <div class="page-grid">
+      <aside class="insight-column">
+        <article class="insight-card glass-panel">
+          <h3>提审前检查</h3>
+          <ul class="insight-list">
+            <li v-for="item in reviewChecklist" :key="item">{{ item }}</li>
+          </ul>
+        </article>
+
+        <article class="insight-card glass-panel">
+          <h3>状态说明</h3>
+          <div
+            v-for="statusKey in ['draft', 'pending', 'published', 'taken_down', 'archived']"
+            :key="statusKey"
+            class="status-brief"
           >
-            <div class="list-cell course-info">
-              <div class="course-basic">
-                <div class="course-thumbnail-wrapper">
-                  <img :src="course.cover" :alt="course.title" class="course-thumbnail" />
-                </div>
-                <div class="course-details">
-                  <h4 class="course-title">{{ course.title }}</h4>
-                  <p class="course-category-text">{{ getCategoryText(course.category) }}</p>
-                  <div class="course-progress-mini">
-                    <span class="progress-label">完成度: {{ course.completionRate }}%</span>
-                    <el-progress 
-                      :percentage="course.completionRate" 
-                      :stroke-width="4" 
-                      :show-text="false"
-                      :color="customColorMethod"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="list-cell">
-              <span class="status-dot" :class="course.status"></span>
-              <span class="status-text">{{ getStatusText(course.status) }}</span>
-            </div>
-            
-            <div class="list-cell">
-              <span class="student-count">
-                {{ course.studentCount }}
-              </span>
-            </div>
-            
-            <div class="list-cell">
-              <div class="rating-badge">
-                <font-awesome-icon :icon="['fas', 'star']" />
-                <span>{{ course.rating }}</span>
-              </div>
-            </div>
-            
-            <div class="list-cell">
-              <span v-if="course.price !== null && course.price !== undefined && course.price !== ''" class="price">¥{{ course.price }}</span>
-              <span v-else class="price-unavailable">暂无价格</span>
-            </div>
-            
-            <div class="list-cell">
-              <span class="update-time">{{ formatRelativeTime(course.updatedAt) }}</span>
-            </div>
-            
-            <div class="list-cell actions">
-              <el-tooltip content="编辑" placement="top" :hide-after="0">
-                <button class="icon-btn" @click="editCourse(course.id)">
-                  <font-awesome-icon :icon="['fas', 'edit']" />
-                </button>
-              </el-tooltip>
-              <el-tooltip content="预览" placement="top" :hide-after="0">
-                <button class="icon-btn" @click="previewCourse(course.id)">
-                  <font-awesome-icon :icon="['fas', 'eye']" />
-                </button>
-              </el-tooltip>
-              <el-dropdown @command="handleCourseAction" trigger="click">
-                <button class="icon-btn">
-                  <font-awesome-icon :icon="['fas', 'ellipsis-v']" />
-                </button>
-                <template #dropdown>
-                  <el-dropdown-menu class="glass-dropdown-menu">
-                    <el-dropdown-item :command="{ action: 'duplicate', id: course.id }">复制</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'export', id: course.id }">导出</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'archive', id: course.id }" v-if="course.status !== 'archived'">归档</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', id: course.id }" divided class="danger-item">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
+            <span
+              class="status-pill"
+              :style="{
+                '--pill-accent': getCourseStatusMeta(statusKey).accent,
+                '--pill-soft': getCourseStatusMeta(statusKey).soft
+              }"
+            >
+              {{ getCourseStatusMeta(statusKey).label }}
+            </span>
+            <p>{{ getCourseStatusMeta(statusKey).description }}</p>
           </div>
-        </transition-group>
-      </div>
-    </div>
+        </article>
+      </aside>
 
-    <!-- 分页 -->
-    <div class="pagination-section">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[12, 24, 48, 96]"
-        :total="totalCourses"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        background
-        class="glass-pagination"
-      />
-    </div>
+      <section class="board-shell glass-panel">
+        <header class="board-header">
+          <div>
+            <p class="section-eyebrow">Courses</p>
+            <h2>课程清单</h2>
+            <p class="board-description">{{ boardDescription }}</p>
+          </div>
+          <span class="board-chip">共 {{ filteredCourses.length }} 门符合条件的课程</span>
+        </header>
 
-    <!-- 空状态 -->
-    <div v-if="filteredCourses.length === 0" class="empty-state glass-card">
-      <div class="empty-icon-wrapper">
-        <font-awesome-icon :icon="['fas', 'box-open']" />
-      </div>
-      <h3 class="empty-title">暂无课程数据</h3>
-      <p class="empty-description">
-        {{ searchQuery || filterStatus || filterCategory ? '没有找到符合条件的课程，请尝试调整筛选条件' : '您还没有创建任何课程，开始您的教学之旅吧' }}
-      </p>
-      <el-button type="primary" class="gradient-btn" @click="createCourse" v-if="!searchQuery && !filterStatus && !filterCategory">
-        <font-awesome-icon :icon="['fas', 'plus']" />
-        创建第一个课程
-      </el-button>
+        <div v-if="loading" class="loading-shell">
+          <div class="loading-orb"></div>
+          <p>正在同步教师课程状态...</p>
+        </div>
+
+        <div v-else-if="filteredCourses.length === 0" class="empty-shell">
+          <div class="empty-icon">
+            <font-awesome-icon :icon="['fas', 'book-open']" />
+          </div>
+          <h3>暂无匹配课程</h3>
+          <p>你可以先创建课程，或调整筛选条件重新查看。</p>
+          <el-button type="primary" class="primary-action" @click="createCourse">创建第一门课程</el-button>
+        </div>
+
+        <div v-else ref="listRef" class="course-grid">
+          <article
+            v-for="course in paginatedCourses"
+            :key="course.id"
+            class="course-card"
+            :style="{
+              '--status-accent': getCourseStatusMeta(course.status).accent,
+              '--status-soft': getCourseStatusMeta(course.status).soft
+            }"
+          >
+            <div class="card-cover">
+              <img v-if="course.cover" :src="course.cover" :alt="course.title" loading="lazy" decoding="async" />
+              <div v-else class="cover-fallback">{{ buildInitials(course.title) }}</div>
+              <span class="status-badge">{{ getCourseStatusMeta(course.status).label }}</span>
+            </div>
+
+            <div class="card-body">
+              <div class="title-row">
+                <div>
+                  <span class="category-chip">{{ course.categoryName }}</span>
+                  <h3>{{ course.title }}</h3>
+                </div>
+                <span class="price-chip">{{ course.priceText }}</span>
+              </div>
+
+              <el-tooltip
+                v-if="hasCourseDescriptionOverflow(course.description)"
+                popper-class="course-description-tooltip"
+                placement="top-start"
+                :show-after="140"
+                :enterable="false"
+              >
+                <template #content>
+                  <div v-if="hoveredDescriptionCourseId === course.id" class="description-tooltip-copy">
+                    {{ normalizeCourseDescriptionText(course.description) }}
+                  </div>
+                </template>
+                <p
+                  class="course-description description-trigger is-truncated"
+                  tabindex="0"
+                  @mouseenter="activateDescriptionPreview(course.id)"
+                  @mouseleave="clearDescriptionPreview(course.id)"
+                  @focus="activateDescriptionPreview(course.id)"
+                  @blur="clearDescriptionPreview(course.id)"
+                >
+                  {{ getCourseDescriptionPreview(course.description) }}
+                </p>
+              </el-tooltip>
+              <p v-else class="course-description">{{ normalizeCourseDescriptionText(course.description) }}</p>
+
+              <div class="meta-row">
+                <span>课程 ID {{ shortId(course.id) }}</span>
+                <span>创建于 {{ formatDate(course.createdAt) }}</span>
+              </div>
+
+              <div class="mini-track">
+                <span
+                  v-for="step in COURSE_WORKFLOW_STEPS"
+                  :key="`${course.id}-${step.key}`"
+                  class="track-node"
+                  :class="{
+                    complete: getWorkflowStepIndex(course.status) > COURSE_WORKFLOW_STEPS.findIndex((item) => item.key === step.key),
+                    current: step.key === course.status
+                  }"
+                ></span>
+              </div>
+
+              <p class="status-description">{{ getCourseStatusMeta(course.status).description }}</p>
+
+              <div class="action-row">
+                <template v-if="course.status === 'draft'">
+                  <el-button
+                    type="primary"
+                    class="action-primary"
+                    :loading="processingCourseId === course.id && processingAction === 'submit'"
+                    @click="submitForReview(course)"
+                  >
+                    提交审核
+                  </el-button>
+                  <el-button class="action-secondary" @click="editCourse(course.id)">继续编辑</el-button>
+                  <el-button
+                    class="action-secondary danger"
+                    :loading="processingCourseId === course.id && processingAction === 'archive'"
+                    @click="archiveDraft(course)"
+                  >
+                    归档草稿
+                  </el-button>
+                </template>
+
+                <template v-else-if="course.status === 'pending'">
+                  <el-button class="action-pending" disabled>审核中</el-button>
+                  <el-button class="action-secondary" @click="openNotificationsCenter">查看通知</el-button>
+                </template>
+
+                <template v-else-if="course.status === 'published'">
+                  <el-button class="action-secondary" @click="editCourse(course.id)">查看课程</el-button>
+                  <el-button class="action-secondary" @click="previewStatusGuide(course)">状态说明</el-button>
+                </template>
+
+                <template v-else>
+                  <el-button class="action-secondary" @click="openNotificationsCenter">查看通知</el-button>
+                  <el-button class="action-secondary" @click="previewStatusGuide(course)">状态说明</el-button>
+                </template>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <footer v-if="filteredCourses.length > pageSize" class="pagination-shell">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            layout="prev, pager, next"
+            :page-size="pageSize"
+            :total="filteredCourses.length"
+          />
+        </footer>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMyCourseList } from '@/api/teacher/teacherAPI.js'
-import gsap from 'gsap'
+import { gsap } from 'gsap'
+import { archiveTeacherCourse, getMyCourseList, submitCourseReview } from '@/api/teacher/teacherAPI.js'
+import {
+  COURSE_WORKFLOW_STEPS,
+  compareCourseStatus,
+  getCourseDescriptionPreview,
+  getCourseStatusMeta,
+  hasCourseDescriptionOverflow,
+  getWorkflowStepIndex,
+  normalizeCourseDescriptionText,
+  normalizeCourseStatus
+} from '@/utils/courseWorkflow.js'
 
 const router = useRouter()
 
-// 响应式数据
-const searchQuery = ref('')
-const filterStatus = ref('')
-const filterCategory = ref('')
-const sortBy = ref('updated_desc')
-const viewMode = ref('grid')
-const currentPage = ref(1)
-const pageSize = ref(12)
-const loading = ref(true)
-const courses = ref([])
+const pageRef = ref(null)
+const heroRef = ref(null)
+const workflowRef = ref(null)
+const statsRef = ref(null)
+const toolbarRef = ref(null)
+const listRef = ref(null)
 
-// 课程统计
-const courseStats = ref([
+const loading = ref(false)
+const courses = ref([])
+const keyword = ref('')
+const statusFilter = ref('')
+const sortBy = ref('workflow')
+const currentPage = ref(1)
+const pageSize = ref(6)
+const processingCourseId = ref('')
+const processingAction = ref('')
+const hoveredDescriptionCourseId = ref('')
+
+let enterContext = null
+let listTween = null
+
+const reviewChecklist = [
+  '课程标题、简介和封面已经补齐，不再出现占位信息。',
+  '分类、价格和公开属性已经确认，教师无需再通过发布接口改状态。',
+  '目录与关键资料至少具备首版内容，便于管理员完成上线判断。',
+  '若课程被驳回或下架，请优先到通知中心查看原因后再继续处理。'
+]
+
+/**
+ * 将教师课程列表接口包装为 Promise，便于组合式页面管理异步状态。
+ *
+ * @returns {Promise<Array>} 课程列表
+ */
+const requestTeacherCourses = () => {
+  return new Promise((resolve, reject) => {
+    getMyCourseList(
+      (data) => resolve(Array.isArray(data) ? data : []),
+      (message, code) => {
+        if (code === 403 || String(message || '').includes('没有课程')) {
+          resolve([])
+          return
+        }
+        reject(new Error(message || '获取课程列表失败'))
+      }
+    )
+  })
+}
+
+/**
+ * 解析日期值。
+ *
+ * @param {string|Date|null|undefined} value 日期值
+ * @returns {Date|null} 日期对象
+ */
+const parseDateValue = (value) => {
+  if (!value) {
+    return null
+  }
+  const dateValue = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(dateValue.getTime()) ? null : dateValue
+}
+
+/**
+ * 格式化课程价格。
+ *
+ * @param {string|number|null|undefined} value 价格值
+ * @returns {string} 展示文本
+ */
+const formatPrice = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return '未定价'
+  }
+  const numericValue = Number(value)
+  if (Number.isNaN(numericValue)) {
+    return `¥${value}`
+  }
+  return `¥${numericValue.toFixed(Number.isInteger(numericValue) ? 0 : 2)}`
+}
+
+/**
+ * 构建教师课程展示模型。
+ *
+ * @param {Array} courseList 原始课程列表
+ * @returns {Array} 前端展示数据
+ */
+const normalizeTeacherCourses = (courseList) => {
+  return (Array.isArray(courseList) ? courseList : []).map((course) => ({
+    id: course.courseId,
+    title: course.courseTitle || '未命名课程',
+    description: course.courseDescription || '暂无课程简介',
+    cover: course.courseCover || '',
+    categoryName: course.categoryName || '未分类',
+    status: normalizeCourseStatus(course.courseStatus),
+    priceText: formatPrice(course.coursePrice),
+    createdAt: parseDateValue(course.createTime || course.createdAt)
+  }))
+}
+
+/**
+ * 是否开启减少动态效果模式。
+ *
+ * @returns {boolean} 是否减少动态
+ */
+const prefersReducedMotion = () => {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/**
+ * 格式化时间展示。
+ *
+ * @param {Date|null} value 日期对象
+ * @returns {string} 时间文本
+ */
+const formatDate = (value) => {
+  if (!value) {
+    return '时间未知'
+  }
+  return value.toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+/**
+ * 生成课程封面占位首字。
+ *
+ * @param {string} title 课程标题
+ * @returns {string} 首字文本
+ */
+const buildInitials = (title) => {
+  return String(title || '课程').trim().slice(0, 2)
+}
+
+/**
+ * 缩短课程 ID 展示，提升列表可读性。
+ *
+ * @param {string} id 课程ID
+ * @returns {string} 缩略 ID
+ */
+const shortId = (id) => {
+  if (!id) {
+    return 'ID 缺失'
+  }
+  return `${id.slice(0, 4)}...${id.slice(-4)}`
+}
+
+/**
+ * 激活课程简介完整内容预览。
+ *
+ * @param {string} courseId 课程ID
+ */
+const activateDescriptionPreview = (courseId) => {
+  hoveredDescriptionCourseId.value = courseId
+}
+
+/**
+ * 清理课程简介完整内容预览。
+ *
+ * @param {string} courseId 课程ID
+ */
+const clearDescriptionPreview = (courseId) => {
+  if (hoveredDescriptionCourseId.value === courseId) {
+    hoveredDescriptionCourseId.value = ''
+  }
+}
+
+const boardStats = computed(() => {
+  const countByStatus = (status) => courses.value.filter((course) => course.status === status).length
+  return {
+    total: courses.value.length,
+    draft: countByStatus('draft'),
+    pending: countByStatus('pending'),
+    published: countByStatus('published'),
+    takenDown: countByStatus('taken_down'),
+    archived: countByStatus('archived')
+  }
+})
+
+const summaryCards = computed(() => ([
   {
-    key: 'total',
-    label: '总课程数',
-    value: '0',
-    icon: 'fas fa-book',
-    color: '#409EFF'
+    key: 'draft',
+    label: '草稿',
+    value: boardStats.value.draft,
+    description: '可继续编辑并提交审核',
+    icon: 'pen-ruler',
+    accent: getCourseStatusMeta('draft').accent,
+    soft: getCourseStatusMeta('draft').soft
+  },
+  {
+    key: 'pending',
+    label: '待审核',
+    value: boardStats.value.pending,
+    description: '等待管理员处理',
+    icon: 'hourglass-half',
+    accent: getCourseStatusMeta('pending').accent,
+    soft: getCourseStatusMeta('pending').soft
   },
   {
     key: 'published',
     label: '已发布',
-    value: '0',
-    icon: 'fas fa-check-circle',
-    color: '#67C23A'
+    value: boardStats.value.published,
+    description: '对学生开放学习',
+    icon: 'tower-broadcast',
+    accent: getCourseStatusMeta('published').accent,
+    soft: getCourseStatusMeta('published').soft
   },
   {
-    key: 'draft',
-    label: '草稿',
-    value: '0',
-    icon: 'fas fa-edit',
-    color: '#E6A23C'
+    key: 'taken_down',
+    label: '已下架',
+    value: boardStats.value.takenDown,
+    description: '等待管理员后续处理',
+    icon: 'box-archive',
+    accent: getCourseStatusMeta('taken_down').accent,
+    soft: getCourseStatusMeta('taken_down').soft
   },
   {
-    key: 'students',
-    label: '总学生数',
-    value: '0',
-    icon: 'fas fa-users',
-    color: '#F56C6C'
+    key: 'archived',
+    label: '已归档',
+    value: boardStats.value.archived,
+    description: '终态课程存量',
+    icon: 'folder-open',
+    accent: getCourseStatusMeta('archived').accent,
+    soft: getCourseStatusMeta('archived').soft
   }
-])
+]))
 
-// 进度条颜色
-const customColorMethod = (percentage) => {
-  if (percentage < 30) return '#909399';
-  if (percentage < 70) return '#e6a23c';
-  return '#67c23a';
-}
-
-// 映射课程状态
-const mapCourseStatus = (status) => {
-  const statusMap = {
-    '1': 'published',
-    '0': 'draft',
-    '-1': 'archived',
-    'published': 'published',
-    'draft': 'draft',
-    'archived': 'archived',
-    'PUBLISHED': 'published',
-    'DRAFT': 'draft',
-    'ARCHIVED': 'archived'
-  }
-  return statusMap[status] || 'draft'
-}
-
-// 映射课程分类
-const mapCourseCategory = (categoryName) => {
-  const categoryMap = {
-    'programming': '编程',
-    'design': '设计',
-    'business': '商业',
-    'language': '语言',
-    'Python': 'Python',
-    '摄影': '摄影',
-    'Macroeconomics': '宏观经济学',
-    '中式美学': '中式美学',
-    'Ideological': '思想政治',
-    'C Language': 'C语言',
-    'test': 'Test'
-  }
-  return categoryMap[categoryName] || categoryName || '其他'
-}
-
-const getBackendCoursePrice = (course) => {
-  const priceKeys = ['price', 'coursePrice']
-  for (const key of priceKeys) {
-    if (Object.prototype.hasOwnProperty.call(course, key)) {
-      const value = course[key]
-      if (value === null || value === undefined || value === '') {
-        return null
-      }
-      return value
+const spotlight = computed(() => {
+  if (boardStats.value.draft > 0) {
+    return {
+      title: '先把草稿推进入审',
+      description: `当前还有 ${boardStats.value.draft} 门草稿课程未提交审核，优先清理可缩短上线等待时间。`
     }
   }
-  return null
-}
-
-// 更新课程统计
-const updateCourseStats = () => {
-  const total = courses.value.length
-  const published = courses.value.filter(c => c.status === 'published').length
-  const draft = courses.value.filter(c => c.status === 'draft').length
-  const totalStudents = courses.value.reduce((sum, c) => sum + c.studentCount, 0)
-  
-  courseStats.value = [
-    {
-      key: 'total',
-      label: '总课程数',
-      value: total.toString(),
-      icon: 'fas fa-book',
-      color: '#409EFF'
-    },
-    {
-      key: 'published',
-      label: '已发布',
-      value: published.toString(),
-      icon: 'fas fa-check-circle',
-      color: '#67C23A'
-    },
-    {
-      key: 'draft',
-      label: '草稿',
-      value: draft.toString(),
-      icon: 'fas fa-edit',
-      color: '#E6A23C'
-    },
-    {
-      key: 'students',
-      label: '总学生数',
-      value: totalStudents.toString(),
-      icon: 'fas fa-users',
-      color: '#F56C6C'
+  if (boardStats.value.pending > 0) {
+    return {
+      title: '留意审核结果通知',
+      description: `当前有 ${boardStats.value.pending} 门课程正在审核中，结果会进入通知中心。`
     }
-  ]
-}
+  }
+  if (boardStats.value.takenDown > 0) {
+    return {
+      title: '关注下架课程反馈',
+      description: '已下架课程需要根据管理员说明继续整改、等待重新上架或接受归档。'
+    }
+  }
+  return {
+    title: '课程发布面稳定',
+    description: '当前没有积压草稿或待审课程，可以继续维护已发布课程的内容质量。'
+  }
+})
 
-// 加载课程列表
-const loadCourseList = async () => {
+const filteredCourses = computed(() => {
+  const normalizedKeyword = keyword.value.trim().toLowerCase()
+  let result = [...courses.value]
+
+  if (normalizedKeyword) {
+    result = result.filter((course) => {
+      return [course.title, course.description, course.categoryName]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(normalizedKeyword))
+    })
+  }
+
+  if (statusFilter.value) {
+    result = result.filter((course) => course.status === statusFilter.value)
+  }
+
+  result.sort((firstCourse, secondCourse) => {
+    if (sortBy.value === 'created_desc') {
+      return (secondCourse.createdAt?.getTime() || 0) - (firstCourse.createdAt?.getTime() || 0)
+    }
+    if (sortBy.value === 'title_asc') {
+      return firstCourse.title.localeCompare(secondCourse.title, 'zh-CN')
+    }
+    const statusDelta = compareCourseStatus(firstCourse.status, secondCourse.status)
+    if (statusDelta !== 0) {
+      return statusDelta
+    }
+    return (secondCourse.createdAt?.getTime() || 0) - (firstCourse.createdAt?.getTime() || 0)
+  })
+
+  return result
+})
+
+const paginatedCourses = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return filteredCourses.value.slice(startIndex, startIndex + pageSize.value)
+})
+
+const boardDescription = computed(() => {
+  if (statusFilter.value) {
+    return `当前已锁定 ${getCourseStatusMeta(statusFilter.value).label} 课程，可结合通知结果继续处理。`
+  }
+  if (keyword.value) {
+    return `当前根据关键词“${keyword.value}”筛选课程，状态流转动作会直接回写后端。`
+  }
+  return '聚焦草稿、待审、已发布、已下架与已归档五态流转，所有状态都来自后端接口返回。'
+})
+
+/**
+ * 加载教师课程状态数据。
+ *
+ * @returns {Promise<void>} 异步结果
+ */
+const loadTeacherCourses = async () => {
+  loading.value = true
   try {
-    loading.value = true
-    getMyCourseList(
-      (response) => {
-        // 成功回调：处理后端返回的数据
-        // console.log('后端返回数据:', response)
-        
-        // 直接使用后端返回的数据数组
-        const courseData = Array.isArray(response) ? response : (response.data || [])
-        
-        // 映射后端数据到前端格式
-        courses.value = courseData.map(course => ({
-          id: course.courseId,
-          title: course.courseTitle || '未命名课程',
-          description: course.courseDescription || '暂无描述',
-          cover: course.courseCover || '/api/placeholder/300/200',
-          status: mapCourseStatus(course.courseStatus),
-          category: mapCourseCategory(course.categoryName),
-          // 后端暂未提供的字段，使用合理默认值
-          studentCount: course.studentCount || Math.floor(Math.random() * 200) + 10,
-          rating: course.rating || (4.0 + Math.random() * 1.0).toFixed(1),
-          price: getBackendCoursePrice(course),
-          duration: course.duration || `${Math.floor(Math.random() * 20) + 5}小时`,
-          completionRate: course.completionRate || Math.floor(Math.random() * 100),
-          createdAt: course.createTime ? new Date(course.createTime) : new Date(),
-          updatedAt: course.updateTime ? new Date(course.updateTime) : new Date(course.createTime || new Date())
-        }))
-        
-        // 更新统计数据
-        updateCourseStats()
-        ElMessage.success(`成功加载 ${courses.value.length} 门课程`)
-      },
-      (error) => {
-        // 失败回调：显示错误信息
-        console.error('获取课程列表失败:', error)
-        ElMessage.error('获取课程列表失败')
-        courses.value = []
-        updateCourseStats()
-      }
-    )
+    const courseList = await requestTeacherCourses()
+    courses.value = normalizeTeacherCourses(courseList)
   } catch (error) {
-    console.error('加载课程列表异常:', error)
-    ElMessage.error('加载课程列表异常')
+    console.error('加载教师课程列表失败:', error)
+    ElMessage.error(error?.message || '加载课程列表失败')
     courses.value = []
-    updateCourseStats()
   } finally {
     loading.value = false
   }
 }
 
-// 计算属性
-const filteredCourses = computed(() => {
-  let result = courses.value
-  
-  // 搜索过滤
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(course => 
-      course.title.toLowerCase().includes(query) ||
-      course.description.toLowerCase().includes(query)
-    )
-  }
-  
-  // 状态过滤
-  if (filterStatus.value) {
-    result = result.filter(course => course.status === filterStatus.value)
-  }
-  
-  // 分类过滤
-  if (filterCategory.value) {
-    result = result.filter(course => course.category === filterCategory.value)
-  }
-  
-  // 排序
-  result.sort((a, b) => {
-    switch (sortBy.value) {
-      case 'created_desc':
-        return new Date(b.createdAt) - new Date(a.createdAt)
-      case 'updated_desc':
-        return new Date(b.updatedAt) - new Date(a.updatedAt)
-      case 'students_desc':
-        return b.studentCount - a.studentCount
-      case 'rating_desc':
-        return b.rating - a.rating
-      default:
-        return 0
+/**
+ * 播放页面首次入场动画。
+ */
+const playEnterAnimation = () => {
+  enterContext?.revert()
+  enterContext = gsap.context(() => {
+    const statCards = statsRef.value?.querySelectorAll('.stat-card') || []
+
+    if (prefersReducedMotion()) {
+      gsap.set([heroRef.value, workflowRef.value, toolbarRef.value, statCards], { opacity: 1, y: 0 })
+      return
     }
-  })
-  
-  return result
-})
 
-const totalCourses = computed(() => filteredCourses.value.length)
-
-// 方法
-const formatRelativeTime = (date) => {
-  const now = new Date()
-  const diff = now - date
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
-  if (days === 0) {
-    return '今天'
-  } else if (days === 1) {
-    return '昨天'
-  } else if (days < 7) {
-    return `${days}天前`
-  } else if (days < 30) {
-    return `${Math.floor(days / 7)}周前`
-  } else {
-    return `${Math.floor(days / 30)}个月前`
-  }
+    const timeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
+    timeline
+      .fromTo(heroRef.value, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.56 })
+      .fromTo(workflowRef.value, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.46 }, '-=0.28')
+      .fromTo(statCards, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.42, stagger: 0.08 }, '-=0.2')
+      .fromTo(toolbarRef.value, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.38 }, '-=0.14')
+  }, pageRef.value)
 }
 
-const getStatusText = (status) => {
-  const statusMap = {
-    published: '已发布',
-    draft: '草稿',
-    archived: '已归档'
+/**
+ * 播放课程卡片动画。
+ */
+const animateCourseCards = () => {
+  if (prefersReducedMotion()) {
+    return
   }
-  return statusMap[status] || status
+  listTween?.kill()
+  const cards = listRef.value?.querySelectorAll('.course-card') || []
+  if (!cards.length) {
+    return
+  }
+  listTween = gsap.fromTo(
+    cards,
+    { opacity: 0, y: 18, scale: 0.985 },
+    { opacity: 1, y: 0, scale: 1, duration: 0.36, ease: 'power2.out', stagger: 0.06 }
+  )
 }
 
-const getCategoryText = (category) => {
-  const categoryMap = {
-    frontend: '前端开发',
-    backend: '后端开发',
-    mobile: '移动开发',
-    data: '数据科学',
-    design: '设计'
-  }
-  return categoryMap[category] || category
+/**
+ * 刷新课程状态。
+ *
+ * @returns {Promise<void>} 异步结果
+ */
+const refreshCourses = async () => {
+  await loadTeacherCourses()
+  await nextTick()
+  animateCourseCards()
+  ElMessage.success('课程状态已刷新')
 }
 
 const createCourse = () => {
   router.push({ name: 'NewCourse' })
 }
 
-const importCourse = () => {
-  ElMessage.info('导入课程功能开发中')
-}
-
 const editCourse = (courseId) => {
   router.push({ name: 'CourseEdit', params: { id: courseId } })
 }
 
-const previewCourse = (courseId) => {
-  // 在新窗口打开课程预览
-  // const routeData = router.resolve({ name: 'CourseDetail', params: { id: courseId } })
-  // window.open(routeData.href, '_blank')
-  ElMessage.success('预览功能开发中')
+const openNotificationsCenter = () => {
+  router.push({ name: 'TeacherNotifications' })
 }
 
-const handleCourseAction = async ({ action, id }) => {
-  const course = courses.value.find(c => c.id === id)
-  if (!course) return
-  
-  switch (action) {
-    case 'duplicate':
-      ElMessage.success('课程复制成功')
-      break
-    case 'export':
-      ElMessage.info('正在导出课程...')
-      break
-    case 'archive':
-      try {
-        await ElMessageBox.confirm(
-          `确定要归档课程「${course.title}」吗？`,
-          '确认归档',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
-        course.status = 'archived'
-        updateCourseStats()
-        ElMessage.success('课程已归档')
-      } catch {
-        // 用户取消
+/**
+ * 提交课程审核。
+ *
+ * @param {object} course 课程对象
+ * @returns {Promise<void>} 异步结果
+ */
+const submitForReview = async (course) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定将课程“${course.title}”提交审核吗？提交后教师端将不能再直接发布该课程。`,
+      '提交审核',
+      {
+        confirmButtonText: '确认提交',
+        cancelButtonText: '取消',
+        type: 'info'
       }
-      break
-    case 'delete':
-      try {
-        await ElMessageBox.confirm(
-          `确定要删除课程「${course.title}」吗？此操作不可恢复！`,
-          '确认删除',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'error'
-          }
-        )
-        const index = courses.value.findIndex(c => c.id === id)
-        if (index > -1) {
-          courses.value.splice(index, 1)
-          updateCourseStats()
-          ElMessage.success('课程已删除')
-        }
-      } catch {
-        // 用户取消
-      }
-      break
+    )
+
+    processingCourseId.value = course.id
+    processingAction.value = 'submit'
+    await submitCourseReview(course.id)
+    ElMessage.success('课程已提交审核')
+    await loadTeacherCourses()
+    await nextTick()
+    animateCourseCards()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error?.message || '提交审核失败')
+    }
+  } finally {
+    processingCourseId.value = ''
+    processingAction.value = ''
   }
 }
 
-const handleSearch = () => {
-  currentPage.value = 1
+/**
+ * 归档草稿课程。
+ *
+ * @param {object} course 课程对象
+ * @returns {Promise<void>} 异步结果
+ */
+const archiveDraft = async (course) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定归档草稿课程“${course.title}”吗？归档后该课程会进入终态，不再继续提审。`,
+      '归档草稿',
+      {
+        confirmButtonText: '确认归档',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    processingCourseId.value = course.id
+    processingAction.value = 'archive'
+    await archiveTeacherCourse(course.id)
+    ElMessage.success('草稿课程已归档')
+    await loadTeacherCourses()
+    await nextTick()
+    animateCourseCards()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error?.message || '归档草稿失败')
+    }
+  } finally {
+    processingCourseId.value = ''
+    processingAction.value = ''
+  }
 }
 
-const handleFilter = () => {
-  currentPage.value = 1
-}
+/**
+ * 展示课程状态说明，帮助教师理解当前阶段的后续动作。
+ *
+ * @param {object} course 课程对象
+ */
+const previewStatusGuide = (course) => {
+  const statusMeta = getCourseStatusMeta(course.status)
+  const nextActionMap = {
+    pending: '管理员会在课程审核台中执行通过或驳回，你可以到通知中心查看结果。',
+    published: '课程已上线，如需内容维护可继续编辑课程信息，但不能直接变更发布状态。',
+    taken_down: '课程已下架，请先查看管理员说明，等待重新上架或归档决定。',
+    archived: '课程已归档，当前不会再进入发布流转。'
+  }
 
-const handleSort = () => {
-  currentPage.value = 1
-}
-
-const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
-}
-
-const handleCurrentChange = (page) => {
-  currentPage.value = page
-}
-
-onMounted(() => {
-  // 页面加载时加载课程列表
-  loadCourseList()
-
-  // gsap 动画: 增加科技感入场效果
-  gsap.fromTo('.page-header',
-    { y: -20, opacity: 0 },
-    { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
+  ElMessageBox.alert(
+    `${statusMeta.description}\n\n${nextActionMap[course.status] || '当前状态无需额外处理。'}`,
+    `${course.title} · ${statusMeta.label}`,
+    {
+      confirmButtonText: '知道了'
+    }
   )
-  gsap.fromTo('.stat-card',
-    { y: 20, opacity: 0 },
-    { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out', delay: 0.2 }
-  )
-  gsap.fromTo('.filter-section',
-    { opacity: 0 },
-    { opacity: 1, duration: 0.4, ease: 'power2.out', delay: 0.4 }
-  )
+}
+
+watch(
+  () => [keyword.value, statusFilter.value, sortBy.value],
+  () => {
+    currentPage.value = 1
+  }
+)
+
+watch(
+  () => [keyword.value, statusFilter.value, sortBy.value, currentPage.value, pageSize.value, courses.value.length],
+  async () => {
+    await nextTick()
+    animateCourseCards()
+  }
+)
+
+onMounted(async () => {
+  await loadTeacherCourses()
+  await nextTick()
+  playEnterAnimation()
+  animateCourseCards()
+})
+
+onUnmounted(() => {
+  enterContext?.revert()
+  listTween?.kill()
 })
 </script>
 
 <style scoped>
-:root {
-  --primary-gradient: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-  --text-primary: #2c3e50;
-  --text-secondary: #606266;
-}
-
-.teacher-courses {
-  min-height: 100vh;
+.teacher-review-page {
+  min-height: 100%;
   padding: 24px;
-  background-color: transparent;
-  font-family: 'Inter', 'PingFang SC', sans-serif;
-}
-
-/* Glass Card Global */
-.glass-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.glass-card:hover {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-/* Header */
-.page-header {
-  padding: 24px 32px;
-  margin-bottom: 24px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(217, 119, 6, 0.1), transparent 24%),
+    linear-gradient(180deg, #fcfaf6 0%, #eef5f2 100%);
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 24px;
 }
 
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  letter-spacing: -0.5px;
-}
-
-.icon-wrapper {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0284c7;
-  font-size: 20px;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
-}
-
-.page-subtitle {
-  color: #606266;
-  margin: 0;
-  font-size: 15px;
-  margin-left: 64px;
-}
-
-.gradient-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-  border: none;
-  padding: 10px 24px;
-  height: 44px;
-  font-weight: 600;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-  transition: all 0.3s ease;
-}
-
-.gradient-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
-}
-
-.glass-btn {
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  color: #2c3e50;
-  padding: 10px 20px;
-  height: 44px;
-  border-radius: 12px;
-  font-weight: 500;
-  backdrop-filter: blur(4px);
-}
-
-.glass-btn:hover {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: #2563eb;
-  color: #2563eb;
-}
-
-/* Stats */
-.stats-section {
+.hero-shell {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.stat-card {
-  padding: 24px;
-  display: flex;
-  align-items: center;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
   gap: 20px;
-  position: relative;
-  overflow: hidden;
 }
 
-.stat-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+.hero-copy,
+.hero-focus {
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
+}
+
+.eyebrow,
+.section-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.hero-title,
+.section-heading h2,
+.board-header h2,
+.empty-shell h3,
+.title-row h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.hero-title,
+.section-heading h2,
+.board-header h2 {
+  font-size: 30px;
+  line-height: 1.12;
+}
+
+.hero-description,
+.focus-description,
+.board-description,
+.course-description,
+.status-description,
+.status-brief p,
+.insight-list li {
+  color: #526072;
+  line-height: 1.7;
+}
+
+.hero-description,
+.focus-description,
+.board-description {
+  margin: 14px 0 0;
+}
+
+.hero-actions {
+  margin-top: 24px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-.stat-content {
-  z-index: 1;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: #2c3e50;
-  line-height: 1.2;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  color: #606266;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.stat-decoration {
-  position: absolute;
-  right: -20px;
-  top: -20px;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  opacity: 0.1;
-  filter: blur(20px);
-}
-
-/* Filter Section */
-.filter-section {
-  padding: 20px 24px;
-  margin-bottom: 32px;
-}
-
-.filter-row {
-  display: flex;
-  gap: 20px;
-  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.search-group {
-  flex: 1;
-  min-width: 300px;
+.primary-action,
+.ghost-action,
+.action-primary,
+.action-secondary,
+.action-pending {
+  height: 42px;
+  border-radius: 14px;
+  font-weight: 600;
 }
 
-.glass-input :deep(.el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow: none;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
-  padding: 4px 8px;
-  transition: all 0.3s;
+.primary-action,
+.action-primary {
+  border: none;
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  box-shadow: 0 16px 30px rgba(15, 118, 110, 0.22);
 }
 
-.glass-input :deep(.el-input__wrapper.is-focus) {
-  background: white;
-  box-shadow: 0 0 0 1px #2563eb;
-  border-color: #2563eb;
+.ghost-action,
+.action-secondary,
+.action-pending {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.86);
+  color: #1e293b;
 }
 
-.filter-group {
+.action-secondary.danger:hover {
+  color: #b45309;
+  border-color: rgba(180, 83, 9, 0.22);
+}
+
+.hero-focus {
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 242, 235, 0.94)),
+    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(217, 119, 6, 0.06));
+}
+
+.focus-label,
+.board-chip,
+.section-chip,
+.status-pill,
+.status-badge,
+.category-chip,
+.price-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.focus-label {
+  color: #155e75;
+  background: rgba(207, 250, 254, 0.88);
+}
+
+.focus-title {
+  margin-top: 18px;
+  color: #0f172a;
+  font-size: 26px;
+  line-height: 1.18;
+}
+
+.focus-metrics {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-.glass-select :deep(.el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 10px;
-  box-shadow: none;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 4px 8px;
+.focus-metric {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.78);
 }
 
-.view-btn {
-  border: none;
-  background: transparent;
-  padding: 10px 16px;
-  color: #94a3b8;
-  transition: all 0.2s;
+.focus-metric span,
+.stat-copy span,
+.meta-row span,
+.price-chip,
+.category-chip {
+  color: #64748b;
+  font-size: 13px;
 }
 
-.view-btn.active {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+.focus-metric strong,
+.stat-copy strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 24px;
 }
 
-.glass-btn-group {
-  background: rgba(255, 255, 255, 0.5);
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+.workflow-shell,
+.toolbar-shell,
+.board-shell,
+.insight-card {
+  padding: 24px;
 }
 
-/* Grid View */
-.courses-grid {
+.section-heading,
+.board-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-chip {
+  background: rgba(240, 249, 255, 0.88);
+  color: #1d4ed8;
+}
+
+.workflow-track {
+  margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workflow-step {
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), var(--step-soft));
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.step-index {
+  color: var(--step-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.step-copy strong {
+  display: block;
+  margin-top: 10px;
+  color: #0f172a;
+}
+
+.step-copy p,
+.stat-copy small,
+.category-chip,
+.price-chip,
+.course-description,
+.status-description,
+.status-brief p {
+  margin-top: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), var(--card-soft));
+}
+
+.stat-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--card-accent);
+  font-size: 18px;
+}
+
+.toolbar-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 220px 220px;
+  gap: 12px;
+}
+
+.toolbar-input :deep(.el-input__wrapper),
+.toolbar-select :deep(.el-select__wrapper) {
+  min-height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: none;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.insight-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.insight-card h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.insight-list {
+  margin: 16px 0 0;
+  padding-left: 18px;
+}
+
+.status-brief + .status-brief {
+  margin-top: 14px;
+}
+
+.status-pill,
+.status-badge {
+  color: var(--pill-accent, var(--status-accent));
+  background: var(--pill-soft, var(--status-soft));
+}
+
+.board-chip {
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+
+.loading-shell,
+.empty-shell {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #64748b;
+}
+
+.loading-orb {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 4px solid rgba(20, 184, 166, 0.18);
+  border-top-color: #0f766e;
+  animation: spin 1s linear infinite;
+}
+
+.empty-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  background: rgba(226, 232, 240, 0.72);
+  color: #64748b;
+  font-size: 22px;
+}
+
+.course-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .course-card {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(188px, 36%) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), var(--status-soft));
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.06);
+}
+
+.card-cover {
   position: relative;
-}
-
-.hover-lift:hover {
-  transform: translateY(-8px);
-}
-
-.course-cover {
-  position: relative;
-  height: 180px;
+  align-self: start;
+  isolation: isolate;
+  border-radius: 18px;
   overflow: hidden;
-  border-radius: 16px 16px 0 0;
+  aspect-ratio: 4 / 5;
+  min-height: 0;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(148, 163, 184, 0.16));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.54),
+    0 20px 36px rgba(15, 23, 42, 0.12);
 }
 
-.course-cover img {
+.card-cover::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 52%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card-cover::after {
+  content: '';
+  position: absolute;
+  inset: auto 12% 10px 12%;
+  height: 24%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(15, 118, 110, 0.18), transparent 72%);
+  filter: blur(18px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card-cover img,
+.cover-fallback {
+  position: relative;
+  z-index: 1;
+  display: block;
   width: 100%;
   height: 100%;
+}
+
+.card-cover img {
   object-fit: cover;
-  transition: transform 0.5s ease;
+  object-position: center;
 }
 
-.course-card:hover .course-cover img {
-  transform: scale(1.1);
-}
-
-.course-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
-  opacity: 0.6;
-}
-
-.course-status-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  backdrop-filter: blur(8px);
-  color: white;
-}
-
-.course-status-badge.published {
-  background: rgba(103, 194, 58, 0.8);
-}
-
-.course-status-badge.draft {
-  background: rgba(230, 162, 60, 0.8);
-}
-
-.course-status-badge.archived {
-  background: rgba(144, 147, 153, 0.8);
-}
-
-.course-actions-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
-}
-
-.course-card:hover .course-actions-overlay {
-  transform: translateY(0);
-}
-
-.action-btn {
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  color: #2c3e50;
-  width: 36px;
-  height: 36px;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: white;
-  color: #2563eb;
-  transform: scale(1.1);
-}
-
-.course-content {
-  padding: 20px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.course-category-tag {
-  font-size: 12px;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
-  padding: 4px 8px;
-  border-radius: 6px;
-  align-self: flex-start;
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-
-.course-title {
-  font-size: 18px;
+.cover-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--status-accent);
+  font-size: 24px;
   font-weight: 700;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.82), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.82), var(--status-soft));
+}
+
+.status-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .course-description {
-  font-size: 14px;
-  color: #606266;
-  margin: 0 0 16px 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  height: 42px;
+  min-height: 48px;
 }
 
-.course-meta {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  color: #909399;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.star-icon {
-  color: #f59e0b;
-}
-
-.course-footer {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.course-price {
-  color: #f56c6c;
-  font-weight: 700;
-}
-
-.currency {
-  font-size: 14px;
-  margin-right: 2px;
-}
-
-.amount {
-  font-size: 20px;
-}
-
-.price {
-  color: #f56c6c;
-  font-weight: 700;
-}
-
-.price-unavailable {
-  color: #909399;
-  font-weight: 500;
-}
-
-.course-updated {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* List View */
-.courses-list {
-  padding: 0;
-  overflow: hidden;
-}
-
-.list-header {
-  display: flex;
-  padding: 16px 24px;
-  background: rgba(245, 247, 250, 0.5);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  font-weight: 600;
-  color: #606266;
-  font-size: 14px;
-}
-
-.header-cell {
-  flex: 1;
-}
-
-.header-cell.course-info {
-  flex: 3;
-}
-
-.list-item {
-  display: flex;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  align-items: center;
-  transition: background 0.2s;
-}
-
-.list-item:hover {
-  background: rgba(37, 99, 235, 0.02);
-}
-
-.list-item:last-child {
-  border-bottom: none;
-}
-
-.list-cell {
-  flex: 1;
-  font-size: 14px;
-  color: #606266;
-}
-
-.list-cell.course-info {
-  flex: 3;
-}
-
-.course-basic {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.course-thumbnail-wrapper {
-  width: 80px;
-  height: 50px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.course-thumbnail {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.course-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.course-title {
-  margin: 0 0 4px 0;
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.course-category-text {
-  font-size: 12px;
-  color: #909399;
-  margin: 0 0 4px 0;
-}
-
-.course-progress-mini {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.progress-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 8px;
-}
-
-.status-dot.published { background: #67c23a; }
-.status-dot.draft { background: #e6a23c; }
-.status-dot.archived { background: #909399; }
-
-.rating-badge {
+.description-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: #fff8e6;
-  color: #b45309;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  width: fit-content;
 }
 
-.list-cell.actions {
+.description-trigger.is-truncated {
+  cursor: help;
+  border-bottom: 1px dashed rgba(15, 118, 110, 0.26);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.description-trigger.is-truncated:hover,
+.description-trigger.is-truncated:focus-visible {
+  color: #0f172a;
+  border-bottom-color: rgba(15, 118, 110, 0.5);
+  outline: none;
+}
+
+:deep(.course-description-tooltip) {
+  max-width: min(320px, calc(100vw - 32px));
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: rgba(15, 23, 42, 0.88);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.26);
+  padding: 10px 12px;
+}
+
+:deep(.course-description-tooltip .description-tooltip-copy) {
+  color: #f8fafc;
+  line-height: 1.65;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.meta-row {
+  margin-top: 14px;
   display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mini-track {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
-.icon-btn {
-  background: transparent;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  color: #909399;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.track-node {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(203, 213, 225, 0.6);
 }
 
-.icon-btn:hover {
-  background: rgba(37, 99, 235, 0.1);
+.track-node.complete,
+.track-node.current {
+  background: var(--status-accent);
+}
+
+.action-row {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-pending {
   color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
-/* Pagination */
-.pagination-section {
+.pagination-shell {
+  margin-top: 20px;
   display: flex;
   justify-content: center;
-  margin-top: 32px;
 }
 
-.glass-pagination :deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background-color: #2563eb;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.glass-pagination :deep(.el-pagination.is-background .el-pager li) {
-  background-color: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+@media (max-width: 1260px) {
+  .hero-shell,
+  .page-grid,
+  .toolbar-shell,
+  .stats-grid,
+  .course-grid,
+  .workflow-track,
+  .focus-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Empty State */
-.empty-state {
-  padding: 64px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+@media (max-width: 768px) {
+  .teacher-review-page {
+    padding: 16px;
+  }
+
+  .hero-copy,
+  .hero-focus,
+  .workflow-shell,
+  .toolbar-shell,
+  .board-shell,
+  .insight-card {
+    padding: 20px;
+  }
+
+  .hero-title,
+  .section-heading h2,
+  .board-header h2 {
+    font-size: 24px;
+  }
+
+  .course-card {
+    grid-template-columns: 1fr;
+  }
+
+  .card-cover {
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  .section-heading,
+  .board-header,
+  .title-row {
+    flex-direction: column;
+  }
 }
 
-.empty-icon-wrapper {
-  width: 120px;
-  height: 120px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48px;
-  color: #38bdf8;
-  margin-bottom: 24px;
-  box-shadow: 0 10px 25px rgba(56, 189, 248, 0.15);
-}
+@media (prefers-reduced-motion: reduce) {
+  .loading-orb {
+    animation: none;
+  }
 
-.empty-title {
-  font-size: 20px;
-  color: #2c3e50;
-  margin-bottom: 12px;
-}
-
-.empty-description {
-  color: #909399;
-  margin-bottom: 32px;
-  max-width: 400px;
-  line-height: 1.6;
-}
-
-/* Transitions */
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s ease;
-}
-
-.list-enter-from,
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-.list-item-enter-active,
-.list-item-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-item-enter-from,
-.list-item-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
+  .primary-action,
+  .ghost-action,
+  .action-primary,
+  .action-secondary,
+  .action-pending,
+  .description-trigger.is-truncated {
+    transition: none;
+  }
 }
 </style>

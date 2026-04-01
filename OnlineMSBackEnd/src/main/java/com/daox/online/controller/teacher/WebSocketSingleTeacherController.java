@@ -13,6 +13,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 教师端单聊控制器。
+ * <p>
+ * 教师与学生的点对点对话共用同一套消息服务，教师侧仅通过独立路由暴露查询、已读和未读统计能力，
+ * 便于权限控制和前端按角色分流调用。
+ * </p>
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/teacher/chat")

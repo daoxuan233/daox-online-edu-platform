@@ -227,6 +227,14 @@ public class NotificationCenterServiceImpl implements NotificationCenterService 
         if (NotificationConstants.COURSE_ACTION_PUBLISHED.equals(changeAction)) {
             title = "课程已发布：" + courseTitle;
             content = "课程《" + courseTitle + "》现已发布，您可以查看最新课程安排并开始学习。";
+        } else if (NotificationConstants.COURSE_ACTION_REPUBLISHED.equals(changeAction)) {
+            title = "课程已重新上架：" + courseTitle;
+            content = "课程《" + courseTitle + "》已重新上架，您可以继续查看课程内容与学习安排。";
+            level = NotificationConstants.LEVEL_SUCCESS;
+        } else if (NotificationConstants.COURSE_ACTION_TAKEN_DOWN.equals(changeAction)) {
+            title = "课程已下架：" + courseTitle;
+            content = "课程《" + courseTitle + "》已被下架，请留意教师或管理员的后续安排。";
+            level = NotificationConstants.LEVEL_WARNING;
         } else if (NotificationConstants.COURSE_ACTION_ARCHIVED.equals(changeAction)) {
             title = "课程安排有更新：" + courseTitle;
             content = "课程《" + courseTitle + "》已归档或暂停开放，请留意教师后续安排。";
@@ -254,6 +262,68 @@ public class NotificationCenterServiceImpl implements NotificationCenterService 
                 null
         );
         batchInsert(notifications, "notifyCourseChanged");
+    }
+
+    /**
+     * 向课程教师发送审核结果或后台状态流转通知。
+     *
+     * @param course       课程实体
+     * @param actor        操作人
+     * @param reviewAction 审核动作
+     * @param comment      审核说明
+     */
+    @Override
+    public void notifyCourseReviewResult(Courses course, Users actor, String reviewAction, String comment) {
+        if (course == null || !StringUtils.hasText(course.getTeacherId())) {
+            return;
+        }
+
+        String courseTitle = safeText(course.getTitle(), "未命名课程");
+        String title;
+        String content;
+        String level;
+
+        if (NotificationConstants.COURSE_ACTION_REVIEW_APPROVED.equals(reviewAction)) {
+            title = "课程审核已通过：" + courseTitle;
+            content = "您提交的课程《" + courseTitle + "》已审核通过，课程当前已发布。";
+            level = NotificationConstants.LEVEL_SUCCESS;
+        } else if (NotificationConstants.COURSE_ACTION_REVIEW_REJECTED.equals(reviewAction)) {
+            title = "课程审核未通过：" + courseTitle;
+            content = "您提交的课程《" + courseTitle + "》未通过审核，课程已退回草稿。" + appendComment(comment);
+            level = NotificationConstants.LEVEL_WARNING;
+        } else if (NotificationConstants.COURSE_ACTION_TAKEN_DOWN.equals(reviewAction)) {
+            title = "课程已下架：" + courseTitle;
+            content = "课程《" + courseTitle + "》已被管理员下架。" + appendComment(comment);
+            level = NotificationConstants.LEVEL_WARNING;
+        } else if (NotificationConstants.COURSE_ACTION_REPUBLISHED.equals(reviewAction)) {
+            title = "课程已重新上架：" + courseTitle;
+            content = "课程《" + courseTitle + "》已重新上架，学生可再次访问与学习。";
+            level = NotificationConstants.LEVEL_SUCCESS;
+        } else if (NotificationConstants.COURSE_ACTION_ARCHIVED.equals(reviewAction)) {
+            title = "课程已归档：" + courseTitle;
+            content = "课程《" + courseTitle + "》已完成归档处理。" + appendComment(comment);
+            level = NotificationConstants.LEVEL_WARNING;
+        } else {
+            title = "课程状态已更新：" + courseTitle;
+            content = "课程《" + courseTitle + "》的审核或状态已更新，请及时查看。" + appendComment(comment);
+            level = NotificationConstants.LEVEL_INFO;
+        }
+
+        List<UserNotifications> notifications = buildNotifications(
+                Collections.singleton(course.getTeacherId()),
+                NotificationConstants.TYPE_COURSE_REVIEW_RESULT,
+                NotificationConstants.SOURCE_COURSE,
+                course.getId(),
+                title,
+                content,
+                level,
+                actor == null ? null : actor.getId(),
+                course.getId(),
+                course.getId(),
+                new Date(),
+                null
+        );
+        batchInsert(notifications, "notifyCourseReviewResult");
     }
 
     /**
@@ -411,6 +481,19 @@ public class NotificationCenterServiceImpl implements NotificationCenterService 
                     .setExpiresAt(expiresAt));
         }
         return notifications;
+    }
+
+    /**
+     * 拼接审核说明。
+     *
+     * @param comment 审核说明
+     * @return 拼接后的文本片段
+     */
+    private String appendComment(String comment) {
+        if (!StringUtils.hasText(comment)) {
+            return "";
+        }
+        return " 审核说明：" + comment.trim();
     }
 
     /**

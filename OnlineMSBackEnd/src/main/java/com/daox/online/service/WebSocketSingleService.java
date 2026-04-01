@@ -11,10 +11,11 @@ public interface WebSocketSingleService {
     /**
      * 添加单聊信息
      *
-     * @param message 消息
+     * @param message             客户端发送的消息载荷
+     * @param authenticatedUserId 当前已认证的发送方用户ID
      * @return 添加后的消息
      */
-    ChatMessage addSingleMessage(ChatMessage message);
+    ChatMessage addSingleMessage(ChatMessage message, String authenticatedUserId);
 
     /**
      * 查看好友列表
